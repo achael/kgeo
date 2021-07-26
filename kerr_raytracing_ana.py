@@ -18,6 +18,7 @@ from tqdm import tqdm
 import time
 from kerr_raytracing_utils import *
 from gsl_ellip_binding import ellip_pi_gsl
+import h5py
 
 ROUT = 1000 #4.e10 # sgra distance in M
 NGEO = 200
@@ -133,7 +134,10 @@ def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
 
     if savedata:
         print('saving data...')
-        savegeos(a,th_o,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s)
+        try:
+            savegeos(a,th_o,r_o,alpha, beta,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s)
+        except:
+            print("Error saving to file!")
     if plotdata:
         print('plotting data...')
         plotgeos(a,th_o,r_o,Nmax_eq,r_s,th_s,ph_s)
@@ -141,7 +145,7 @@ def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
     print('done!')
     return(n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s)
 
-def savegeos(a,th_o,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s):
+def savegeos(a,th_o,r_o,alpha,beta,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s):
     fname = 'a%0.2f_th%0.2f_geo.h5'%(a,th_o*180/np.pi)
     hf = h5py.File(fname,'w')
     hf.create_dataset('spin',data=a)
