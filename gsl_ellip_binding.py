@@ -136,24 +136,6 @@ def sf_error_handler(result, func, arguments):
 set_error_handler(exception_on_error)
 
 ###################################################################################
-# Bessel Function Example
-#native.gsl_sf_bessel_J0.argtypes = (c_double,)
-#native.gsl_sf_bessel_J0.restype = c_double
-
-#def J0_gsl(x):
-#    """TEST FUNCTION
-#       Evaluate the zeroth-order Bessel function of the first kind."""
-#    return native.gsl_sf_bessel_J0(x)
-
-#def test_J0():
-#    args = [1.,.4,5.9,111.]
-#    for x in args:
-#        sp_j = j0(x)
-#        gsl_j = J0_gsl(x)
-#        print("%.6e %.6e %.6e"%(sp_j,gsl_j,1.-gsl_j/sp_j))
-#    return
-
-###################################################################################
 # Elliptic Integral
 ###################################################################################
 
@@ -208,7 +190,6 @@ def ellip_pi_gsl(n,phi,m,precision=Mode.default):
     if (np.isinf(n)): # TODO large n limit
         return 0.
 
-    #
     # account for periodicity
     if(np.abs(phi)>np.pi):
         s = np.sign(phi)
@@ -217,13 +198,16 @@ def ellip_pi_gsl(n,phi,m,precision=Mode.default):
         comp_part = 2*k*ellip_pi_gsl(n,np.pi/2.,m,precision=precision)
         incomp_part = ellip_pi_gsl(n,phi2,m,precision=precision)
         Pi = comp_part + incomp_part
-    elif(np.pi/2.<np.abs(phi)<np.pi): #TODO can we merge with previous case somehow?
+
+    elif(np.pi/2.<np.abs(phi)<=np.pi): #TODO can we merge with previous case somehow?
         s = np.sign(phi)
         phi2 = -phi + s*np.pi
         comp_part = s*2*ellip_pi_gsl(n,np.pi/2.,m,precision=precision)
         incomp_part = -ellip_pi_gsl(n,phi2,m,precision=precision)
         Pi = comp_part + incomp_part
+
     else:
+        # TODO should we just use scipy ellipkinc here?!
         resultRF = make_sf_result_p()
         retRF = native.gsl_sf_ellint_RF_e(x,y,z,precision,resultRF)
         CRF = resultRF.contents.val
@@ -247,7 +231,7 @@ def ellip_pi_gsl(n,phi,m,precision=Mode.default):
 
             CRJ = ((p-z)*CRJ0 - 3*CRF + 3*np.sqrt((x*y*z)/(x*y+p*q))*CRC)/(q+z)
 
-        F = sphi * CRF # TODO should we just use scipy ellipkinc here?!
+        F = sphi * CRF
         Pi = F + (n/3.)*(sphi**3)*CRJ
 
     return Pi
