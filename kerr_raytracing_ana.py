@@ -133,7 +133,7 @@ def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
 
     if savedata:
         print('saving data...')
-        savedata(a,th_o,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s)
+        savegeos(a,th_o,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s)
     if plotdata:
         print('plotting data...')
         plotgeos(a,th_o,r_o,Nmax_eq,r_s,th_s,ph_s)
@@ -141,7 +141,7 @@ def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
     print('done!')
     return(n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s)
 
-def savedata(a,th_o,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s):
+def savegeos(a,th_o,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s):
     fname = 'a%0.2f_th%0.2f_geo.h5'%(a,th_o*180/np.pi)
     hf = h5py.File(fname,'w')
     hf.create_dataset('spin',data=a)
