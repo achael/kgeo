@@ -6,7 +6,7 @@ In addition to some standard python libraries, this code uses GSL bindings for e
 
   ctypes.CDLL('libgsl.so') 
   
-To try a simple example, try
+To run a simple example, try
 
 .. code-block:: bash
 
