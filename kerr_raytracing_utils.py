@@ -235,7 +235,7 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
         k2 = (rr32*rr41)/(rr31*rr42)# 0<k=k2<1, GL19a B13
         x2rp = np.sqrt((rr31*(rplus-rr4))/(rr41*(rplus-rr3)))# GL19a, B35
         if r_o==np.infty:
-            x2ro = np.sqrt(rr31/rr41)# B35, for observer at r_o # TODO -- finite radius observer?
+            x2ro = np.sqrt(rr31/rr41)# B35, for observer at r_o
         else:
             x2ro = np.sqrt((rr31*(r_o-rr4))/(rr41*(r_o-rr3)))# GL19a, B35
 
@@ -267,7 +267,7 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
         # parameters for case 2
         k2 = (rr32*rr41)/(rr31*rr42)# 0<k=k2<1, GL19a B13
         if r_o==np.infty:
-            x2ro = np.sqrt(rr31/rr41)# B35, for observer at r_o # TODO -- finite radius observer?
+            x2ro = np.sqrt(rr31/rr41)# B35, for observer at r_o
         else:
             x2ro = np.sqrt((rr31*(r_o-rr4))/(rr41*(r_o-rr3)))# GL19a, B35
 
