@@ -23,7 +23,7 @@ import h5py
 
 ROUT = 1000 #4.e10 # sgra distance in M
 NGEO = 200
-NPIX = 200
+NPIX = 500
 EP = 1.e-12
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits.
@@ -36,8 +36,28 @@ sn_arr = np.frompyfunc(mpmath.ellipfun('sn'),2,1) # SLOW, use sp.ellipj and tran
 # GSL elliptic functions
 ellippi_arr_gsl = np.frompyfunc(ellip_pi_gsl,3,1)
 
+def intersect_plane(th_n, ph_n, r_s, th_s, ph_s):
+
+    nint = np.zeros(r_s.shape[-1])
+    for i in range(r_s.shape[-1]): # TODO speed up #TODO right indexing?
+        r = r_s[:,i];th=th_s[:,i];ph=ph_s[:,i] 
+        
+        # find where geodesic passes through plane with normal at th_n, ph_n through origin. 
+        # NOTE: pass in a single geodesic (for now)
+
+        xn = np.array([np.cos(ph_n)*np.sin(th_n),np.sin(ph_n)*np.sin(th_n),np.cos(th_n)])    
+        xo = np.array([r*np.cos(th)*np.sin(th),r*np.sin(th)*np.cos(th),r*np.cos(th)]).T
+        
+        d = xo[1:] - xo[:-1] # vector between geodeisc points
+        t = np.dot(-xo[:-1],xn)/np.dot(d,xn)
+        intersect = (0 < t) * (t < 1)
+        nintersect = np.sum(intersect)
+        print(xn)
+        nint[i] = nintersect
+    
+#TODO -- errors in phi raytracing with alpha=0,beta!=0. 
 def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
-                 alpha=np.linspace(-8,8,NPIX), beta=0*np.ones(NPIX), ngeo=NGEO,
+                 alpha=np.linspace(-8,8,NPIX),beta=0.0*np.ones(NPIX), ngeo=NGEO,
                  do_phi_and_t=True,
                  savedata=False, plotdata=True):
     # checks
@@ -685,64 +705,4 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,do_phi_and_t=True):
     return (r_s, I_phi, I_t, I_sig)
 
 
-def th_integrate_old(a,th_o, s_o, eta, u_plus, u_minus,tausteps):
-    if not isinstance(s_o, np.ndarray): s_o = np.array([s_o]).flatten()
-    if not isinstance(eta, np.ndarray): eta= np.array([eta]).flatten()
-    if not isinstance(u_plus, np.ndarray): u_plus = np.array([u_plus]).flatten()
-    if not isinstance(u_minus, np.ndarray): u_minus = np.array([u_minus]).flatten()
-    if not(len(s_o)==len(eta)==len(u_plus)==len(u_minus)):
-        raise Exception("inputs to th_integrate not the same length!")
-    if not(tausteps.shape[1]==len(s_o)):
-        raise Exception("tausteps has incompatible shape in th_integrate!")
 
-    # GL 19b Eq 25
-    s_eta = my_sign(eta) # GL 19b claim this works for eta<0!
-    k = u_plus/u_minus
-
-    xFarg = np.cos(th_o)/np.sqrt(u_plus)
-    # need mpmath elliptic function for arbitrary k
-    F_o = ellipf_arr(np.arcsin(xFarg),k).astype(complex)
-    GG = s_o*a*np.sqrt(-u_minus.astype(complex))
-
-    # compute the angular motion
-    # need mpmath elliptic function for arbitrary k
-    rhs = sn_arr((F_o + GG*tausteps), k)
-    rhs = np.real(rhs.astype(complex))
-    th_s = np.arccos(np.sqrt(u_plus)*rhs)
-
-    return th_s
-
-
-def r_integrate_old(r_o, eta, r1,r2,r3,r4,tausteps):
-    if not isinstance(eta, np.ndarray): eta= np.array([eta]).flatten()
-    if not isinstance(r1, np.ndarray): r1 = np.array([r1]).flatten()
-    if not isinstance(r2, np.ndarray): r2 = np.array([r2]).flatten()
-    if not isinstance(r3, np.ndarray): r3 = np.array([r3]).flatten()
-    if not isinstance(r4, np.ndarray): r4 = np.array([r4]).flatten()
-    if not(len(eta)==len(r1)==len(r2)==len(r3)==len(r4)):
-        raise Exception("inputs to r_integrate not the same length!")
-    if not(tausteps.shape[1]==len(eta)):
-        raise Exception("tausteps has incompatible shape in r_integrate!")
-
-    r31 = r3 - r1
-    r32 = r3 - r2
-    r41 = r4 - r1
-    r42 = r4 - r2
-    k = (r32 * r41) / (r31 * r42)
-
-    if r_o==np.infty:
-        x2ro = np.sqrt(r31/r41) # B35, for observer at r_o
-    else:
-        x2ro = np.sqrt((r31*(r_o-r4))/(r41*(r_o-r3)))# GL19a, B35
-
-    # Find r_s
-    auxarg = np.arcsin(x2ro)
-    F_o = ellipf_arr(auxarg,k).astype(complex)
-    xx = .5*np.sqrt(r31*r42)
-
-    # compute the radial motion
-    sn2 = (sn_arr(xx*tausteps - F_o, k).astype(complex))**2
-    r_s = (r4*r31 - r3*r41*sn2) / (r31 - r41*sn2)
-    r_s = np.real(r_s)
-
-    return r_s
