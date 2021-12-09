@@ -18,12 +18,13 @@ from mpl_toolkits.mplot3d import Axes3D
 from tqdm import tqdm
 import time
 from kerr_raytracing_utils import *
-
 import h5py
 
-ROUT = 10000 #4.e10 # sgra distance in M
-NGEO = 200
-NPIX = 10000
+SPIN = 0.94
+INC = 20*np.pi/180.
+ROUT = 1000 #4.e10 # sgra distance in M
+NGEO = 250
+NPIX = 1000
 EP = 1.e-12
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits.
@@ -48,27 +49,7 @@ else:
     raise Exception("no elliptic Pi option chosen!")
 
 
-# def intersect_plane(th_n, ph_n, r_s, th_s, ph_s):
-#
-#     nint = np.zeros(r_s.shape[-1])
-#     for i in range(r_s.shape[-1]): # TODO speed up #TODO right indexing?
-#         r = r_s[:,i];th=th_s[:,i];ph=ph_s[:,i]
-#
-#         # find where geodesic passes through plane with normal at th_n, ph_n through origin.
-#         # NOTE: pass in a single geodesic (for now)
-#
-#         xn = np.array([np.cos(ph_n)*np.sin(th_n),np.sin(ph_n)*np.sin(th_n),np.cos(th_n)])
-#         xo = np.array([r*np.cos(th)*np.sin(th),r*np.sin(th)*np.cos(th),r*np.cos(th)]).T
-#
-#         d = xo[1:] - xo[:-1] # vector between geodeisc points
-#         t = np.dot(-xo[:-1],xn)/np.dot(d,xn)
-#         intersect = (0 < t) * (t < 1)
-#         nintersect = np.sum(intersect)
-#         print(xn)
-#         nint[i] = nintersect
-
-
-pix_1d = np.linspace(-8,8,NPIX)
+pix_1d = np.linspace(-6,0,NPIX)
 alpha_default = pix_1d
 beta_default = 0*pix_1d
 
@@ -76,12 +57,17 @@ beta_default = 0*pix_1d
 #beta_default = np.hstack((0*pix_1d,pix_1d))
 
 #TODO -- errors in phi raytracing with alpha=0,beta!=0.
-def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
-                 alpha=alpha_default, beta=beta_default, ngeo=NGEO,
+def raytrace_ana(a=SPIN, 
+                 observer_coords = [0,ROUT,INC,0],
+                 image_coords = [alpha_default, beta_default],
+                 ngeo=NGEO,
                  do_phi_and_t=True,
                  savedata=False, plotdata=True):
 
     tstart = time.time()
+    
+    [_, r_o, th_o, _] = observer_coords # assumes ph_o = 0
+    [alpha, beta] = image_coords 
     
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
@@ -103,16 +89,16 @@ def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
 
-    # spin zero should have no voritical geodesics
+    # sign of final angular momentum
+    s_o = my_sign(beta)
+
+    # spin zero should have no vortical geodesics
     if(a<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
         print("WARNING: there were eta<0 points for spin %f<MINSPIN!"%a)
 
-    # angular turning points
+    # angular turning points and number of equatorial crossings
     (u_plus, u_minus, th_plus, th_minus, thclass) = angular_turning(a, th_o, lam, eta)
-
-    # sign of final angular momentum
-    s_o = my_sign(beta)
 
     # radial roots and radial motion case
     (r1, r2, r3, r4, rclass) = radial_roots(a, lam, eta)
@@ -120,135 +106,57 @@ def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
     # total Mino time to infinity
     tau_tot = mino_total(a, r_o, eta, r1, r2, r3, r4)
 
-    # find the steps in tau
-    # go to taumax in the same number of steps on each ray -- step dtau depends on the ray
+    # define steps equally spaced in Mino time tau
+    # rays have equal numbers of steps -- step size dtau depends on the ray
+    # mino time is positive back from screen in GL19b conventions    
     dtau = MAXTAUFRAC*tau_tot / (ngeo - 1)
-    tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo) # positive back from screen in GL19b conventions
-
-    # find the number of poloidal orbits as a function of time (GL 19b Eq 35)
-    # Only applies for normal geodesics eta>0
-    if(a<MINSPIN):
-        uratio = 0.
-        a2u_minus = -(eta+lam**2)
-    else:
-        uratio = u_plus/u_minus
-        a2u_minus = a**2 * u_minus
-
-    K = sp.ellipk(uratio) # gives NaN for eta<0
-    n_all = (np.sqrt(-a2u_minus.astype(complex))*tausteps)/(4*K)
-    n_all = np.real(n_all.astype(complex))
-    n_tot = n_all[-1]
-
-    # fractional number of equatorial crossings
-    # Only applies for normal geodesics eta>0
-    F_o = sp.ellipkinc(np.arcsin(np.cos(th_o)/np.sqrt(u_plus)), uratio) # gives NaN for eta<0
-    Nmax_eq = ((tau_tot*np.sqrt(-a2u_minus.astype(complex)) + s_o*F_o) / (2*K))  + 1
-    Nmax_eq[beta>=0] -= 1
-    Nmax_eq = np.floor(np.real(Nmax_eq.astype(complex)))
-    Nmax_eq[np.isnan(Nmax_eq)] = 0
+    tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo) 
 
     # integrate in theta
     print('integrating in theta...',end="\r")
     start = time.time()
-    (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,tausteps,do_phi_and_t=do_phi_and_t)
+    (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,tausteps,
+                                     do_phi_and_t=do_phi_and_t)
     stop = time.time()
     print('integrating in theta...%0.2f s'%(stop-start))
 
     # integrate in r1
     print('integrating in r...',end="\r")
     start = time.time()
-    (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,do_phi_and_t=do_phi_and_t)
+    (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
+                                          do_phi_and_t=do_phi_and_t)
     stop = time.time()
     print('integrating in r...%0.2f s'%(stop-start))
 
-    # combine to get phi, t, and sigma as a function of time
+    # combine integrals to get phi, t, and sigma as a function of time
     sig_s = 0 + I_sig + a**2 * G_t # GL19a 15
     t_s = 0 + I_t + a**2 * G_t # GL19a 12
     ph_s = 0 + I_ph + lam*G_ph # GL19a 11
 
-    # put phi in range (-pi,pi)
-    #ph_s = np.mod(ph_s - np.pi, 2*np.pi) - np.pi
-
+    # create Geodesics object
+    affinesteps = sig_s
+    geo_coords = [t_s,r_s,th_s,ph_s]
+    geos = Geodesics(a, observer_coords, image_coords, tausteps, affinesteps, geo_coords)
+    
     if savedata and do_phi_and_t:
         print('saving data...')
         try:
-            savegeos(a,th_o,r_o,alpha, beta,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s)
+            geos.savegeos()
         except:
             print("Error saving to file!")
     if plotdata and do_phi_and_t:
         print('plotting data...')
-        plotgeos(a,th_o,r_o,Nmax_eq,r_s,th_s,ph_s)
-  
+        try:
+            plt.ion()
+            geos.plotgeos()
+            plt.show()
+        except:
+            print("Error plotting data!")   
+                   
     tstop = time.time()
     print('done!  ', tstop-tstart, ' seconds!')
-    return(n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s)
+    return geos
 
-def savegeos(a,th_o,r_o,alpha,beta,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s):
-    fname = 'a%0.2f_th%0.2f_geo.h5'%(a,th_o*180/np.pi)
-    hf = h5py.File(fname,'w')
-    hf.create_dataset('spin',data=a)
-    hf.create_dataset('inc',data=th_o)
-    hf.create_dataset('alpha',data=alpha)
-    hf.create_dataset('beta',data=beta)
-    hf.create_dataset('t',data=t_s)
-    hf.create_dataset('r',data=r_s)
-    hf.create_dataset('theta',data=th_s)
-    hf.create_dataset('phi',data=ph_s)
-    hf.create_dataset('affine',data=sig_s)
-    hf.create_dataset('mino',data=tausteps)
-    #hf.create_dataset('eq_crossings',data=Nmax_eq)
-    #hf.create_dataset('frac_orbits',data=n_tot)
-    hf.close()
-
-def plotgeos(a,th_o,r_o,Nmax_eq,r_s,th_s,ph_s,xlim=10,rmax=15):
-    rplus  = 1 + np.sqrt(1-a**2)
-
-    # convert to cartesian for plotting
-    x_s = r_s * np.cos(ph_s) * np.sin(th_s)
-    y_s = r_s * np.sin(ph_s) * np.sin(th_s)
-    z_s = r_s * np.cos(th_s)
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    u, v = np.mgrid[0:2 * np.pi:30j, 0:np.pi:20j]
-    ax.plot_surface(rplus*np.cos(u) * np.sin(v),  rplus*np.sin(u) * np.sin(v),  rplus*np.cos(v), color='black')
-
-    rr, thth = np.mgrid[0:xlim, 0:2*np.pi:20j]
-    xx = rr*np.cos(thth); yy = rr*np.sin(thth)
-    zz = np.zeros(xx.shape)
-    ax.plot_surface(xx, yy, zz, alpha=0.5)
-    ax.set_xlim(-xlim,xlim)
-    ax.set_ylim(-xlim,xlim)
-    ax.set_zlim(-xlim,xlim)
-    ax.auto_scale_xyz([-xlim, xlim], [-xlim, xlim], [-xlim, xlim])
-    ax.set_axis_off()
-
-    x_o = 1.5*rmax * np.cos(0) * np.sin(th_o)
-    y_o = 1.5*rmax * np.sin(0) * np.sin(th_o)
-    z_o = 1.5*rmax * np.cos(th_o)
-    ax.plot3D([0,x_o],[0,y_o],[0,z_o],'black',ls='dashed')
-
-    maxwraps = int(np.nanmax(Nmax_eq))
-    colors = ['k','b','g','orange','r','m','c','y']
-    NPLOT=50
-    print('maxwraps ', maxwraps)
-    nloop = np.min((maxwraps+1,len(colors)))
-    for j in range(nloop):
-        mask = (Nmax_eq==j)
-        color = colors[j]
-        xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];rs = r_s[:,mask];
-        nplot = int(np.ceil(NPLOT*xs.shape[-1]/NPIX))
-        if xs.shape[-1] < 5 or j>=3:
-            geos = range(xs.shape[-1])
-        else:
-            geos = range(0,xs.shape[-1],xs.shape[-1]//nplot)
-
-        for i in geos:
-            x = xs[:,i]; y=ys[:,i]; z=zs[:,i]
-            mask = rs[:,i] < rmax
-            x = x[mask]; y = y[mask]; z = z[mask]
-            ax.plot3D(x,y,z,color)
-    return
 
 def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,  do_phi_and_t=True):
     if not isinstance(s_o, np.ndarray): s_o = np.array([s_o]).flatten()
