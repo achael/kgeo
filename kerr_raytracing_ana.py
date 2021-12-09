@@ -52,7 +52,6 @@ else:
 pix_1d = np.linspace(-6,0,NPIX)
 alpha_default = pix_1d
 beta_default = 0*pix_1d
-
 #alpha_default = np.hstack((pix_1d,0*pix_1d+1.e-2))
 #beta_default = np.hstack((0*pix_1d,pix_1d))
 

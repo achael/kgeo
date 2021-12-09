@@ -6,22 +6,40 @@ import numpy as np
 import scipy.special as sp
 import mpmath
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from tqdm import tqdm
-from scipy.integrate import solve_ivp
-
+import time
 from kerr_raytracing_utils import *
-from gsl_ellip_binding import ellip_pi_gsl
+import h5py
+from scipy.integrate import solve_ivp
+from scipy.interpolate import interp1d
 
+SPIN = 0.94
+INC = 20*np.pi/180.
 ROUT = 1000 #4.e10 # sgra distance in M
-NGEO = 100
-NPIX = 500
-MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits.
+NGEO = 250
+NPIX = 100
 EP = 1.e-12
+MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
+MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits.
 
-#a = 0.94;th_o=20*np.pi/180.; r_o=ROUT; alpha = np.linspace(-6,6,NPIX);beta=-0.001*np.ones(NPIX);ngeo=NGEO
-def raytrace_num(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
-                 alpha=np.linspace(-6,6,NPIX), beta=0*np.ones(NPIX), ngeo=NGEO):
+pix_1d = np.linspace(-6,0,NPIX)
+alpha_default = pix_1d
+beta_default = 0*pix_1d
+#alpha_default = np.hstack((pix_1d,0*pix_1d+1.e-2))
+#beta_default = np.hstack((0*pix_1d,pix_1d))
 
+def raytrace_num(a=SPIN, 
+                 observer_coords = [0,ROUT,INC,0],
+                 image_coords = [alpha_default, beta_default],
+                 ngeo=NGEO,
+                 savedata=False, plotdata=False):
+
+    tstart = time.time()
+    
+    [_, r_o, th_o, _] = observer_coords # assumes ph_o = 0
+    [alpha, beta] = image_coords 
+                     
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be float in range [0,1)")
@@ -33,6 +51,7 @@ def raytrace_num(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
         raise Exception("alpha, beta are different lengths!")
 
     print('calculating preliminaries...')
+    
     # horizon radii
     rplus  = 1 + np.sqrt(1-a**2)
     rminus = 1 - np.sqrt(1-a**2)
@@ -41,6 +60,9 @@ def raytrace_num(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
 
+    # sign of final angular momentum
+    s_o = my_sign(beta)
+    
     # spin zero should have no voritical geodesics
     if(a<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
@@ -49,56 +71,63 @@ def raytrace_num(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
     # angular turning points
     (u_plus, u_minus, th_plus, th_minus, thclass) = angular_turning(a, th_o, lam, eta)
 
-    # sign of final angular momentum
-    s_o = my_sign(beta)
-
     # radial roots and radial motion case
     (r1, r2, r3, r4, rclass) = radial_roots(a, lam, eta)
 
     # total Mino time to infinity
     tau_tot = mino_total(a, r_o, eta, r1, r2, r3, r4)
 
-    # find the steps in tau
-    # go to taumax in the same number of steps on each ray -- step dtau depends on the ray
+    # define steps equally spaced in Mino time tau
+    # rays have equal numbers of steps -- step size dtau depends on the ray
+    # mino time is positive back from screen in GL19b conventions    
     dtau = MAXTAUFRAC*tau_tot / (ngeo - 1)
-    tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo) # positive back from screen in GL19b conventions
-
-    # find the number of poloidal orbits as a function of time (GL 19b Eq 35)
-    # Only applies for normal geodesics eta>0
-    if(a<MINSPIN):
-        uratio = 0.
-        a2u_minus = -(eta+lam**2)
-    else:
-        uratio = u_plus/u_minus
-        a2u_minus = a**2 * u_minus
-
-    K = sp.ellipk(uratio) # gives NaN for eta<0
-    n_all = (np.sqrt(-a2u_minus.astype(complex))*tausteps)/(4*K)
-    n_all = np.real(n_all.astype(complex))
-    n_tot = n_all[-1]
-
-    # fractional number of equatorial crossings
-    # Only applies for normal geodesics eta>0
-    F_o = sp.ellipkinc(np.arcsin(np.cos(th_o)/np.sqrt(u_plus)), uratio) # gives NaN for eta<0
-    Nmax_eq = ((tau_tot*np.sqrt(-a2u_minus.astype(complex)) + s_o*F_o) / (2*K))  + 1
-    Nmax_eq[beta>=0] -= 1
-    Nmax_eq = np.floor(np.real(Nmax_eq.astype(complex)))
-    Nmax_eq[np.isnan(Nmax_eq)] = 0
+    tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo) 
 
     # numerically integrate
     # TODO this method isn't very precise b/c of hacky pushes at turning points
-    # TODO parallelize?
-    tau_num_all = []
-    x_num_all = []
-    for i in tqdm(range(NPIX)):
-        tau_num, x_num = integrate_geo_single(a,th_o, r_o,alpha[i],beta[i],taumax[i],
-                                              ngeo=ngeo,verbose=False)
-        tau_num_all.append(tau_num)
-        x_num_all.append(x_num)
-    tau_num_all = np.array(tau_num)
-    x_num_all = np.array(x_num)
+    print('integrating...')
 
-    return (tau_num_all, x_num_all)
+    sig_s = []
+    th_s = []
+    ph_s = []
+    r_s = []
+    t_s = []
+    for i in tqdm(range(NPIX)): # TODO parallelize
+        tau_num, x_num = integrate_geo_single(a,th_o,r_o,
+                                              alpha[i],beta[i],
+                                              tau_tot[i],
+                                              ngeo=ngeo,verbose=False)
+                 
+        # interpolate onto regular spaced grid in tau                             
+        t_s.append(interp1d(tau_num,x_num[0],fill_value='extrapolate')(tausteps[:,i]))
+        r_s.append(interp1d(tau_num,x_num[1],fill_value='extrapolate')(tausteps[:,i]))
+        th_s.append(interp1d(tau_num,x_num[2],fill_value='extrapolate')(tausteps[:,i]))
+        ph_s.append(interp1d(tau_num,x_num[3],fill_value='extrapolate')(tausteps[:,i]))
+        sig_s.append(interp1d(tau_num,x_num[4],fill_value='extrapolate')(tausteps[:,i]))
+
+    # create Geodesics object
+    affinesteps = np.array(sig_s).T
+    geo_coords = [np.array(t_s).T,np.array(r_s).T,np.array(th_s).T,np.array(ph_s).T]
+    geos = Geodesics(a, observer_coords, image_coords, tausteps, sig_s, geo_coords)
+    
+    if savedata and do_phi_and_t:
+        print('saving data...')
+        try:
+            geos.savegeos('./numeric_')
+        except:
+            print("Error saving to file!")
+    if plotdata and do_phi_and_t:
+        print('plotting data...')
+        try:
+            plt.ion()
+            geos.plotgeos()
+            plt.show()
+        except:
+            print("Error plotting data!")   
+                   
+    tstop = time.time()
+    print('done!  ', tstop-tstart, ' seconds!')
+    return geos
 
 # directly integrate
 def dxdtau(tau,x,a,lam,eta,sr,sth):
@@ -227,7 +256,8 @@ def integrate_geo_single(a,th_o, r_o,aa,bb,taumax,ngeo=NGEO,verbose=False):
 
     nswitch = 0
     while True:
-        sol = solve_ivp(dxdtau, (t,tmax), x, method='DOP853', max_step=max_step,
+        sol = solve_ivp(dxdtau, (t,tmax), x, 
+                        method='DOP853', max_step=max_step,
                         #jac=jac,
                         rtol=1.e-8,atol=1.e-8,
                         args=(a,ll,ee,sr,sth), events=(eventTH,eventR))
