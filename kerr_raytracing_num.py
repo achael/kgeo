@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d
 SPIN = 0.94
 INC = 20*np.pi/180.
 ROUT = 1000 #4.e10 # sgra distance in M
-NGEO = 250
+NGEO = 1000
 NPIX = 100
 EP = 1.e-12
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
@@ -25,7 +25,7 @@ MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits.
 
 pix_1d = np.linspace(-6,0,NPIX)
 alpha_default = pix_1d
-beta_default = 0*pix_1d
+beta_default = 0*pix_1d + 1.e-1
 #alpha_default = np.hstack((pix_1d,0*pix_1d+1.e-2))
 #beta_default = np.hstack((0*pix_1d,pix_1d))
 
@@ -99,11 +99,11 @@ def raytrace_num(a=SPIN,
                                               ngeo=ngeo,verbose=False)
                  
         # interpolate onto regular spaced grid in tau                             
-        t_s.append(interp1d(tau_num,x_num[0],fill_value='extrapolate')(tausteps[:,i]))
-        r_s.append(interp1d(tau_num,x_num[1],fill_value='extrapolate')(tausteps[:,i]))
-        th_s.append(interp1d(tau_num,x_num[2],fill_value='extrapolate')(tausteps[:,i]))
-        ph_s.append(interp1d(tau_num,x_num[3],fill_value='extrapolate')(tausteps[:,i]))
-        sig_s.append(interp1d(tau_num,x_num[4],fill_value='extrapolate')(tausteps[:,i]))
+        t_s.append(interp1d(-tau_num,x_num[0],fill_value='extrapolate')(tausteps[:,i]))
+        r_s.append(interp1d(-tau_num,x_num[1],fill_value='extrapolate')(tausteps[:,i]))
+        th_s.append(interp1d(-tau_num,x_num[2],fill_value='extrapolate')(tausteps[:,i]))
+        ph_s.append(interp1d(-tau_num,x_num[3],fill_value='extrapolate')(tausteps[:,i]))
+        sig_s.append(interp1d(-tau_num,x_num[4],fill_value='extrapolate')(tausteps[:,i]))
 
     # create Geodesics object
     affinesteps = np.array(sig_s).T

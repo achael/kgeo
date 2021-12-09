@@ -24,7 +24,7 @@ SPIN = 0.94
 INC = 20*np.pi/180.
 ROUT = 1000 #4.e10 # sgra distance in M
 NGEO = 250
-NPIX = 1000
+NPIX = 10000
 EP = 1.e-12
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits.
@@ -87,14 +87,13 @@ def raytrace_ana(a=SPIN,
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-
-    # sign of final angular momentum
-    s_o = my_sign(beta)
-
     # spin zero should have no vortical geodesics
     if(a<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
         print("WARNING: there were eta<0 points for spin %f<MINSPIN!"%a)
+        
+    # sign of final angular momentum
+    s_o = my_sign(beta)
 
     # angular turning points and number of equatorial crossings
     (u_plus, u_minus, th_plus, th_minus, thclass) = angular_turning(a, th_o, lam, eta)

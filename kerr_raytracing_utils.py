@@ -168,6 +168,42 @@ class Geodesics(object):
         #hf.create_dataset('frac_orbits',data=n_tot)
         hf.close()
 
+def uplus_uminus(a,th_o,lam,eta):
+    if(a<MINSPIN):  # spin 0 limit
+        u_plus = eta / (eta + lam*lam)
+        u_minus = u_plus
+    else:
+        #GL 19b Eqn 11
+        Delta_theta = 0.5*(1 - (eta + lam*lam)/(a*a))
+        u_plus = Delta_theta + np.sqrt(Delta_theta**2 + eta/(a*a))
+        u_minus = Delta_theta - np.sqrt(Delta_theta**2 + eta/(a*a))
+     
+    # ensure th_o is inside the turning points [th_1,th_4] exactly
+    mask = (np.cos(th_o)**2 - u_plus) > 0
+    u_plus[mask] = np.cos(th_o)**2
+
+    # for geodesics with eta==0, exactly u_minus=0.
+    # This breaks some equations for th integrals
+    # bump up u_minus to a small value # TODO ok?
+    u_minus[(u_minus==0)*(eta<0)] = EP
+    u_minus[(u_minus==0)*(eta>=0)] = -EP
+ 
+    # for vortical geodeiscs, ensure th_o is inside [th_minus, th_2] exactly
+    maskm = (np.cos(th_o)**2 - u_minus[eta<0]) < 0
+    mask = np.zeros(eta.shape).astype(bool)
+    mask[eta<0] = maskm
+    u_minus[mask] = np.cos(th_o)**2
+
+    # compute ratio
+    if(a<MINSPIN):
+        uratio = 0.
+        a2u_minus = -(eta+lam**2)                
+    else:
+        uratio = u_plus/u_minus
+        a2u_minus = a**2 * u_minus    
+       
+    return(u_plus, u_minus, uratio, a2u_minus)
+    
 def angular_turning(a, th_o, lam, eta):
     """Calculate angular turning theta_pm points for a geodisic with conserved (lam,eta)"""
 
@@ -181,38 +217,8 @@ def angular_turning(a, th_o, lam, eta):
     if len(lam) != len(eta):
         raise Exception("lam, eta are different shapes!")
 
-    if(a<MINSPIN):  # spin 0 limit
-        u_plus = eta / (eta + lam*lam)
-        u_minus = u_plus
-    else:
-        #GL 19b Eqn 11
-        Delta_theta = 0.5*(1 - (eta + lam*lam)/(a*a))
-        u_plus = Delta_theta + np.sqrt(Delta_theta**2 + eta/(a*a))
-        u_minus = Delta_theta - np.sqrt(Delta_theta**2 + eta/(a*a))
-
-    # ensure th_o is inside the turning points [th_1,th_4] exactly
-    #xFarg = np.cos(th_o)/np.sqrt(u_plus)
-    #mask = (xFarg - 1) > 0 #or use EP?
-
-    mask = (np.cos(th_o)**2 - u_plus) > 0
-    u_plus[mask] = np.cos(th_o)**2
-
-    # for geodesics with eta==0, exactly u_minus=0.
-    # This breaks some equations for th integrals
-    # bump up u_minus to a small value # TODO ok?
-    u_minus[(u_minus==0)*(eta<0)] = EP
-    u_minus[(u_minus==0)*(eta>=0)] = -EP
-
-    # for vortical geodeiscs, ensure th_o is inside [th_minus, th_2] exactly
-    #xFarg2 = (np.cos(th_o)/np.sqrt(u_minus[eta<0]))
-    #maskm = (xFarg2 - 1) < 0 #or use EP?
-
-    maskm = (np.cos(th_o)**2 - u_minus[eta<0]) < 0
-    mask = np.zeros(eta.shape).astype(bool)
-    mask[eta<0] = maskm
-    u_minus[mask] = np.cos(th_o)**2
-
-
+    (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam,eta)
+    
     # angular turning points for normal motion
     th_plus = np.arccos(-np.sqrt(u_plus)) # this is GL 19a th_4
     th_minus = np.arccos(np.sqrt(u_plus)) # this is GL 19a th_1
@@ -443,6 +449,7 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
 
     return Imax_out
 
+    
 def n_poloidal_orbits(a, th_o, alpha, beta, tau):
     """the number of poloidal orbits as a function of Mino time tau (GL 19b Eq 35)
        only applies for normal geodesics eta>0"""
@@ -450,18 +457,7 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
         
-    if(a<MINSPIN):  # spin 0 limit
-        u_plus = eta / (eta + lam*lam)
-        u_minus = u_plus
-        uratio = 0.
-        a2u_minus = -(eta+lam**2)            
-    else:
-        #GL 19b Eqn 11
-        Delta_theta = 0.5*(1 - (eta + lam*lam)/(a*a))
-        u_plus = Delta_theta + np.sqrt(Delta_theta**2 + eta/(a*a))
-        u_minus = Delta_theta - np.sqrt(Delta_theta**2 + eta/(a*a))
-        uratio = u_plus/u_minus
-        a2u_minus = a**2 * u_minus
+    (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam,eta)
 
     K = sp.ellipk(uratio) # gives NaN for eta<0
     n_poloidal = (np.sqrt(-a2u_minus.astype(complex))*tau)/(4*K)
@@ -470,30 +466,19 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
 
     return n_poloidal
 
-def n_equatorial_crossings(a, th_o, alpha, beta, tau_tot):
+def n_equatorial_crossings(a, th_o, alpha, beta, tau):
     """ the fractional number of equatorial crossings
         equation only applies for normal geodesics eta>0"""
 
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
      
-    if(a<MINSPIN):  # spin 0 limit
-        u_plus = eta / (eta + lam*lam)
-        u_minus = u_plus
-        uratio = 0.
-        a2u_minus = -(eta+lam**2)            
-    else:
-        #GL 19b Eqn 11
-        Delta_theta = 0.5*(1 - (eta + lam*lam)/(a*a))
-        u_plus = Delta_theta + np.sqrt(Delta_theta**2 + eta/(a*a))
-        u_minus = Delta_theta - np.sqrt(Delta_theta**2 + eta/(a*a))
-        uratio = u_plus/u_minus
-        a2u_minus = a**2 * u_minus
+    (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam,eta)
    
     s_o = my_sign(beta)  # sign of final angular momentum
     F_o = sp.ellipkinc(np.arcsin(np.cos(th_o)/np.sqrt(u_plus)), uratio) # gives NaN for eta<0
     K = sp.ellipk(uratio) # gives NaN for eta<0    
-    nmax_eq = ((tau_tot*np.sqrt(-a2u_minus.astype(complex)) + s_o*F_o) / (2*K))  + 1
+    nmax_eq = ((tau*np.sqrt(-a2u_minus.astype(complex)) + s_o*F_o) / (2*K))  + 1
     nmax_eq[beta>=0] -= 1
     nmax_eq = np.floor(np.real(nmax_eq.astype(complex)))
     nmax_eq[np.isnan(nmax_eq)] = 0
