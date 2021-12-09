@@ -18,48 +18,71 @@ from mpl_toolkits.mplot3d import Axes3D
 from tqdm import tqdm
 import time
 from kerr_raytracing_utils import *
-from gsl_ellip_binding import ellip_pi_gsl
+
 import h5py
 
-ROUT = 1000 #4.e10 # sgra distance in M
+ROUT = 10000 #4.e10 # sgra distance in M
 NGEO = 200
-NPIX = 500
+NPIX = 10000
 EP = 1.e-12
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits.
 
-# mpmath elliptic functions are SLOW -- use scipy and GSL
-# the below are used in the 'old' versions of the equations that use the unified complex equations
-ellipf_arr = np.frompyfunc(mpmath.ellipf,2,1) # SLOW, use sp.ellipkinc
-sn_arr = np.frompyfunc(mpmath.ellipfun('sn'),2,1) # SLOW, use sp.ellipj and transforms
-
 # GSL elliptic functions
-ellippi_arr_gsl = np.frompyfunc(ellip_pi_gsl,3,1)
+TOM = False
+GSL = False
+SCIPY = True
+if SCIPY:
+    from scipy_ellip_binding import ellip_pi_arr
+    ellippi_arr = ellip_pi_arr    
+    #sellippi_arr = np.vectorize(ellip_pi) 
+elif TOM:
+    from toms_ellip_binding import ellip_pi_tom
+    ellippi_arr_tom = np.frompyfunc(ellip_pi_tom,3,1) 
+    ellippi_arr = ellippi_arr_tom
+elif GSL:
+    from gsl_ellip_binding import ellip_pi_gsl
+    ellippi_arr_gsl = np.frompyfunc(ellip_pi_gsl,3,1)
+    ellippi_arr = ellippi_arr_gsl
+else: 
+    raise Exception("no elliptic Pi option chosen!")
 
-def intersect_plane(th_n, ph_n, r_s, th_s, ph_s):
 
-    nint = np.zeros(r_s.shape[-1])
-    for i in range(r_s.shape[-1]): # TODO speed up #TODO right indexing?
-        r = r_s[:,i];th=th_s[:,i];ph=ph_s[:,i] 
-        
-        # find where geodesic passes through plane with normal at th_n, ph_n through origin. 
-        # NOTE: pass in a single geodesic (for now)
+# def intersect_plane(th_n, ph_n, r_s, th_s, ph_s):
+#
+#     nint = np.zeros(r_s.shape[-1])
+#     for i in range(r_s.shape[-1]): # TODO speed up #TODO right indexing?
+#         r = r_s[:,i];th=th_s[:,i];ph=ph_s[:,i]
+#
+#         # find where geodesic passes through plane with normal at th_n, ph_n through origin.
+#         # NOTE: pass in a single geodesic (for now)
+#
+#         xn = np.array([np.cos(ph_n)*np.sin(th_n),np.sin(ph_n)*np.sin(th_n),np.cos(th_n)])
+#         xo = np.array([r*np.cos(th)*np.sin(th),r*np.sin(th)*np.cos(th),r*np.cos(th)]).T
+#
+#         d = xo[1:] - xo[:-1] # vector between geodeisc points
+#         t = np.dot(-xo[:-1],xn)/np.dot(d,xn)
+#         intersect = (0 < t) * (t < 1)
+#         nintersect = np.sum(intersect)
+#         print(xn)
+#         nint[i] = nintersect
 
-        xn = np.array([np.cos(ph_n)*np.sin(th_n),np.sin(ph_n)*np.sin(th_n),np.cos(th_n)])    
-        xo = np.array([r*np.cos(th)*np.sin(th),r*np.sin(th)*np.cos(th),r*np.cos(th)]).T
-        
-        d = xo[1:] - xo[:-1] # vector between geodeisc points
-        t = np.dot(-xo[:-1],xn)/np.dot(d,xn)
-        intersect = (0 < t) * (t < 1)
-        nintersect = np.sum(intersect)
-        print(xn)
-        nint[i] = nintersect
-    
-#TODO -- errors in phi raytracing with alpha=0,beta!=0. 
+
+pix_1d = np.linspace(-8,8,NPIX)
+alpha_default = pix_1d
+beta_default = 0*pix_1d
+
+#alpha_default = np.hstack((pix_1d,0*pix_1d+1.e-2))
+#beta_default = np.hstack((0*pix_1d,pix_1d))
+
+#TODO -- errors in phi raytracing with alpha=0,beta!=0.
 def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
-                 alpha=np.linspace(-8,8,NPIX),beta=0.0*np.ones(NPIX), ngeo=NGEO,
+                 alpha=alpha_default, beta=beta_default, ngeo=NGEO,
                  do_phi_and_t=True,
                  savedata=False, plotdata=True):
+
+    tstart = time.time()
+    
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be float in range [0,1)")
@@ -71,6 +94,7 @@ def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
         raise Exception("alpha, beta are different lengths!")
 
     print('calculating preliminaries...')
+    
     # horizon radii
     rplus  = 1 + np.sqrt(1-a**2)
     rminus = 1 - np.sqrt(1-a**2)
@@ -137,10 +161,6 @@ def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
     stop = time.time()
     print('integrating in r...%0.2f s'%(stop-start))
 
-    #old unified formulas (slow)
-    #th_s0 = th_integrate_old(a,th_o,s_o,eta,u_plus,u_minus,tausteps)
-    #r_s0 = r_integrate_old(r_o, eta, r1,r2,r3,r4,tausteps)
-
     # combine to get phi, t, and sigma as a function of time
     sig_s = 0 + I_sig + a**2 * G_t # GL19a 15
     t_s = 0 + I_t + a**2 * G_t # GL19a 12
@@ -158,8 +178,9 @@ def raytrace_ana(a=0.94, th_o=20*np.pi/180., r_o=ROUT,
     if plotdata and do_phi_and_t:
         print('plotting data...')
         plotgeos(a,th_o,r_o,Nmax_eq,r_s,th_s,ph_s)
-
-    print('done!')
+  
+    tstop = time.time()
+    print('done!  ', tstop-tstart, ' seconds!')
     return(n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s)
 
 def savegeos(a,th_o,r_o,alpha,beta,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_s):
@@ -179,7 +200,7 @@ def savegeos(a,th_o,r_o,alpha,beta,n_tot,Nmax_eq,tausteps,t_s,r_s,th_s,ph_s,sig_
     #hf.create_dataset('frac_orbits',data=n_tot)
     hf.close()
 
-def plotgeos(a,th_o,r_o,Nmax_eq,r_s,th_s,ph_s,xlim=10,rmax=12):
+def plotgeos(a,th_o,r_o,Nmax_eq,r_s,th_s,ph_s,xlim=10,rmax=15):
     rplus  = 1 + np.sqrt(1-a**2)
 
     # convert to cartesian for plotting
@@ -208,9 +229,11 @@ def plotgeos(a,th_o,r_o,Nmax_eq,r_s,th_s,ph_s,xlim=10,rmax=12):
     ax.plot3D([0,x_o],[0,y_o],[0,z_o],'black',ls='dashed')
 
     maxwraps = int(np.nanmax(Nmax_eq))
-    colors = ['k','b','g','orange','r','m']
+    colors = ['k','b','g','orange','r','m','c','y']
     NPLOT=50
-    for j in range(maxwraps+1):
+    print('maxwraps ', maxwraps)
+    nloop = np.min((maxwraps+1,len(colors)))
+    for j in range(nloop):
         mask = (Nmax_eq==j)
         color = colors[j]
         xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];rs = r_s[:,mask];
@@ -268,7 +291,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,  do_phi_and_t=
 
         if do_phi_and_t:
             #Gph_o , GL 19a, 30
-            Gph_o = -pref * ellippi_arr_gsl(up, elliparg, k)
+            Gph_o = -pref * ellippi_arr(up, elliparg, k)
 
             #Gt_o , GL 19a, 31
             maskk = (k==0)
@@ -299,7 +322,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,  do_phi_and_t=
             m = np.outer(np.ones(snarg.shape[0]),m)[~jmask]
             ellipfuns = sp.ellipj(snarg[~jmask]/np.sqrt(1-m), m)
             #sn(sqrt(1-m)x | k) = sqrt(1-m)*sn(x|m)/dn(x|m)
-            sinPhi_tau[~jmask] = np.sqrt(1-m) * ellipfuns[0]/ellipfuns[2] #sn(sqrt(1-m)x | k) = sqrt(1-m)*sn(x|m)/dn(x|m)
+            sinPhi_tau[~jmask] = np.sqrt(1-m) * ellipfuns[0]/ellipfuns[2]
             #am(sqrt(1-m)x | k) = pi/2 - am(K(m) - x | m for m <=1
             Phi_tau[~jmask] = 0.5*np.pi-sp.ellipj(sp.ellipk(m) - snarg[~jmask]/np.sqrt(1-m), m)[3]
 
@@ -309,7 +332,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,  do_phi_and_t=
         if do_phi_and_t:
 
             # G_phi integral GL19a 47
-            G_ph[:,mask] = (pref*ellippi_arr_gsl(up, Phi_tau, k) - s*Gph_o).astype(float)
+            G_ph[:,mask] = (pref*ellippi_arr(up, Phi_tau, k) - s*Gph_o).astype(float)
 
             # G_t integral GL19a, 48
             maskk = (k==0)
@@ -349,7 +372,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,  do_phi_and_t=
 
         if do_phi_and_t:
             #Gph_o , GL19a 57
-            Gph_o = -h*prefB * ellippi_arr_gsl(upm,Nu_o,k)
+            Gph_o = -h*prefB * ellippi_arr(upm,Nu_o,k)
 
             #Gt_o  , GL19a 58
             Gt_o  = -h*prefC * sp.ellipeinc(Nu_o,k)
@@ -375,7 +398,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,  do_phi_and_t=
             m = np.outer(np.ones(snarg.shape[0]),m)[~jmask]
             ellipfuns = sp.ellipj(snarg[~jmask]/np.sqrt(1-m), m)
             #sn(sqrt(1-m)x | k) = sqrt(1-m)*sn(x|m)/dn(x|m)
-            sinNu_tau[~jmask] = np.sqrt(1-m) * ellipfuns[0]/ellipfuns[2] #sn(sqrt(1-m)x | k) = sqrt(1-m)*sn(x|m)/dn(x|m)
+            sinNu_tau[~jmask] = np.sqrt(1-m) * ellipfuns[0]/ellipfuns[2]
             #am(sqrt(1-m)x | k) = pi/2 - am(K(m) - x | m for m <=1
             Nu_tau[~jmask] = 0.5*np.pi-sp.ellipj(sp.ellipk(m) - snarg[~jmask]/np.sqrt(1-m), m)[3]
 
@@ -385,7 +408,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,  do_phi_and_t=
         if do_phi_and_t:
 
             # G_phi integral GL19a 67
-            G_ph[:,mask] = (prefB * ellippi_arr_gsl(upm,Nu_tau,k) - s*Gph_o).astype(float)
+            G_ph[:,mask] = (prefB * ellippi_arr(upm,Nu_tau,k) - s*Gph_o).astype(float)
 
             # G_t integral GL19a, 68
             G_t[:,mask] = (prefC * sp.ellipeinc(Nu_tau,k) - s*Gt_o).astype(float)
@@ -479,7 +502,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,do_phi_and_t=True):
 
                 # definitions of functions in this region should keep things in the allowed prange
                 F = sp.ellipkinc(phi,j)
-                S1 = (F + al2*ellippi_arr_gsl(al2p1,phi,j) - al*f2) / al2p1
+                S1 = (F + al2*ellippi_arr(al2p1,phi,j) - al*f2) / al2p1
 
                 if ret_s2:
                     E = sp.ellipeinc(phi,j)
@@ -562,7 +585,6 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,do_phi_and_t=True):
         X3 = (1./pref)*(-tau + s*Ir_o) # GL19a B74
 
         ellipfuncs = sp.ellipj(X3,k3) # should work fine because 0 < k3 < 1
-        #amX3 = np.arcsin(ellipfuncs[0])  # arcsin does not account for full range!
         amX3 = ellipfuncs[3]
         cnX3 = ellipfuncs[1]
         rs_num = (BB*rr2 - AA*rr1) + (BB*rr2 + AA*rr1)*cnX3 # B75
@@ -573,14 +595,14 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,do_phi_and_t=True):
         if do_phi_and_t:
 
             # auxillary functions
-            # al->0 limit??
+            # TODO al->0 limit??
             def R1_R2(al,phi,j,ret_r2=True): #B62 and B65
                 al2 = al**2
                 s2phi = np.sqrt(1-j*np.sin(phi)**2)
                 p1 = np.sqrt((al2 -1)/(j+(1-j)*al2))
                 f1 = 0.5*p1*np.log(np.abs((p1*s2phi+np.sin(phi))/(p1*s2phi-np.sin(phi))))
                 nn = al2/(al2-1)
-                R1 = (ellippi_arr_gsl(nn,phi,j) - al*f1)/(1-al2)
+                R1 = (ellippi_arr(nn,phi,j) - al*f1)/(1-al2)
 
                 if ret_r2:
                     F = sp.ellipkinc(phi,j)
@@ -674,14 +696,16 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,do_phi_and_t=True):
             dX2dtau = -0.5*np.sqrt(rr31*rr42)
             dsn2dtau = 2*snX2*cnX2*dnX2*dX2dtau
             drsdtau = rr31*rr43*rr41*dsn2dtau / ((rr31 - rr41*snX2**2)**2)
-            drsdtau *= -1 # TODO I *think* because we take tau->-tau we need this sign change
+            drsdtau *= -1 # TODO because we take tau->-tau we need this sign change
             Rpot_o = (r_o-rr1)*(r_o-rr2)*(r_o-rr3)*(r_o-rr4)
             drsdtau_o = s*np.sqrt(Rpot_o)
-            H =  drsdtau / (rs - rr3) - drsdtau_o/(r_o - rr3) #B51 ???
+            H =  drsdtau / (rs - rr3) - drsdtau_o/(r_o - rr3) #B51
             E = np.sqrt(rr31*rr42)*(sp.ellipeinc(amX2,k2) - s*sp.ellipeinc(auxarg,k2)) # B52
-            Pi_1 = (2./np.sqrt(rr31*rr42))*(ellippi_arr_gsl(rr41/rr31,amX2,k2)-s*ellippi_arr_gsl(rr41/rr31,auxarg,k2)) # B53
-            Pi_p = (2./np.sqrt(rr31*rr42))*(rr43/(rrp3*rrp4))*(ellippi_arr_gsl((rrp3*rr41)/(rrp4*rr31),amX2,k2)-s*ellippi_arr_gsl((rrp3*rr41)/(rrp4*rr31),auxarg,k2))
-            Pi_m = (2./np.sqrt(rr31*rr42))*(rr43/(rrm3*rrm4))*(ellippi_arr_gsl((rrm3*rr41)/(rrm4*rr31),amX2,k2)-s*ellippi_arr_gsl((rrm3*rr41)/(rrm4*rr31),auxarg,k2))
+            Pi_1 = (2./np.sqrt(rr31*rr42))*(ellippi_arr(rr41/rr31,amX2,k2)-s*ellippi_arr(rr41/rr31,auxarg,k2)) # B53
+            Pi_p = (2./np.sqrt(rr31*rr42))*(rr43/(rrp3*rrp4))*(ellippi_arr((rrp3*rr41)/(rrp4*rr31),amX2,k2)-
+                                                             s*ellippi_arr((rrp3*rr41)/(rrp4*rr31),auxarg,k2))
+            Pi_m = (2./np.sqrt(rr31*rr42))*(rr43/(rrm3*rrm4))*(ellippi_arr((rrm3*rr41)/(rrm4*rr31),amX2,k2)-
+                                                             s*ellippi_arr((rrm3*rr41)/(rrm4*rr31),auxarg,k2))
 
             # final integrals
             I1 = rr3*(-tau) + rr43*Pi_1 # B48
@@ -703,6 +727,3 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,do_phi_and_t=True):
     I_sig = I_2
 
     return (r_s, I_phi, I_t, I_sig)
-
-
-

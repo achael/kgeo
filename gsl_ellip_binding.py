@@ -249,6 +249,6 @@ def test_ellip_pi(n = .8, m=-.33):
             print(k," complex result")
         else:
             mp_pi = np.real(mp_pi)
-            gsl_pi = ellip_pi_gsl2(arg[0],arg[1],arg[2])
+            gsl_pi = ellip_pi_gsl(arg[0],arg[1],arg[2])
             print("%d | %.6e %.6e %.6e"%(k,mp_pi,gsl_pi,1.-gsl_pi/mp_pi))
     return
