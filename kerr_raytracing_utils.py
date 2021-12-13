@@ -87,7 +87,8 @@ class Geodesics(object):
     def sig_s(self):
         return self.affine_times
                   
-    def plotgeos(self,xlim=10,rmax=15,nplot=None,ngeoplot=50):
+    def plotgeos(self,xlim=10,rmax=15,nplot=None,ngeoplot=50,plot_disk=True,
+                 plot_inside_cc=True,plot_outside_cc=True):
     
         a = self.a
         th_o = self.th_o
@@ -109,16 +110,19 @@ class Geodesics(object):
         u, v = np.mgrid[0:2 * np.pi:30j, 0:np.pi:20j]
         ax.plot_surface(rplus*np.cos(u) * np.sin(v),  rplus*np.sin(u) * np.sin(v),  rplus*np.cos(v), color='black')
 
-        rr, thth = np.mgrid[0:xlim, 0:2*np.pi:20j]
-        xx = rr*np.cos(thth); yy = rr*np.sin(thth)
-        zz = np.zeros(xx.shape)
-        ax.plot_surface(xx, yy, zz, alpha=0.5)
+        if plot_disk:
+            rr, thth = np.mgrid[0:xlim, 0:2*np.pi:20j]
+            xx = rr*np.cos(thth); yy = rr*np.sin(thth)
+            zz = np.zeros(xx.shape)
+            ax.plot_surface(xx, yy, zz, alpha=0.5)
+            
         ax.set_xlim(-xlim,xlim)
         ax.set_ylim(-xlim,xlim)
         ax.set_zlim(-xlim,xlim)
         ax.auto_scale_xyz([-xlim, xlim], [-xlim, xlim], [-xlim, xlim])
         ax.set_axis_off()
 
+        
         x_o = 1.5*rmax * np.cos(0) * np.sin(th_o)
         y_o = 1.5*rmax * np.sin(0) * np.sin(th_o)
         z_o = 1.5*rmax * np.cos(th_o)
@@ -135,13 +139,19 @@ class Geodesics(object):
             nplot = np.array([nplot]).flatten()
         for j in nplot:
             mask = (nmax_eq==j) 
+            if not plot_inside_cc: #TODO make nicer
+                mask *= (r_s[-1] > 10)
+            if not plot_outside_cc:
+                mask *= (r_s[-1] < 10)
+            if np.sum(mask)==0: continue
+            
             color = colors[j]
             xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];rs = r_s[:,mask];
-            trim = int(np.ceil(ngeoplot*xs.shape[-1]/self.npix))
+            trim = xs.shape[-1]//int(np.ceil(ngeoplot*xs.shape[-1]/self.npix))
             if xs.shape[-1] < 5 or j>=3:
                 geos = range(xs.shape[-1])
             else:
-                geos = range(0,xs.shape[-1],xs.shape[-1]//trim)
+                geos = range(0,xs.shape[-1],trim)
 
             for i in geos:
                 x = xs[:,i]; y=ys[:,i]; z=zs[:,i]
