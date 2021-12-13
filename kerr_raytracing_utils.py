@@ -87,7 +87,7 @@ class Geodesics(object):
     def sig_s(self):
         return self.affine_times
                   
-    def plotgeos(self,xlim=10,rmax=15,nplot=None,ngeoplot=50,plot_disk=True,
+    def plotgeos(self,xlim=12,rmax=15,nplot=None,ngeoplot=50,plot_disk=True,
                  plot_inside_cc=True,plot_outside_cc=True):
     
         a = self.a
@@ -96,6 +96,7 @@ class Geodesics(object):
         r_s = self.r_s
         th_s = self.th_s
         ph_s = self.ph_s
+        tausteps = self.tausteps
         
         # horizon 
         rplus  = 1 + np.sqrt(1-a**2)
@@ -123,13 +124,14 @@ class Geodesics(object):
         ax.set_axis_off()
 
         
-        x_o = 1.5*rmax * np.cos(0) * np.sin(th_o)
-        y_o = 1.5*rmax * np.sin(0) * np.sin(th_o)
-        z_o = 1.5*rmax * np.cos(th_o)
+        rmax2 = 3*rmax
+        x_o = rmax2 * np.cos(0) * np.sin(th_o)
+        y_o = rmax2 * np.sin(0) * np.sin(th_o)
+        z_o = rmax2 * np.cos(th_o)
         ax.plot3D([0,x_o],[0,y_o],[0,z_o],'black',ls='dashed')
 
         maxwraps = int(np.nanmax(nmax_eq))
-        colors = ['k','b','g','orange','r','m','c','y']
+        colors = ['dimgrey','b','g','orange','r','m','c','y']
 
         print('maxwraps ', maxwraps)
         if nplot is None:  
@@ -146,18 +148,28 @@ class Geodesics(object):
             if np.sum(mask)==0: continue
             
             color = colors[j]
-            xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];rs = r_s[:,mask];
-            trim = xs.shape[-1]//int(np.ceil(ngeoplot*xs.shape[-1]/self.npix))
-            if xs.shape[-1] < 5 or j>=3:
+            xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];
+            rs = r_s[:,mask];tau = tausteps[:,mask]
+            #trim = xs.shape[-1]//int(np.floor(ngeoplot*xs.shape[-1]/self.npix))
+            trim = int(xs.shape[-1]/ngeoplot)            
+            if xs.shape[-1] < 5 or j>=4:
                 geos = range(xs.shape[-1])
             else:
                 geos = range(0,xs.shape[-1],trim)
 
             for i in geos:
                 x = xs[:,i]; y=ys[:,i]; z=zs[:,i]
-                mask = rs[:,i] < rmax
+                mask = ((rs[:,i] < rmax) + (tau[:,i] < .5*tau[-1,i]))
+                mask *= rs[:,i] < rmax2
                 x = x[mask]; y = y[mask]; z = z[mask]
                 ax.plot3D(x,y,z,color)
+            # do the last geodesic too #TODO WHAT SPACING
+            i = xs.shape[-1]-1
+            #if i not in geos:
+            #    x = xs[:,i]; y=ys[:,i]; z=zs[:,i]
+            #    mask = rs[:,i] < rmax
+            #    x = x[mask]; y = y[mask]; z = z[mask]
+            #    ax.plot3D(x,y,z,color)            
         return
     
     def savegeos(self,path='./'):
