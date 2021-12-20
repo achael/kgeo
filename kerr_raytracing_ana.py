@@ -68,8 +68,8 @@ def raytrace_ana(a=SPIN,
         raise Exception("a should be float in range [0,1)")
     if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
         raise Exception("th_o should be float in range (0,pi/2]")
-    if not isinstance(alpha, np.ndarray): lam = np.array([lam]).flatten()
-    if not isinstance(beta, np.ndarray): eta = np.array([eta]).flatten()
+    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
         raise Exception("alpha, beta are different lengths!")
 

@@ -544,6 +544,28 @@ def my_sign(x):
     out[x<0] = -1
     return out
     
+def is_outside_crit(a, th_o, alpha, beta):
+    """is the point alpha, beta outside the critical curve?"""
+    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
+    if len(alpha) != len(beta):
+        raise Exception("alpha, beta are different shapes!")
+        
+    # horizon radius
+    rh = 1 + np.sqrt(1-a**2)
+
+    # conserved quantities
+    lam = -alpha*np.sin(th_o)
+    eta = (alpha**2 - a**2)*(np.cos(th_o))**2 + beta**2
+
+    outarr = np.empty(alpha.shape)
+    outarr[eta<0] = 0 #vortical region always inside
+ 
+    (r1,r2,r3,r4,rclass) = radial_roots(a,lam,eta)
+    mask = (np.imag(r4) ==0) * (r4>rh)
+    outarr[mask] = 1
+    outarr[~mask] = 0
+    return outarr
 
 # def intersect_plane(th_n, ph_n, r_s, th_s, ph_s):
 #
