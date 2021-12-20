@@ -8,7 +8,6 @@ import scipy.special as sp
 from tqdm import tqdm
 from kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
 from equatorial_lensing import r_equatorial
-from kerr_raytracing_ana import r_integrate
 
 # Fitting function parameters for emissivity and velocity
 ELLISCO =1.; VRISCO = 2;
@@ -51,9 +50,9 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
 
     # loop over image order mbar
     for mbar in tqdm(range(mbar_max+1)):
-        (flux, g, r, Ir, Imax, Nmax) = Iobs(a, r_o, th_o, mbar, alpha_arr, beta_arr)
-        outarr_I[:,mbar] = flux
-        outarr_r[:,mbar] = r
+        (Ipix, g, r_s, Ir, Imax, Nmax) = Iobs(a, r_o, th_o, mbar, alpha_arr, beta_arr)
+        outarr_I[:,mbar] = Ipix
+        outarr_r[:,mbar] = r_s
         outarr_t[:,mbar] = Ir
         outarr_g[:,mbar] = g
         outarr_n = Nmax # TODO
