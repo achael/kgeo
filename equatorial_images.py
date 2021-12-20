@@ -7,6 +7,7 @@ import numpy as np
 import scipy.special as sp
 from tqdm import tqdm
 from kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
+from equatorial_lensing import r_equatorial
 from kerr_raytracing_ana import r_integrate
 
 # Fitting function parameters for emissivity and velocity
@@ -124,110 +125,6 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta):
         #Iobs[~zeromask] = Iemis * (gg**2)
 
     return (Iobs, g, r_s, Ir, Imax, Nmax)
-
-def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
-    """Return (r_s, Ir, Imax, Nmax) where
-
-       r_s is the equatorial emission radius
-       Ir is the elapsed Mino time at emission
-       Imax is the maximal Mino time on the geodesic
-       Nmax is the maximum number of equatorial crossings"""
-
-    # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
-    if not (isinstance(r_o,float) and (r_o>=100)):
-        raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2]")
-    if not (isinstance(mbar,int) and (mbar>=0)):
-        raise Exception("mbar should be an integer >=0!")
-
-    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
-    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
-    if len(alpha) != len(beta):
-        raise Exception("alpha, beta are different lengths!")
-
-    # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-
-    # output arrays
-    r_s = np.empty(alpha.shape)
-    Ir = np.empty(alpha.shape)
-    Imax = np.empty(alpha.shape)
-    Nmax = np.empty(alpha.shape)
-
-    # vortical motion
-    vortmask = (eta<=0)
-    r_s[vortmask] = -1
-    Ir[vortmask] = -1
-    Imax[vortmask] = -1
-    Nmax[vortmask] = -2
-
-    # regular motion
-    if np.any(~vortmask):
-
-        lam_reg = lam[~vortmask]
-        eta_reg = eta[~vortmask]
-        beta_reg = beta[~vortmask]
-
-        # angular turning points
-        (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
-
-        # equation 12 for F0
-        xFarg = np.cos(th_o)/np.sqrt(u_plus)
-        # checks on xFarg should be handled in uplus_uminus function
-        # if xFarg>1.:
-        #     if verbose: print("|cos(th_o)| > sqrt(uplus)!")
-        #     xFarg=1.
-        # elif xFarg<-1.:
-        #     if verbose: print("|cos(th_o)| > sqrt(uplus)!")
-        #     xFarg=-1.
-        F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
-
-        # equation 17 for K
-        K = sp.ellipkinc(0.5*np.pi, uratio)
-
-        # which subring are we in?
-        m = mbar + np.heaviside(beta_reg, 0)
-
-        # radial roots
-        (r1,r2,r3,r4,rclass) = radial_roots(a,lam_reg,eta_reg)
-
-        # total Mino time
-        Imax_reg = mino_total(a, r_o, eta_reg, r1, r2, r3, r4)
-
-        #Equation 81 for the elapsed mino time Ir at the equator
-        #and number of maximual crossings Nmax_eq
-        #Note that eqn C8 of Gralla, Lupsasca, Marrone has a typo!
-        #using sign(0) = 1
-        Nmax_reg = np.empty(Imax_reg.shape)
-        Ir_reg = np.empty(Imax_reg.shape)
-
-        betamask = (beta_reg<=0)
-        if np.any(betamask):
-            Nmax_reg[betamask] = (np.floor((Imax_reg*np.sqrt(-u_minus*a**2) - F0) / (2*K)))[betamask]
-            Ir_reg[betamask] = ((2*m*K + F0)/np.sqrt(-u_minus*a**2))[betamask]
-        if np.any(~betamask):
-            Nmax_reg[~betamask] = (np.floor((Imax_reg*np.sqrt(-u_minus*a**2) + F0) / (2*K)) - 1)[~betamask]
-            Ir_reg[~betamask] = ((2*m*K - F0)/np.sqrt(-u_minus*a**2))[~betamask]
-
-        # calculate the emission radius given the elapsed mino time
-        # TODO -- clean up hacky indexing here
-        r_s_reg,_,_,_ = r_integrate(a,r_o,lam_reg,eta_reg,
-                                    r1,r2,r3,r4,Ir_reg.reshape(1,len(Ir_reg)),
-                                    do_phi_and_t=False)
-        r_s_reg = r_s_reg[0]
-        r_s_reg[Nmax_reg < mbar] = 0
-
-    # return data
-    r_s[~vortmask] = r_s_reg
-    Ir[~vortmask] = Ir_reg
-    Imax[~vortmask] = Imax_reg
-    Nmax[~vortmask] = Nmax_reg
-
-    return (r_s, Ir, Imax, Nmax)
 
 def radial_momentum_sign(a, th_o, alpha, beta, Ir, Irmax):
     """Determine the sign of the radial component of the photon momentum"""
