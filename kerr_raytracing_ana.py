@@ -25,9 +25,7 @@ INC = 20*np.pi/180.
 ROUT = 1000 #4.e10 # sgra distance in M
 NGEO = 250
 NPIX = 10000
-EP = 1.e-12
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
-MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits.
 
 # GSL elliptic functions
 SCIPY = True
@@ -65,9 +63,11 @@ def raytrace_ana(a=SPIN,
 
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be float in range [0,1)")
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(r_o,float) and (r_0>=100)):
+        raise Exception("r_o should be a float >= 100")
     if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
-        raise Exception("th_o should be float in range (0,pi/2]")
+        raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
@@ -151,12 +151,16 @@ def raytrace_ana(a=SPIN,
     return geos
 
 
-def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,  do_phi_and_t=True):
+def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
+                 do_phi_and_t=True):
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
     if not isinstance(s_o, np.ndarray): s_o = np.array([s_o]).flatten()
     if not isinstance(eta, np.ndarray): eta= np.array([eta]).flatten()
+    if not isinstance(lam, np.ndarray): lam= np.array([lam]).flatten()
     if not isinstance(u_plus, np.ndarray): u_plus = np.array([u_plus]).flatten()
     if not isinstance(u_minus, np.ndarray): u_minus = np.array([u_minus]).flatten()
-    if not(len(s_o)==len(eta)==len(u_plus)==len(u_minus)):
+    if not(len(s_o)==len(eta)==len(lam)==len(u_plus)==len(u_minus)):
         raise Exception("inputs to th_integrate not the same length!")
     if not(tausteps.shape[1]==len(s_o)):
         raise Exception("tausteps has incompatible shape in th_integrate!")
@@ -318,11 +322,16 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,  do_phi_and_t=
     return (th_s, G_ph, G_t)
 
 
-def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,do_phi_and_t=True):
+def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
+                do_phi_and_t=True):
 
     # Follow G19a, interchange source <--> observer labels and send tau -> -tau
 
     # checks
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(r_o,float) and (r_0>=100)):
+        raise Exception("r_o should be a float > 100")
     if not isinstance(lam, np.ndarray): lam  = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if not isinstance(r1, np.ndarray): r1 = np.array([r1]).flatten()

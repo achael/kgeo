@@ -6,7 +6,7 @@ from gsl_ellip_binding import ellip_pi_gsl
 import h5py
 
 MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits. TODO check!
-EP = 1.e-10
+EP = 1.e-12
 
 class Geodesics(object):
 
@@ -19,9 +19,9 @@ class Geodesics(object):
         self.mino_times = mino_times
         self.affine_times = affine_times
         self.geo_coords = geo_coords
-        
+
         return
-       
+
     # observer
     @property
     def t_o(self):
@@ -35,7 +35,7 @@ class Geodesics(object):
     @property
     def ph_o(self):
         return self.observer_coords[3]
-        
+
     # image
     @property
     def alpha(self):
@@ -48,20 +48,20 @@ class Geodesics(object):
         return len(self.alpha)
     @property
     def lam(self):
-        return -self.alpha*np.sin(self.th_o)   
+        return -self.alpha*np.sin(self.th_o)
     @property
     def eta(self):
         return (self.alpha**2 - self.a**2)*np.cos(self.th_o)**2 + self.beta**2
     @property
     def n_poloidal(self): # fractional number of poloidal orbits
-        n_poloidal = n_poloidal_orbits(self.a, self.th_o, self.alpha, self.beta, self.tausteps)    
+        n_poloidal = n_poloidal_orbits(self.a, self.th_o, self.alpha, self.beta, self.tausteps)
         return n_poloidal
     @property
     def nmax_eq(self): # number of equatorial crossings
-        nmax_eq = n_equatorial_crossings(self.a, self.th_o, self.alpha, self.beta, self.tautot)    
+        nmax_eq = n_equatorial_crossings(self.a, self.th_o, self.alpha, self.beta, self.tautot)
         return nmax_eq
-        
-    # geodeiscs 
+
+    # geodeiscs
     @property
     def tausteps(self):
         return self.mino_times
@@ -86,10 +86,10 @@ class Geodesics(object):
     @property
     def sig_s(self):
         return self.affine_times
-                  
+
     def plotgeos(self,xlim=12,rmax=15,nplot=None,ngeoplot=50,plot_disk=True,
                  plot_inside_cc=True,plot_outside_cc=True):
-    
+
         a = self.a
         th_o = self.th_o
         nmax_eq = self.nmax_eq
@@ -97,8 +97,8 @@ class Geodesics(object):
         th_s = self.th_s
         ph_s = self.ph_s
         tausteps = self.tausteps
-        
-        # horizon 
+
+        # horizon
         rplus  = 1 + np.sqrt(1-a**2)
 
         # convert to cartesian for plotting
@@ -116,14 +116,14 @@ class Geodesics(object):
             xx = rr*np.cos(thth); yy = rr*np.sin(thth)
             zz = np.zeros(xx.shape)
             ax.plot_surface(xx, yy, zz, alpha=0.5)
-            
+
         ax.set_xlim(-xlim,xlim)
         ax.set_ylim(-xlim,xlim)
         ax.set_zlim(-xlim,xlim)
         ax.auto_scale_xyz([-xlim, xlim], [-xlim, xlim], [-xlim, xlim])
         ax.set_axis_off()
 
-        
+
         rmax2 = 3*rmax
         x_o = rmax2 * np.cos(0) * np.sin(th_o)
         y_o = rmax2 * np.sin(0) * np.sin(th_o)
@@ -134,24 +134,24 @@ class Geodesics(object):
         colors = ['dimgrey','b','g','orange','r','m','c','y']
 
         print('maxwraps ', maxwraps)
-        if nplot is None:  
+        if nplot is None:
             nloop = np.min((maxwraps+1,len(colors)))
             nplot = range(nloop)
         else:
             nplot = np.array([nplot]).flatten()
         for j in nplot:
-            mask = (nmax_eq==j) 
+            mask = (nmax_eq==j)
             if not plot_inside_cc: #TODO make nicer
                 mask *= (r_s[-1] > 10)
             if not plot_outside_cc:
                 mask *= (r_s[-1] < 10)
             if np.sum(mask)==0: continue
-            
+
             color = colors[j]
             xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];
             rs = r_s[:,mask];tau = tausteps[:,mask]
             #trim = xs.shape[-1]//int(np.floor(ngeoplot*xs.shape[-1]/self.npix))
-            trim = int(xs.shape[-1]/ngeoplot)            
+            trim = int(xs.shape[-1]/ngeoplot)
             if xs.shape[-1] < 5 or j>=4:
                 geos = range(xs.shape[-1])
             else:
@@ -169,11 +169,11 @@ class Geodesics(object):
             #    x = xs[:,i]; y=ys[:,i]; z=zs[:,i]
             #    mask = rs[:,i] < rmax
             #    x = x[mask]; y = y[mask]; z = z[mask]
-            #    ax.plot3D(x,y,z,color)            
+            #    ax.plot3D(x,y,z,color)
         return
-    
+
     def savegeos(self,path='./'):
-                
+
         fname = path + 'a%0.2f_th%0.2f_geo.h5'%(self.a,self.th_o*180/np.pi)
         hf = h5py.File(fname,'w')
         hf.create_dataset('spin',data=self.a)
@@ -190,42 +190,6 @@ class Geodesics(object):
         #hf.create_dataset('frac_orbits',data=n_tot)
         hf.close()
 
-def uplus_uminus(a,th_o,lam,eta):
-    if(a<MINSPIN):  # spin 0 limit
-        u_plus = eta / (eta + lam*lam)
-        u_minus = u_plus
-    else:
-        #GL 19b Eqn 11
-        Delta_theta = 0.5*(1 - (eta + lam*lam)/(a*a))
-        u_plus = Delta_theta + np.sqrt(Delta_theta**2 + eta/(a*a))
-        u_minus = Delta_theta - np.sqrt(Delta_theta**2 + eta/(a*a))
-     
-    # ensure th_o is inside the turning points [th_1,th_4] exactly
-    mask = (np.cos(th_o)**2 - u_plus) > 0
-    u_plus[mask] = np.cos(th_o)**2
-
-    # for geodesics with eta==0, exactly u_minus=0.
-    # This breaks some equations for th integrals
-    # bump up u_minus to a small value # TODO ok?
-    u_minus[(u_minus==0)*(eta<0)] = EP
-    u_minus[(u_minus==0)*(eta>=0)] = -EP
- 
-    # for vortical geodeiscs, ensure th_o is inside [th_minus, th_2] exactly
-    maskm = (np.cos(th_o)**2 - u_minus[eta<0]) < 0
-    mask = np.zeros(eta.shape).astype(bool)
-    mask[eta<0] = maskm
-    u_minus[mask] = np.cos(th_o)**2
-
-    # compute ratio
-    if(a<MINSPIN):
-        uratio = 0.
-        a2u_minus = -(eta+lam**2)                
-    else:
-        uratio = u_plus/u_minus
-        a2u_minus = a**2 * u_minus    
-       
-    return(u_plus, u_minus, uratio, a2u_minus)
-    
 def angular_turning(a, th_o, lam, eta):
     """Calculate angular turning theta_pm points for a geodisic with conserved (lam,eta)"""
 
@@ -240,7 +204,7 @@ def angular_turning(a, th_o, lam, eta):
         raise Exception("lam, eta are different shapes!")
 
     (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam,eta)
-    
+
     # angular turning points for normal motion
     th_plus = np.arccos(-np.sqrt(u_plus)) # this is GL 19a th_4
     th_minus = np.arccos(np.sqrt(u_plus)) # this is GL 19a th_1
@@ -257,8 +221,57 @@ def angular_turning(a, th_o, lam, eta):
     thclass[eta<0] = 2
     # eta == 0: limit of vortical motion in upper half plane unless th_o=90 and beta=0
     thclass[eta==0] = 3
-    
+
     return(u_plus, u_minus, th_plus, th_minus, thclass)
+
+def uplus_uminus(a,th_o,lam,eta):
+    """Calculate u_+, u_- and ratios u_+/u_-, a^2 u_+/u_-
+       including in spin->0 limit"""
+
+    # checks
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+        raise Exception("th_o should be a float in range (0,pi/2)")
+    if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
+    if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
+    if len(lam) != len(eta):
+        raise Exception("lam, eta are different lengths!")
+
+    if(a<MINSPIN):  # spin 0 limit
+        u_plus = eta / (eta + lam*lam)
+        u_minus = u_plus
+    else:
+        #GL 19b Eqn 11
+        Delta_theta = 0.5*(1 - (eta + lam*lam)/(a*a))
+        u_plus = Delta_theta + np.sqrt(Delta_theta**2 + eta/(a*a))
+        u_minus = Delta_theta - np.sqrt(Delta_theta**2 + eta/(a*a))
+
+    # ensure th_o is inside the turning points [th_1,th_4] exactly
+    mask = (np.cos(th_o)**2 - u_plus) > 0
+    u_plus[mask] = np.cos(th_o)**2
+
+    # for geodesics with eta==0, exactly u_minus=0.
+    # This breaks some equations for th integrals
+    # bump up u_minus to a small value # TODO ok?
+    u_minus[(u_minus==0)*(eta<0)] = EP
+    u_minus[(u_minus==0)*(eta>=0)] = -EP
+
+    # for vortical geodeiscs, ensure th_o is inside [th_minus, th_2] exactly
+    maskm = (np.cos(th_o)**2 - u_minus[eta<0]) < 0
+    mask = np.zeros(eta.shape).astype(bool)
+    mask[eta<0] = maskm
+    u_minus[mask] = np.cos(th_o)**2
+
+    # compute ratio
+    if(a<MINSPIN):
+        uratio = 0.
+        a2u_minus = -(eta+lam**2)
+    else:
+        uratio = u_plus/u_minus
+        a2u_minus = a**2 * u_minus
+
+    return(u_plus, u_minus, uratio, a2u_minus)
 
 def radial_roots(a, lam, eta):
     """Calculate radial roots r1,r2,r3,r4, for a geodisic with conserved (lam,eta)"""
@@ -316,6 +329,16 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
     """Maximal mino time elapsed for geodesic with radial roots r1,r2,r3,r4"""
 
     # checks
+    # checks
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(r_o,float) and (r_o>=100)):
+        raise Exception("r_o should be a float >= 100")
+    if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
+    if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
+    if len(lam) != len(eta):
+        raise Exception("lam, eta are different lengths!")
+
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if not isinstance(r1, np.ndarray): r1 = np.array([r1]).flatten()
     if not isinstance(r2, np.ndarray): r2 = np.array([r2]).flatten()
@@ -471,20 +494,28 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
 
     return Imax_out
 
-    
+
 def n_poloidal_orbits(a, th_o, alpha, beta, tau):
     """the number of poloidal orbits as a function of Mino time tau (GL 19b Eq 35)
        only applies for normal geodesics eta>0"""
 
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+        raise Exception("th_o should be a float in range (0,pi/2)")
+    if len(alpha) != len(beta):
+        raise Exception("alpha, beta are different shapes!")
+    if not(tau.shape[1]==len(alpha)):
+        raise Exception("tau has incompatible shape in n_poloidal_orbits!")
+
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-        
+
     (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam,eta)
 
     K = sp.ellipk(uratio) # gives NaN for eta<0
     n_poloidal = (np.sqrt(-a2u_minus.astype(complex))*tau)/(4*K)
     n_poloidal = np.real(n_poloidal.astype(complex))
-    #n_tot = n_poloidal[-1]
 
     return n_poloidal
 
@@ -492,20 +523,63 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
     """ the fractional number of equatorial crossings
         equation only applies for normal geodesics eta>0"""
 
+    # checks
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+        raise Exception("th_o should be a float in range (0,pi/2)")
+    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
+    if len(alpha) != len(beta):
+        raise Exception("alpha, beta are different shapes!")
+    if not(tau.shape[1]==len(alpha)):
+        raise Exception("tau has incompatible shape in n_equatorial_crossings!")
+
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-     
+
     (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam,eta)
-   
+
     s_o = my_sign(beta)  # sign of final angular momentum
     F_o = sp.ellipkinc(np.arcsin(np.cos(th_o)/np.sqrt(u_plus)), uratio) # gives NaN for eta<0
-    K = sp.ellipk(uratio) # gives NaN for eta<0    
+    K = sp.ellipk(uratio) # gives NaN for eta<0
     nmax_eq = ((tau*np.sqrt(-a2u_minus.astype(complex)) + s_o*F_o) / (2*K))  + 1
     nmax_eq[beta>=0] -= 1
     nmax_eq = np.floor(np.real(nmax_eq.astype(complex)))
     nmax_eq[np.isnan(nmax_eq)] = 0
+
     return nmax_eq
-    
+
+def is_outside_crit(a, th_o, alpha, beta):
+    """is the point alpha, beta outside the critical curve?"""
+
+    # checks
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+        raise Exception("th_o should be a float in range (0,pi/2)")
+    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
+    if len(alpha) != len(beta):
+        raise Exception("alpha, beta are different shapes!")
+
+    # horizon radius
+    rh = 1 + np.sqrt(1-a**2)
+
+    # conserved quantities
+    lam = -alpha*np.sin(th_o)
+    eta = (alpha**2 - a**2)*(np.cos(th_o))**2 + beta**2
+
+    outarr = np.empty(alpha.shape)
+    outarr[eta<0] = 0 #vortical region always inside
+
+    (r1,r2,r3,r4,rclass) = radial_roots(a,lam,eta)
+    mask = (np.imag(r4) ==0) * (r4>rh)
+    outarr[mask] = 1
+    outarr[~mask] = 0
+
+    return outarr
+
 def my_cbrt(x):
 
     s = np.sign(x)
@@ -543,29 +617,7 @@ def my_sign(x):
     #out[x>0] = 1
     out[x<0] = -1
     return out
-    
-def is_outside_crit(a, th_o, alpha, beta):
-    """is the point alpha, beta outside the critical curve?"""
-    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
-    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
-    if len(alpha) != len(beta):
-        raise Exception("alpha, beta are different shapes!")
-        
-    # horizon radius
-    rh = 1 + np.sqrt(1-a**2)
 
-    # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*(np.cos(th_o))**2 + beta**2
-
-    outarr = np.empty(alpha.shape)
-    outarr[eta<0] = 0 #vortical region always inside
- 
-    (r1,r2,r3,r4,rclass) = radial_roots(a,lam,eta)
-    mask = (np.imag(r4) ==0) * (r4>rh)
-    outarr[mask] = 1
-    outarr[~mask] = 0
-    return outarr
 
 # def intersect_plane(th_n, ph_n, r_s, th_s, ph_s):
 #
@@ -585,4 +637,3 @@ def is_outside_crit(a, th_o, alpha, beta):
 #         nintersect = np.sum(intersect)
 #         print(xn)
 #         nint[i] = nintersect
-   

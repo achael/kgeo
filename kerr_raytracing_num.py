@@ -19,9 +19,7 @@ INC = 20*np.pi/180.
 ROUT = 1000 #4.e10 # sgra distance in M
 NGEO = 1000
 NPIX = 100
-EP = 1.e-12
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
-MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits.
 
 pix_1d = np.linspace(-6,0,NPIX)
 alpha_default = pix_1d
@@ -29,17 +27,17 @@ beta_default = 0*pix_1d + 1.e-1
 #alpha_default = np.hstack((pix_1d,0*pix_1d+1.e-2))
 #beta_default = np.hstack((0*pix_1d,pix_1d))
 
-def raytrace_num(a=SPIN, 
+def raytrace_num(a=SPIN,
                  observer_coords = [0,ROUT,INC,0],
                  image_coords = [alpha_default, beta_default],
                  ngeo=NGEO,
                  savedata=False, plotdata=False):
 
     tstart = time.time()
-    
+
     [_, r_o, th_o, _] = observer_coords # assumes ph_o = 0
-    [alpha, beta] = image_coords 
-                     
+    [alpha, beta] = image_coords
+
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be float in range [0,1)")
@@ -51,7 +49,7 @@ def raytrace_num(a=SPIN,
         raise Exception("alpha, beta are different lengths!")
 
     print('calculating preliminaries...')
-    
+
     # horizon radii
     rplus  = 1 + np.sqrt(1-a**2)
     rminus = 1 - np.sqrt(1-a**2)
@@ -62,7 +60,7 @@ def raytrace_num(a=SPIN,
 
     # sign of final angular momentum
     s_o = my_sign(beta)
-    
+
     # spin zero should have no voritical geodesics
     if(a<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
@@ -79,9 +77,9 @@ def raytrace_num(a=SPIN,
 
     # define steps equally spaced in Mino time tau
     # rays have equal numbers of steps -- step size dtau depends on the ray
-    # mino time is positive back from screen in GL19b conventions    
+    # mino time is positive back from screen in GL19b conventions
     dtau = MAXTAUFRAC*tau_tot / (ngeo - 1)
-    tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo) 
+    tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo)
 
     # numerically integrate
     # TODO this method isn't very precise b/c of hacky pushes at turning points
@@ -97,8 +95,8 @@ def raytrace_num(a=SPIN,
                                               alpha[i],beta[i],
                                               tau_tot[i],
                                               ngeo=ngeo,verbose=False)
-                 
-        # interpolate onto regular spaced grid in tau                             
+
+        # interpolate onto regular spaced grid in tau
         t_s.append(interp1d(-tau_num,x_num[0],fill_value='extrapolate')(tausteps[:,i]))
         r_s.append(interp1d(-tau_num,x_num[1],fill_value='extrapolate')(tausteps[:,i]))
         th_s.append(interp1d(-tau_num,x_num[2],fill_value='extrapolate')(tausteps[:,i]))
@@ -109,7 +107,7 @@ def raytrace_num(a=SPIN,
     affinesteps = np.array(sig_s).T
     geo_coords = [np.array(t_s).T,np.array(r_s).T,np.array(th_s).T,np.array(ph_s).T]
     geos = Geodesics(a, observer_coords, image_coords, tausteps, sig_s, geo_coords)
-    
+
     if savedata and do_phi_and_t:
         print('saving data...')
         try:
@@ -123,8 +121,8 @@ def raytrace_num(a=SPIN,
             geos.plotgeos()
             plt.show()
         except:
-            print("Error plotting data!")   
-                   
+            print("Error plotting data!")
+
     tstop = time.time()
     print('done!  ', tstop-tstart, ' seconds!')
     return geos
@@ -256,7 +254,7 @@ def integrate_geo_single(a,th_o, r_o,aa,bb,taumax,ngeo=NGEO,verbose=False):
 
     nswitch = 0
     while True:
-        sol = solve_ivp(dxdtau, (t,tmax), x, 
+        sol = solve_ivp(dxdtau, (t,tmax), x,
                         method='DOP853', max_step=max_step,
                         #jac=jac,
                         rtol=1.e-8,atol=1.e-8,
