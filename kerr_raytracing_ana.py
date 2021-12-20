@@ -22,9 +22,9 @@ import h5py
 
 SPIN = 0.94
 INC = 20*np.pi/180.
-ROUT = 1000 #4.e10 # sgra distance in M
+ROUT = 1000. #4.e10 # sgra distance in M
 NGEO = 250
-NPIX = 10000
+NPIX = 1000
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 
 # GSL elliptic functions
@@ -64,7 +64,7 @@ def raytrace_ana(a=SPIN,
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be a float in range [0,1)")
-    if not (isinstance(r_o,float) and (r_0>=100)):
+    if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float >= 100")
     if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
         raise Exception("th_o should be a float in range (0,pi/2)")
@@ -162,7 +162,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
     if not isinstance(u_minus, np.ndarray): u_minus = np.array([u_minus]).flatten()
     if not(len(s_o)==len(eta)==len(lam)==len(u_plus)==len(u_minus)):
         raise Exception("inputs to th_integrate not the same length!")
-    if not(tausteps.shape[1]==len(s_o)):
+    if not(tausteps.shape[-1]==len(s_o)):
         raise Exception("tausteps has incompatible shape in th_integrate!")
 
     # output arrays
@@ -330,7 +330,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be a float in range [0,1)")
-    if not (isinstance(r_o,float) and (r_0>=100)):
+    if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
     if not isinstance(lam, np.ndarray): lam  = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
@@ -340,7 +340,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
     if not isinstance(r4, np.ndarray): r4 = np.array([r4]).flatten()
     if not(len(lam)==len(eta)==len(r1)==len(r2)==len(r3)==len(r4)):
         raise Exception("inputs to r_integrate not the same length!")
-    if not(tausteps.shape[1]==len(eta)):
+    if not(tausteps.shape[-1]==len(eta)):
         raise Exception("tausteps has incompatible shape in r_integrate!")
 
     # horizons

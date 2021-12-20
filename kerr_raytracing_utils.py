@@ -265,13 +265,13 @@ def uplus_uminus(a,th_o,lam,eta):
 
     # compute ratio
     if(a<MINSPIN):
-        uratio = 0.
+        uratio = 0. * u_minus
         a2u_minus = -(eta+lam**2)
     else:
         uratio = u_plus/u_minus
         a2u_minus = a**2 * u_minus
 
-    return(u_plus, u_minus, uratio, a2u_minus)
+    return (u_plus, u_minus, uratio, a2u_minus)
 
 def radial_roots(a, lam, eta):
     """Calculate radial roots r1,r2,r3,r4, for a geodisic with conserved (lam,eta)"""
@@ -334,10 +334,9 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
         raise Exception("a should be a float in range [0,1)")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float >= 100")
-    if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
-    if len(lam) != len(eta):
-        raise Exception("lam, eta are different lengths!")
+    if not(len(eta)==len(r1)==len(r2)==len(r3)==len(r4)):
+        raise Exception("mino_total input arrays are different lengths!")
 
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if not isinstance(r1, np.ndarray): r1 = np.array([r1]).flatten()
@@ -532,7 +531,7 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
         raise Exception("alpha, beta are different shapes!")
-    if not(tau.shape[1]==len(alpha)):
+    if not(tau.shape[-1]==len(alpha)):
         raise Exception("tau has incompatible shape in n_equatorial_crossings!")
 
     lam = -alpha*np.sin(th_o)
@@ -571,10 +570,14 @@ def is_outside_crit(a, th_o, alpha, beta):
     eta = (alpha**2 - a**2)*(np.cos(th_o))**2 + beta**2
 
     outarr = np.empty(alpha.shape)
-    outarr[eta<0] = 0 #vortical region always inside
 
+    # vortical region is always inside critical curve
+    vortmask = eta<0
+    outarr[vortmask] = 0
+
+    # points outside the critical curve have real r4>rh
     (r1,r2,r3,r4,rclass) = radial_roots(a,lam,eta)
-    mask = (np.imag(r4) ==0) * (r4>rh)
+    mask = (np.imag(r4)==0) * (r4>rh) * ~vortmask
     outarr[mask] = 1
     outarr[~mask] = 0
 
