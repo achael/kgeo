@@ -19,6 +19,7 @@ import os
 #from numba import jit
 
 INF = 1.e10
+R0 = INF
 rmax = 100.
 
 def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
@@ -117,11 +118,11 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
         r_s_reg = r_s_reg[0]
         r_s_reg[Nmax_reg < mbar] = 0
 
-    # return data
-    r_s[~vortmask] = r_s_reg
-    Ir[~vortmask] = Ir_reg
-    Imax[~vortmask] = Imax_reg
-    Nmax[~vortmask] = Nmax_reg
+        # return data
+        r_s[~vortmask] = r_s_reg
+        Ir[~vortmask] = Ir_reg
+        Imax[~vortmask] = Imax_reg
+        Nmax[~vortmask] = Nmax_reg
 
     return (r_s, Ir, Imax, Nmax)
 
@@ -133,7 +134,7 @@ def r_equatorial2(rho, varphi, a, th0, mbar=0):
     alpha = np.cos(varphi)*rho
     beta = np.sin(varphi)*rho
 
-    (r, Ir, Imax, Nmax) = r_equatorial(a, th0, mbar, alpha, beta)
+    (r, Ir, Imax, Nmax) = r_equatorial(a, R0, th0, mbar, alpha, beta)
 
 
     # fudge to make things continuous
@@ -269,9 +270,9 @@ def generate_library(which='rh'):
         raise Exception()
 
     print(outpath)
-    processes=8
-    spins = np.linspace(0.01,0.99,99)
-    incs = np.linspace(1,89,89)
+    processes=1
+    spins = np.linspace(0.01,0.99,1)
+    incs = np.linspace(1,89,1)
     mmax = 5
 
     allincs, allspins = np.meshgrid(incs,spins)
@@ -313,7 +314,6 @@ def make_curves2(i, which, n, spin, inc, mmax, outpath):
     # TODO RENAME
     if os.path.isfile('%s/a%02.0f_i%02.0f_%s.txt'%(outpath,100*spin,inc,which)):
         return
-
 
     try:
         for mbar in range(mmax+1):
