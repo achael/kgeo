@@ -30,22 +30,17 @@ MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge
 MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits.
 
 # GSL elliptic functions
-TOM = False
-GSL = False
 SCIPY = True
+GSL = False
 if SCIPY:
     from scipy_ellip_binding import ellip_pi_arr
-    ellippi_arr = ellip_pi_arr    
-    #sellippi_arr = np.vectorize(ellip_pi) 
-elif TOM:
-    from toms_ellip_binding import ellip_pi_tom
-    ellippi_arr_tom = np.frompyfunc(ellip_pi_tom,3,1) 
-    ellippi_arr = ellippi_arr_tom
+    ellippi_arr = ellip_pi_arr
+    #sellippi_arr = np.vectorize(ellip_pi)
 elif GSL:
     from gsl_ellip_binding import ellip_pi_gsl
     ellippi_arr_gsl = np.frompyfunc(ellip_pi_gsl,3,1)
     ellippi_arr = ellippi_arr_gsl
-else: 
+else:
     raise Exception("no elliptic Pi option chosen!")
 
 
@@ -56,7 +51,7 @@ beta_default = 0*pix_1d
 #beta_default = np.hstack((0*pix_1d,pix_1d))
 
 #TODO -- errors in phi raytracing with alpha=0,beta!=0.
-def raytrace_ana(a=SPIN, 
+def raytrace_ana(a=SPIN,
                  observer_coords = [0,ROUT,INC,0],
                  image_coords = [alpha_default, beta_default],
                  ngeo=NGEO,
@@ -64,10 +59,10 @@ def raytrace_ana(a=SPIN,
                  savedata=False, plotdata=True):
 
     tstart = time.time()
-    
+
     [_, r_o, th_o, _] = observer_coords # assumes ph_o = 0
-    [alpha, beta] = image_coords 
-    
+    [alpha, beta] = image_coords
+
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be float in range [0,1)")
@@ -79,7 +74,7 @@ def raytrace_ana(a=SPIN,
         raise Exception("alpha, beta are different lengths!")
 
     print('calculating preliminaries...')
-    
+
     # horizon radii
     rplus  = 1 + np.sqrt(1-a**2)
     rminus = 1 - np.sqrt(1-a**2)
@@ -91,7 +86,7 @@ def raytrace_ana(a=SPIN,
     if(a<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
         print("WARNING: there were eta<0 points for spin %f<MINSPIN!"%a)
-        
+
     # sign of final angular momentum
     s_o = my_sign(beta)
 
@@ -106,9 +101,9 @@ def raytrace_ana(a=SPIN,
 
     # define steps equally spaced in Mino time tau
     # rays have equal numbers of steps -- step size dtau depends on the ray
-    # mino time is positive back from screen in GL19b conventions    
+    # mino time is positive back from screen in GL19b conventions
     dtau = MAXTAUFRAC*tau_tot / (ngeo - 1)
-    tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo) 
+    tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo)
 
     # integrate in theta
     print('integrating in theta...',end="\r")
@@ -135,7 +130,7 @@ def raytrace_ana(a=SPIN,
     affinesteps = sig_s
     geo_coords = [t_s,r_s,th_s,ph_s]
     geos = Geodesics(a, observer_coords, image_coords, tausteps, affinesteps, geo_coords)
-    
+
     if savedata and do_phi_and_t:
         print('saving data...')
         try:
@@ -149,8 +144,8 @@ def raytrace_ana(a=SPIN,
             geos.plotgeos()
             plt.show()
         except:
-            print("Error plotting data!")   
-                   
+            print("Error plotting data!")
+
     tstop = time.time()
     print('done!  ', tstop-tstart, ' seconds!')
     return geos
