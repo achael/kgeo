@@ -7,8 +7,8 @@ import numpy as np
 import scipy.special as sp
 from tqdm import tqdm
 from kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
-from equatorial_lensing import r_equatorial
-
+from equatorial_lensing import r_equatorial, nmax_equatorial
+import time
 # Fitting function parameters for emissivity and velocity
 ELLISCO =1.; VRISCO = 2;
 P1=6.; P2=2.; DD=0.2;  # from the simulation....
@@ -16,7 +16,7 @@ P1E=-2.; P2E=-.5; # for  230 GHz
 #P1E=0; P2E=-.75;  # for 86 GHz
 
 
-def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max, psize):
+def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max, psize, nmax_only=False):
     """computes an image in range (alpha_min, alpha_max) x (beta_min, beta_max)
       for all orders of m up to mbar_max
       and pixel size psize"""
@@ -48,14 +48,24 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
     outarr_g = np.zeros((len(alpha_arr), mbar_max+1))
     outarr_n = np.zeros((len(alpha_arr)))
 
-    # loop over image order mbar
-    for mbar in tqdm(range(mbar_max+1)):
-        (Ipix, g, r_s, Ir, Imax, Nmax) = Iobs(a, r_o, th_o, mbar, alpha_arr, beta_arr)
-        outarr_I[:,mbar] = Ipix
-        outarr_r[:,mbar] = r_s
-        outarr_t[:,mbar] = Ir
-        outarr_g[:,mbar] = g
-        outarr_n = Nmax # TODO
+    if nmax_only:
+        # maximum number of equatorial crossings
+        print('calculating maximual number of equatorial crossings')
+        tstart = time.time()
+        outarr_n = nmax_equatorial(a, r_o, th_o, alpha_arr, beta_arr)
+        print('done',time.time()-tstart)
+    else:
+        # loop over image order mbar
+        for mbar in range(mbar_max+1):
+            print('image %i...'%mbar, end="\r")
+            tstart = time.time()
+            (Ipix, g, r_s, Ir, Imax, Nmax) = Iobs(a, r_o, th_o, mbar, alpha_arr, beta_arr)
+            outarr_I[:,mbar] = Ipix
+            outarr_r[:,mbar] = r_s
+            outarr_t[:,mbar] = Ir
+            outarr_g[:,mbar] = g
+            outarr_n = Nmax # TODO
+            print('image %i...%0.2f s'%(mbar, time.time()-tstart))
 
     return (outarr_I, outarr_r, outarr_t, outarr_g, outarr_n)
 

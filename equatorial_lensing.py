@@ -18,9 +18,76 @@ import os
 # TODO -- vectorize / numba!
 #from numba import jit
 
-INF = 1.e10
-R0 = INF
-rmax = 100.
+INF = 1.e50
+R0 = np.infty
+NPROC = 10
+
+def nmax_equatorial(a, r_o, th_o, alpha, beta):
+    """Return the maximum number of equatorial crossings"""
+
+    # checks
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(r_o,float) and (r_o>=100)):
+        raise Exception("r_o should be a float > 100")
+    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+        raise Exception("th_o should be a float in range (0,pi/2]")
+
+    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
+    if len(alpha) != len(beta):
+        raise Exception("alpha, beta are different lengths!")
+
+    # conserved quantities
+    lam = -alpha*np.sin(th_o)
+    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+
+    # output arrays
+    Nmax = np.empty(alpha.shape)
+
+    # vortical motion
+    vortmask = (eta<=0)
+    Nmax[vortmask] = -2
+
+    # regular motion
+    if np.any(~vortmask):
+
+        lam_reg = lam[~vortmask]
+        eta_reg = eta[~vortmask]
+        beta_reg = beta[~vortmask]
+
+        # angular turning points
+        (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
+
+        # equation 12 for F0
+        # checks on xFarg should be handled in uplus_uminus function
+        xFarg = np.cos(th_o)/np.sqrt(u_plus)
+        F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
+
+        # equation 17 for K
+        K = sp.ellipkinc(0.5*np.pi, uratio)
+
+        # radial roots
+        (r1,r2,r3,r4,rclass) = radial_roots(a,lam_reg,eta_reg)
+
+        # total Mino time
+        Imax_reg = mino_total(a, r_o, eta_reg, r1, r2, r3, r4)
+
+        #Equation 81 for the number of maximual crossings Nmax_eq
+        #Note that eqn C8 of Gralla, Lupsasca, Marrone has a typo!
+        #using sign(0) = 1
+        Nmax_reg = np.empty(Imax_reg.shape)
+
+        betamask = (beta_reg<=0)
+        if np.any(betamask):
+            Nmax_reg[betamask] = (np.floor((Imax_reg*np.sqrt(-u_minus*a**2) - F0) / (2*K)))[betamask]
+        if np.any(~betamask):
+            Nmax_reg[~betamask] = (np.floor((Imax_reg*np.sqrt(-u_minus*a**2) + F0) / (2*K)) - 1)[~betamask]
+
+    # return data
+    Nmax[~vortmask] = Nmax_reg
+
+    return Nmax
 
 def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
     """Return (r_s, Ir, Imax, Nmax) where
@@ -73,14 +140,8 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
 
         # equation 12 for F0
-        xFarg = np.cos(th_o)/np.sqrt(u_plus)
         # checks on xFarg should be handled in uplus_uminus function
-        # if xFarg>1.:
-        #     if verbose: print("|cos(th_o)| > sqrt(uplus)!")
-        #     xFarg=1.
-        # elif xFarg<-1.:
-        #     if verbose: print("|cos(th_o)| > sqrt(uplus)!")
-        #     xFarg=-1.
+        xFarg = np.cos(th_o)/np.sqrt(u_plus)
         F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
 
         # equation 17 for K
@@ -262,17 +323,12 @@ def plot_curves(a, th0, reqs=[3,5,7], ms=[0,1,2]):
     return fig
 
 def generate_library(which='rh'):
-    if which=='rh':
-        outpath = './curve_library_rh'
-    elif which=='rmax':
-        outpath = './curve_library_rmax'
-    else:
-        raise Exception()
+    outpath = './curve_library_' + which
 
     print(outpath)
-    processes=1
-    spins = np.linspace(0.01,0.99,1)
-    incs = np.linspace(1,89,1)
+    processes=NPROC
+    spins = np.linspace(0.01,0.99,99)
+    incs = np.linspace(1,89,89)
     mmax = 5
 
     allincs, allspins = np.meshgrid(incs,spins)
@@ -301,8 +357,14 @@ def make_curves2(i, which, n, spin, inc, mmax, outpath):
 
     if which=='rh':
         rs = rh
-    elif which=='rmax':
-        rs = rmax
+    elif which=='r10':
+        rs = 10.
+    elif which=='r100':
+        rs = 100.
+    elif which=='r1000':
+        rs = 1000.
+    elif which=='r10000':
+        rs = 10000.
     else:
         raise Exception()
 
