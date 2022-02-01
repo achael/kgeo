@@ -151,7 +151,7 @@ class Geodesics(object):
             xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];
             rs = r_s[:,mask];tau = tausteps[:,mask]
             #trim = xs.shape[-1]//int(np.floor(ngeoplot*xs.shape[-1]/self.npix))
-            trim = int(xs.shape[-1]/ngeoplot)
+            trim = max(int(xs.shape[-1]/ngeoplot), 1)
             if xs.shape[-1] < 5 or j>=4:
                 geos = range(xs.shape[-1])
             else:
