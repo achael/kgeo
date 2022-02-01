@@ -543,7 +543,7 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
     F_o = sp.ellipkinc(np.arcsin(np.cos(th_o)/np.sqrt(u_plus)), uratio) # gives NaN for eta<0
     K = sp.ellipk(uratio) # gives NaN for eta<0
     nmax_eq = ((tau*np.sqrt(-a2u_minus.astype(complex)) + s_o*F_o) / (2*K))  + 1
-    nmax_eq[beta>=0] -= 1
+    nmax_eq[eta>=0] -= 1
     nmax_eq = np.floor(np.real(nmax_eq.astype(complex)))
     nmax_eq[np.isnan(nmax_eq)] = 0
 
