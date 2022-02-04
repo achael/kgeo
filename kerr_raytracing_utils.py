@@ -89,16 +89,22 @@ class Geodesics(object):
         return self.affine_times
 
     def plotgeos(self,xlim=12,rmax=15,nplot=None,ngeoplot=50,plot_disk=True,
-                 plot_inside_cc=True,plot_outside_cc=True):
+                 plot_inside_cc=True, plot_outside_cc=True,
+                 n_label='equatorial'):
 
         a = self.a
         th_o = self.th_o
-        nmax_eq = self.nmax_eq
         r_s = self.r_s
         th_s = self.th_s
         ph_s = self.ph_s
         tausteps = self.tausteps
 
+        # numbering by n
+        if n_label=='poloidal':
+            nmax_eq = np.floor(self.n_poloidal[-1])
+        else:
+            nmax_eq = self.nmax_eq
+            
         # horizon
         rplus  = 1 + np.sqrt(1-a**2)
 
