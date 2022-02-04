@@ -513,25 +513,33 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
         raise Exception("alpha, beta are different lengths!")
-    if not(tau.shape[0]==len(alpha) or tau.shape[1]==len(alpha)): #TODO
+        
+    # TODO hacky way to handle different shape tau arrays
+    if len(tau.shape)==1:
+        tau = tau.reshape(1,tau.shape[0])
+        alltau = False
+    else:
+        alltau = True     
+    if not(tau.shape[1]==len(alpha)): #TODO
         raise Exception("tau has incompatible shape in n_poloidal_orbits!")
 
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
 
     # output array
-    n_poloidal = np.empty(alpha.shape)
+    n_poloidal = np.empty(tau.shape)
 
     # vortical motion
     vortmask = (eta<=0)
-    n_poloidal[vortmask] = -2
+    n_poloidal[:,vortmask] = -2
 
     # regular motion
     if np.any(~vortmask):
 
         lam_reg = lam[~vortmask]
         eta_reg = eta[~vortmask]
-        tau_reg = tau[~vortmask]
+        tau_reg = tau[:,~vortmask]
+
                     
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
 
@@ -540,8 +548,11 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
         npol_reg = np.real(npol_reg.astype(complex))
 
     # return data
-    n_poloidal[~vortmask] = npol_reg
+    n_poloidal[:,~vortmask] = npol_reg
     
+    if not alltau:
+        n_poloidal = n_poloidal[0]
+        
     return n_poloidal
 
 def n_equatorial_crossings(a, th_o, alpha, beta, tau):
@@ -558,19 +569,26 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
         raise Exception("alpha, beta are different lengths!")
-    if not(tau.shape[0]==len(alpha) or tau.shape[1]==len(alpha)): #TODO
-        raise Exception("tau has incompatible shape in n_equatorial_crossings!")
+
+    # TODO hacky way to handle different shape tau arrays
+    if len(tau.shape)==1:
+        tau = tau.reshape(1,tau.shape[0])
+        alltau = False
+    else:
+        alltau = True     
+    if not(tau.shape[1]==len(alpha)): #TODO
+        raise Exception("tau has incompatible shape in n_poloidal_orbits!")
         
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
     
     # output array
-    n_equatorial = np.empty(alpha.shape)
+    n_equatorial = np.empty(tau.shape)
 
     # vortical motion
     vortmask = (eta<=0)
-    n_equatorial[vortmask] = -2
+    n_equatorial[:,vortmask] = -2
 
     # regular motion
     if np.any(~vortmask):
@@ -578,8 +596,9 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
         lam_reg = lam[~vortmask]
         eta_reg = eta[~vortmask]
         beta_reg = beta[~vortmask]
-        tau_reg = tau[~vortmask]
-        
+        tau_reg = tau[:,~vortmask]
+
+                       
         # angular turning points
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
 
@@ -598,13 +617,16 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
 
         betamask = (beta_reg<=0)
         if np.any(betamask):
-            neq_reg[betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K)))[betamask]
+            neq_reg[:,betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K)))[:,betamask]
         if np.any(~betamask):
-            neq_reg[~betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K)) - 1)[~betamask]
+            neq_reg[:,~betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K)) - 1)[:,~betamask]
 
     # return data
-    n_equatorial[~vortmask] = neq_reg
-    
+    n_equatorial[:,~vortmask] = neq_reg
+
+    if not alltau:
+        n_equatorial = n_equatorial[0]
+            
     return n_equatorial
 
 def is_outside_crit(a, th_o, alpha, beta):
