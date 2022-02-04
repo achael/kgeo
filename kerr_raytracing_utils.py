@@ -58,7 +58,8 @@ class Geodesics(object):
         return n_poloidal
     @property
     def nmax_eq(self): # number of equatorial crossings
-        nmax_eq = n_equatorial_crossings(self.a, self.th_o, self.alpha, self.beta, self.tautot)
+        #nmax_eq = n_equatorial_crossings(self.a, self.th_o, self.alpha, self.beta, self.tautot)
+        nmax_eq = nmax_equatorial(self.a, self.r_o, self.th_o, self.alpha, self.beta)
         return nmax_eq
 
     # geodeiscs
@@ -549,6 +550,73 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
 
     return nmax_eq
 
+def nmax_equatorial(a, r_o, th_o, alpha, beta):
+    """Return the maximum number of equatorial crossings"""
+
+    # checks
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(r_o,float) and (r_o>=100)):
+        raise Exception("r_o should be a float > 100")
+    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+        raise Exception("th_o should be a float in range (0,pi/2]")
+
+    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
+    if len(alpha) != len(beta):
+        raise Exception("alpha, beta are different lengths!")
+
+    # conserved quantities
+    lam = -alpha*np.sin(th_o)
+    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    
+    # output array
+    Nmax = np.empty(alpha.shape)
+
+    # vortical motion
+    vortmask = (eta<=0)
+    Nmax[vortmask] = -2
+
+    # regular motion
+    if np.any(~vortmask):
+
+        lam_reg = lam[~vortmask]
+        eta_reg = eta[~vortmask]
+        beta_reg = beta[~vortmask]
+
+        # angular turning points
+        (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
+
+        # equation 12 for F0
+        # checks on xFarg should be handled in uplus_uminus function
+        xFarg = np.cos(th_o)/np.sqrt(u_plus)
+        F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
+
+        # equation 17 for K
+        K = sp.ellipkinc(0.5*np.pi, uratio)
+
+        # radial roots
+        (r1,r2,r3,r4,rclass) = radial_roots(a,lam_reg,eta_reg)
+
+        # total Mino time
+        Imax_reg = mino_total(a, r_o, eta_reg, r1, r2, r3, r4)
+
+        #Equation 81 for the number of maximual crossings Nmax_eq
+        #Note that eqn C8 of Gralla, Lupsasca, Marrone has a typo!
+        #using sign(0) = 1
+        Nmax_reg = np.empty(Imax_reg.shape)
+
+        betamask = (beta_reg<=0)
+        if np.any(betamask):
+            Nmax_reg[betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) - F0) / (2*K)))[betamask]
+        if np.any(~betamask):
+            Nmax_reg[~betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) + F0) / (2*K)) - 1)[~betamask]
+
+    # return data
+    Nmax[~vortmask] = Nmax_reg
+
+    return Nmax
+    
 def is_outside_crit(a, th_o, alpha, beta):
     """is the point alpha, beta outside the critical curve?"""
 
