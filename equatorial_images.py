@@ -6,8 +6,8 @@
 import numpy as np
 import scipy.special as sp
 from tqdm import tqdm
-from kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus, nmax_equatorial
-from equatorial_lensing import r_equatorial
+from kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
+from equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
 import time
 # Fitting function parameters for emissivity and velocity
 ELLISCO =1.; VRISCO = 2;
@@ -47,14 +47,19 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
     outarr_t = np.zeros((len(alpha_arr), mbar_max+1))
     outarr_g = np.zeros((len(alpha_arr), mbar_max+1))
     outarr_n = np.zeros((len(alpha_arr)))
-
+    outarr_np = np.zeros((len(alpha_arr)))
+    
     if nmax_only:
         # maximum number of equatorial crossings
-        print('calculating maximual number of equatorial crossings')
+        print('calculating maximal number of equatorial crossings')
         tstart = time.time()
         outarr_n = nmax_equatorial(a, r_o, th_o, alpha_arr, beta_arr)
+        outarr_np = nmax_poloidal(a, r_o, th_o, alpha_arr, beta_arr)
+        
         print('done',time.time()-tstart)
     else:
+        outarr_np = nmax_poloidal(a, r_o, th_o, alpha_arr, beta_arr) # TODO
+            
         # loop over image order mbar
         for mbar in range(mbar_max+1):
             print('image %i...'%mbar, end="\r")
@@ -65,9 +70,10 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
             outarr_t[:,mbar] = Ir
             outarr_g[:,mbar] = g
             outarr_n = Nmax # TODO
+
             print('image %i...%0.2f s'%(mbar, time.time()-tstart))
 
-    return (outarr_I, outarr_r, outarr_t, outarr_g, outarr_n)
+    return (outarr_I, outarr_r, outarr_t, outarr_g, outarr_n, outarr_np)
 
 def Iobs(a, r_o, th_o, mbar, alpha, beta):
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
@@ -114,21 +120,36 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta):
     Iobs[zeromask] = 0
 
     if np.any(~zeromask):
-
+        ##################
         # get emission in local frame
+        ##################
+                
         #Iemis = emisGLM(a, r_s[~zeromask], gamma=-1.5)
         Iemis = emisP(a, r_s[~zeromask], p=P1E, p2=P2E)
 
+        ##################
         # get redshift
+        ##################
         sign = radial_momentum_sign(a, th_o, alpha[~zeromask], beta[~zeromask], Ir[~zeromask], Imax[~zeromask])
-        #gg = g_zamo(a,r_s[~zeromask],lam[~zeromask]) # zero angular momentum
-        #gg = g_kep(a,r_z[~zeromask],lam[~zeromask],eta[~zeromask],ur_sign=sign) # keplerian with infall inside
-        #gg = g_subkep(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], ur_sign=sign, fac_subkep=.75) #subkeplerian with infall insize
+        
+        # zero angular momentum        
+        #gg = g_zamo(a,r_s[~zeromask],lam[~zeromask])
+        
+        # keplerian with infall inside
+        #gg = g_kep(a,r_z[~zeromask],lam[~zeromask],eta[~zeromask],ur_sign=sign) 
+        
+        #subkeplerian with infall inside
+        #gg = g_subkep(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], ur_sign=sign, fac_subkep=.75)
+        
+        # fit to grmhd data
         gg = g_grmhd_fit(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], sign)
 
         g[~zeromask] = gg
 
+        ##################
         # observed emission
+        ##################   
+             
         #Iobs[~zeromask] = Iemis * (gg**4)
         Iobs[~zeromask] = Iemis * (gg**3)
         #Iobs[~zeromask] = Iemis * (gg**2)

@@ -8,7 +8,7 @@ from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
+from kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus, n_equatorial_crossings, n_poloidal_orbits
 from kerr_raytracing_ana import r_integrate
 import ehtim.parloop as parloop
 import ehtim.observing.obs_helpers as obsh
@@ -21,6 +21,69 @@ import os
 INF = 1.e50
 R0 = np.infty
 NPROC = 10
+
+
+def nmax_equatorial(a, r_o, th_o, alpha, beta):
+    """Return the maximum number of equatorial crossings"""
+
+    # checks
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(r_o,float) and (r_o>=100)):
+        raise Exception("r_o should be a float > 100")
+    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+        raise Exception("th_o should be a float in range (0,pi/2]")
+
+    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
+    if len(alpha) != len(beta):
+        raise Exception("alpha, beta are different lengths!")
+    
+    # conserved quantities
+    lam = -alpha*np.sin(th_o)
+    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+        
+    # radial roots
+    (r1,r2,r3,r4,rclass) = radial_roots(a,lam,eta)
+
+    # total Mino time
+    Imax = mino_total(a, r_o, eta, r1, r2, r3, r4)
+
+    # number of crossings
+    nmax = n_equatorial_crossings(a,th_o,alpha,beta,Imax)
+    
+    return nmax
+
+def nmax_poloidal(a, r_o, th_o, alpha, beta):
+    """Return the maximum number of poloidal orbits"""
+
+    # checks
+    if not (isinstance(a,float) and (0<=a<1)):
+        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(r_o,float) and (r_o>=100)):
+        raise Exception("r_o should be a float > 100")
+    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+        raise Exception("th_o should be a float in range (0,pi/2]")
+
+    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
+    if len(alpha) != len(beta):
+        raise Exception("alpha, beta are different lengths!")
+    
+    # conserved quantities
+    lam = -alpha*np.sin(th_o)
+    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+        
+    # radial roots
+    (r1,r2,r3,r4,rclass) = radial_roots(a,lam,eta)
+
+    # total Mino time
+    Imax = mino_total(a, r_o, eta, r1, r2, r3, r4)
+
+    # number of crossings
+    nmax = n_poloidal_orbits(a, th_o, alpha, beta, Imax)
+    
+    return nmax
 
 
 def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
