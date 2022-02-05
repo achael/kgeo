@@ -5,7 +5,11 @@ import matplotlib.pyplot as plt
 from gsl_ellip_binding import ellip_pi_gsl
 import h5py
 
-MINSPIN = 1.e-6 # minimum spin for full formulas to work before taking limits. TODO check!
+# minimum spin for full formulas to work before taking limits.
+# changed to 1.e-4 to be conservative, 1.e-6 was giving issues on-axis 
+MINSPIN = 1.e-4
+
+# small number
 EP = 1.e-12
 
 class Geodesics(object):
