@@ -162,11 +162,11 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
 
         betamask = (beta_reg<=0)
         if np.any(betamask):
-            Nmax_reg[betamask] = (np.floor((Imax_reg*np.sqrt(-u_minus*a**2) - F0) / (2*K)))[betamask]
-            Ir_reg[betamask] = ((2*m*K + F0)/np.sqrt(-u_minus*a**2))[betamask]
+            Nmax_reg[betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) - F0) / (2*K)))[betamask]
+            Ir_reg[betamask] = ((2*m*K + F0)/np.sqrt(-a2u_minus))[betamask]
         if np.any(~betamask):
-            Nmax_reg[~betamask] = (np.floor((Imax_reg*np.sqrt(-u_minus*a**2) + F0) / (2*K)) - 1)[~betamask]
-            Ir_reg[~betamask] = ((2*m*K - F0)/np.sqrt(-u_minus*a**2))[~betamask]
+            Nmax_reg[~betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) + F0) / (2*K)) - 1)[~betamask]
+            Ir_reg[~betamask] = ((2*m*K - F0)/np.sqrt(-a2u_minus))[~betamask]
 
         # calculate the emission radius given the elapsed mino time
         # TODO -- clean up hacky indexing here

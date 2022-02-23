@@ -109,6 +109,9 @@ class Geodesics(object):
         else:
             nmax_eq = self.nmax_eq
             
+        # adjust numbering by one
+        nmax_eq += 1
+        
         # horizon
         rplus  = 1 + np.sqrt(1-a**2)
 
