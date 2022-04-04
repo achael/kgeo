@@ -210,7 +210,7 @@ def angular_turning(a, th_o, lam, eta):
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be float in range (0,pi/2)")
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
@@ -245,7 +245,7 @@ def uplus_uminus(a,th_o,lam,eta):
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
@@ -514,7 +514,7 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
 
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -569,7 +569,7 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be a float in range (0,pi/2]")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
@@ -642,7 +642,7 @@ def is_outside_crit(a, th_o, alpha, beta):
     # checks
     if not (isinstance(a,float) and (0<=a<1)):
         raise Exception("a should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()

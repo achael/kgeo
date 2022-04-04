@@ -578,8 +578,6 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
         # parameters for case 2
         k2 = (rr32*rr41)/(rr31*rr42)# 0<k=k2<1, GL19a B13
 
-        x2rp = np.sqrt((rr31*rrp4)/(rr41*rrp3)) # GL19a, B35
-        x2rp = np.sqrt((rr31*rrm4)/(rr41*rrm3)) # GL19a, B35
         if r_o==np.infty:
             x2ro = np.sqrt(rr31/rr41) # B35, for observer at r_o
         else:
