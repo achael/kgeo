@@ -399,33 +399,6 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
         r_s[:,mask_4] = rs
 
         if do_phi_and_t:
-            # auxillary functions
-            def S1_S2(al,phi,j,ret_s2=True): #B92 and B93
-                al2 = al*al
-                al2p1 = 1 + al2
-                al2j = 1 - j + al2
-                s2phi = np.sqrt(1.- j*(np.sin(phi))**2)
-
-                p2 = np.sqrt(al2p1 / al2j)
-                f2 = 0.5*p2*np.log(np.abs(((1-p2)*(1+p2*s2phi))/((1+p2)*(1-p2*s2phi))))
-
-
-                # definitions of functions in this region should keep things in the allowed prange
-                F = sp.ellipkinc(phi,j)
-                S1 = (F + al2*ellippi_arr(al2p1,phi,j) - al*f2) / al2p1
-
-                if ret_s2:
-                    E = sp.ellipeinc(phi,j)
-                    tanphi = np.tan(phi)
-
-                    S2a = (1-j)*F + al2*E + al2*s2phi*(al - tanphi)/(1 + al*tanphi) - al2*al
-                    S2a = -S2a / (al2p1*al2j)
-                    S2b = S1*(1./al2p1 + (1-j)/al2j)
-                    S2 = S2a + S2b
-                else:
-                    S2=np.NaN
-
-                return (S1,S2)
 
             # building blocks of the path integrals
             S1_a_0, S2_a_0 = S1_S2(g0,amX4,k4,ret_s2=True)
@@ -504,26 +477,6 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
 
         if do_phi_and_t:
 
-            # auxillary functions
-            # TODO al->0 limit??
-            def R1_R2(al,phi,j,ret_r2=True): #B62 and B65
-                al2 = al**2
-                s2phi = np.sqrt(1-j*np.sin(phi)**2)
-                p1 = np.sqrt((al2 -1)/(j+(1-j)*al2))
-                f1 = 0.5*p1*np.log(np.abs((p1*s2phi+np.sin(phi))/(p1*s2phi-np.sin(phi))))
-                nn = al2/(al2-1)
-                R1 = (ellippi_arr(nn,phi,j) - al*f1)/(1-al2)
-
-                if ret_r2:
-                    F = sp.ellipkinc(phi,j)
-                    E = sp.ellipeinc(phi,j)
-                    R2 = (F - (al2/(j+(1-j)*al2))*(E - al*np.sin(phi)*s2phi/(1+al*np.cos(phi)))) / (al2-1)
-                    R2 = R2 + (2*j - nn)*R1 / (j + (1-j)*al2)
-
-                else:
-                    R2=np.NaN
-
-                return (R1,R2)
 
             # # building blocks of the path integrals
             R1_a_0, R2_a_0 = R1_R2(al0,amX3,k3)
@@ -635,3 +588,55 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
     I_sig = I_2
 
     return (r_s, I_phi, I_t, I_sig)
+    
+    
+# auxillary functions for the radial integrals
+# TODO al->0 limit??
+def S1_S2(al,phi,j,ret_s2=True): #B92 and B93
+    al2 = al*al
+    al2p1 = 1 + al2
+    al2j = 1 - j + al2
+    s2phi = np.sqrt(1.- j*(np.sin(phi))**2)
+
+    p2 = np.sqrt(al2p1 / al2j)
+    f2 = 0.5*p2*np.log(np.abs(((1-p2)*(1+p2*s2phi))/((1+p2)*(1-p2*s2phi))))
+
+
+    # definitions of functions in this region should keep things in the allowed prange
+    F = sp.ellipkinc(phi,j)
+    S1 = (F + al2*ellippi_arr(al2p1,phi,j) - al*f2) / al2p1
+
+    if ret_s2:
+        E = sp.ellipeinc(phi,j)
+        tanphi = np.tan(phi)
+
+        S2a = (1-j)*F + al2*E + al2*s2phi*(al - tanphi)/(1 + al*tanphi) - al2*al
+        S2a = -S2a / (al2p1*al2j)
+        S2b = S1*(1./al2p1 + (1-j)/al2j)
+        S2 = S2a + S2b
+    else:
+        S2=np.NaN
+
+    return (S1,S2)
+
+
+# auxillary functions
+# TODO al->0 limit??
+def R1_R2(al,phi,j,ret_r2=True): #B62 and B65
+    al2 = al**2
+    s2phi = np.sqrt(1-j*np.sin(phi)**2)
+    p1 = np.sqrt((al2 -1)/(j+(1-j)*al2))
+    f1 = 0.5*p1*np.log(np.abs((p1*s2phi+np.sin(phi))/(p1*s2phi-np.sin(phi))))
+    nn = al2/(al2-1)
+    R1 = (ellippi_arr(nn,phi,j) - al*f1)/(1-al2)
+
+    if ret_r2:
+        F = sp.ellipkinc(phi,j)
+        E = sp.ellipeinc(phi,j)
+        R2 = (F - (al2/(j+(1-j)*al2))*(E - al*np.sin(phi)*s2phi/(1+al*np.cos(phi)))) / (al2-1)
+        R2 = R2 + (2*j - nn)*R1 / (j + (1-j)*al2)
+
+    else:
+        R2=np.NaN
+
+    return (R1,R2)

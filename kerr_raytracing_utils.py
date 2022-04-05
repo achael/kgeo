@@ -11,7 +11,7 @@ MINSPIN = 1.e-4
 
 # small number
 EP = 1.e-12
-
+    
 class Geodesics(object):
 
     def __init__(self,a, observer_coords, image_coords, mino_times, affine_times, geo_coords):
@@ -707,6 +707,7 @@ def my_sign(x):
     #out[x>0] = 1
     out[x<0] = -1
     return out
+
 
 
 # def intersect_plane(th_n, ph_n, r_s, th_s, ph_s):
