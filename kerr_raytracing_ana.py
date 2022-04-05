@@ -48,7 +48,7 @@ beta_default = 0*pix_1d
 #alpha_default = np.hstack((pix_1d,0*pix_1d+1.e-2))
 #beta_default = np.hstack((0*pix_1d,pix_1d))
 
-#TODO -- errors in phi raytracing with alpha=0,beta!=0.
+#TODO -- errors in phi raytracing with alpha=0, beta!=0.
 def raytrace_ana(a=SPIN,
                  observer_coords = [0,ROUT,INC,0],
                  image_coords = [alpha_default, beta_default],
@@ -82,6 +82,7 @@ def raytrace_ana(a=SPIN,
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    
     # spin zero should have no vortical geodesics
     if(a<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
@@ -113,7 +114,7 @@ def raytrace_ana(a=SPIN,
     stop = time.time()
     print('integrating in theta...%0.2f s'%(stop-start))
 
-    # integrate in r1
+    # integrate in r
     print('integrating in r...',end="\r")
     start = time.time()
     (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
@@ -123,8 +124,8 @@ def raytrace_ana(a=SPIN,
 
     # combine integrals to get phi, t, and sigma as a function of time
     sig_s = 0 + I_sig + a**2 * G_t # GL19a 15
-    t_s = 0 + I_t + a**2 * G_t # GL19a 12
-    ph_s = 0 + I_ph + lam*G_ph # GL19a 11
+    t_s = 0 + I_t + a**2 * G_t     # GL19a 12
+    ph_s = 0 + I_ph + lam*G_ph     # GL19a 11
 
     # create Geodesics object
     affinesteps = sig_s
@@ -137,6 +138,7 @@ def raytrace_ana(a=SPIN,
             geos.savegeos()
         except:
             print("Error saving to file!")
+ 
     if plotdata and do_phi_and_t:
         print('plotting data...')
         try:
@@ -190,15 +192,16 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         k = uratio # k<0 since um<0 for eta>0
         elliparg = np.arcsin(np.cos(th_o)/np.sqrt(up))
 
-        #Gth_o, GL19a, 29
+        # "G-terms" at observer
         F =  sp.ellipkinc(elliparg,k)
-        Gth_o = -pref * F
+        Gth_o = -pref * F #GL19a, 29
 
         if do_phi_and_t:
-            #Gph_o , GL 19a, 30
-            Gph_o = -pref * ellippi_arr(up, elliparg, k)
 
-            #Gt_o , GL 19a, 31
+            # GL 19a, 30
+            Gph_o = -pref * ellippi_arr(up, elliparg, k) 
+
+            # GL 19a, 31
             maskk = (k==0)
             Gt_o = np.zeros(k.shape)
             if np.any(maskk): # limit as k-> 0, occurs when a==0
@@ -206,14 +209,14 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             if np.any(~maskk):
                 Gt_o[~maskk] = 2*up*pref* (sp.ellipeinc(elliparg,k) - F)[~maskk]/(2*k[~maskk]) # GL 19a, 31
 
-        ## compute the amplitude Phi_tau
+        # compute the amplitude Phi_tau
         snarg = np.sqrt(-a2um)*(-tausteps[:,mask] + s*Gth_o)
         snarg = snarg.astype(float)
 
         sinPhi_tau = np.zeros(snarg.shape)
         Phi_tau = np.zeros(snarg.shape)
 
-        # for very small arguments, use lim x->0 sn(x,k)=lim am(x,k)=x
+        # for very small arguments, use lim_x->0 sn(x,k)=lim_x->0 am(x,k)=x
         jmask = np.abs(snarg) < EP # TODO what value cutoff?
         if np.any(jmask):
             sinPhi_tau[jmask] = snarg[jmask]
@@ -263,7 +266,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         uratio = up/um
         a2um = a**2 * um
 
-        ## compute antideriviatives at the origin
+        # compute antideriviatives at the observer point
         h = 1. # sign(cos(th)) GL19a 54, we always consider northern hemisphere
         prefA = 1/np.sqrt(a2um) # u_minus>0 always for eta<0
         prefB = prefA / (1.-um)
@@ -272,24 +275,20 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         k = 1 - uratio # again, k<0 always since for eta<0 up>um>0
         upm = (up-um)/(1.-um)
 
-        #Gth_o , GL19a 56
-        Gth_o = -h*prefA * sp.ellipkinc(Nu_o, k)
-
+        # "G-terms" at observer
+        Gth_o = -h*prefA * sp.ellipkinc(Nu_o, k) #GL19a 56
         if do_phi_and_t:
-            #Gph_o , GL19a 57
-            Gph_o = -h*prefB * ellippi_arr(upm,Nu_o,k)
+            Gph_o = -h*prefB * ellippi_arr(upm,Nu_o,k) #GL19a 57
+            Gt_o  = -h*prefC * sp.ellipeinc(Nu_o,k) #GL19a 58
 
-            #Gt_o  , GL19a 58
-            Gt_o  = -h*prefC * sp.ellipeinc(Nu_o,k)
-
-        ## compute the amplitude Nu_tau
+        # compute the amplitude Nu_tau
         snarg = np.sqrt(a2um)*(-tausteps[:,mask] + s*Gth_o)
         snarg = snarg.astype(float)
 
         sinNu_tau = np.zeros(snarg.shape)
         Nu_tau = np.zeros(snarg.shape)
 
-        # for very small arguments, use lim x->0 sn(x,k)=lim am(x,k)=x
+        # for very small arguments, use lim_x->0 sn(x,k)= lim_x->0 am(x,k)= x
         jmask = np.abs(snarg) < EP # TODO what value cutoff?
         if np.any(jmask):
             sinNu_tau[jmask] = snarg[jmask]
@@ -307,17 +306,16 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             #am(sqrt(1-m)x | k) = pi/2 - am(K(m) - x | m for m <=1
             Nu_tau[~jmask] = 0.5*np.pi-sp.ellipj(sp.ellipk(m) - snarg[~jmask]/np.sqrt(1-m), m)[3]
 
-        # solution for theta_o GL19a 49
+        # solution for theta_o, GL19a 49
         th_s[:,mask] = (np.arccos(h*np.sqrt(um + (up-um)*sinNu_tau**2))).astype(float)
 
         if do_phi_and_t:
 
-            # G_phi integral GL19a 67
+            # G_phi integral, GL19a 67
             G_ph[:,mask] = (prefB * ellippi_arr(upm,Nu_tau,k) - s*Gph_o).astype(float)
 
-            # G_t integral GL19a, 68
+            # G_t integral, GL19a, 68
             G_t[:,mask] = (prefC * sp.ellipeinc(Nu_tau,k) - s*Gt_o).astype(float)
-
 
     return (th_s, G_ph, G_t)
 
@@ -546,7 +544,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
         cnX2 = ellipfuncs[1]
         dnX2 = ellipfuncs[2]
         amX2 = ellipfuncs[3]
-        rs_num = (rr4*rr31 - rr3*rr41*(snX2)**2) # B 46
+        rs_num = (rr4*rr31 - rr3*rr41*(snX2)**2) # B46
         rs_denom = (rr31 - rr41*(snX2)**2)
         rs = rs_num / rs_denom
         r_s[:,mask_2] = rs
@@ -557,7 +555,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
             dX2dtau = -0.5*np.sqrt(rr31*rr42)
             dsn2dtau = 2*snX2*cnX2*dnX2*dX2dtau
             drsdtau = rr31*rr43*rr41*dsn2dtau / ((rr31 - rr41*snX2**2)**2)
-            drsdtau *= -1 # TODO because we take tau->-tau we need this sign change
+            drsdtau *= -1 # TODO because we take tau -> -tau we need this sign change
             Rpot_o = (r_o-rr1)*(r_o-rr2)*(r_o-rr3)*(r_o-rr4)
             drsdtau_o = s*np.sqrt(Rpot_o)
             H =  drsdtau / (rs - rr3) - drsdtau_o/(r_o - rr3) #B51
@@ -592,7 +590,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
     
 # auxillary functions for the radial integrals
 # TODO al->0 limit??
-def S1_S2(al,phi,j,ret_s2=True): #B92 and B93
+def S1_S2(al,phi,j,ret_s2=True): #B92 and B93 of GL19a
     al2 = al*al
     al2p1 = 1 + al2
     al2j = 1 - j + al2
@@ -619,10 +617,8 @@ def S1_S2(al,phi,j,ret_s2=True): #B92 and B93
 
     return (S1,S2)
 
-
-# auxillary functions
 # TODO al->0 limit??
-def R1_R2(al,phi,j,ret_r2=True): #B62 and B65
+def R1_R2(al,phi,j,ret_r2=True): #B62 and B65 of GL19a
     al2 = al**2
     s2phi = np.sqrt(1-j*np.sin(phi)**2)
     p1 = np.sqrt((al2 -1)/(j+(1-j)*al2))
