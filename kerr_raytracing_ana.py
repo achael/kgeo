@@ -48,7 +48,7 @@ beta_default = 0*pix_1d
 #alpha_default = np.hstack((pix_1d,0*pix_1d+1.e-2))
 #beta_default = np.hstack((0*pix_1d,pix_1d))
 
-pix_1d = np.linspace(-6,6,100)
+pix_1d = np.linspace(-8,8,256)
 alpha,beta=np.meshgrid(pix_1d,pix_1d)
 alpha=alpha.flatten()
 beta=beta.flatten()
@@ -131,7 +131,7 @@ def raytrace_ana(a=SPIN,
     sig_s = 0 + I_sig + a**2 * G_t # GL19a 15
     t_s = 0 + I_t + a**2 * G_t     # GL19a 12
     ph_s = 0 + I_ph + lam*G_ph     # GL19a 11
-
+    
     # create Geodesics object
     affinesteps = sig_s
     geo_coords = [t_s,r_s,th_s,ph_s]
@@ -210,7 +210,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             maskk = (k==0)
             Gt_o = np.zeros(k.shape)
             if np.any(maskk): # limit as k-> 0, occurs when a==0
-                Gt_o[maskk] = 0.125*(-2*elliparg + np.sin(2*elliparg))[maskk]
+                Gt_o[maskk] = 2*up*pref*0.125*(-2*elliparg + np.sin(2*elliparg))[maskk]
             if np.any(~maskk):
                 Gt_o[~maskk] = 2*up*pref* (sp.ellipeinc(elliparg,k) - F)[~maskk]/(2*k[~maskk]) # GL 19a, 31
                                                 
@@ -251,14 +251,14 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             maskk = (k==0)
             Gtout = np.zeros(Phi_tau.shape)
             if np.any(maskk): # limit as k-> 0, occurs when a==0
-                Gtout[:,maskk] = 0.125*(-2*Phi_tau + np.sin(2*Phi_tau))[:,maskk]
+                Gtout[:,maskk] = -2*up*pref*0.125*(-2*Phi_tau + np.sin(2*Phi_tau))[:,maskk]
             if np.any(~maskk):
-                Gtout[:,~maskk] = (2*up*pref* (sp.ellipeinc(Phi_tau,k) - sp.ellipkinc(Phi_tau,k)))[:,~maskk]/(2*k[~maskk]) # GL 19a, 31
+                Gtout[:,~maskk] = -(2*up*pref* (sp.ellipeinc(Phi_tau,k) - sp.ellipkinc(Phi_tau,k)))[:,~maskk]/(2*k[~maskk]) # GL 19a, 31
                 
             Gtout =  Gtout - s*Gt_o
             G_t[:,mask] = Gtout
                                     
-    # vortical motion cause
+    # vortical motion case
     # most eta=0 exact points are a limit of vortical motion
     if(np.any(eta<=0.)):
         if(a<MINSPIN):

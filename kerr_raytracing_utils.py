@@ -12,6 +12,7 @@ MINSPIN = 1.e-4
 # small number
 EP = 1.e-12
 
+
 class Geodesics(object):
 
     def __init__(self,a, observer_coords, image_coords, mino_times, affine_times, geo_coords):
