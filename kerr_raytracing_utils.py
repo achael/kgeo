@@ -11,7 +11,7 @@ MINSPIN = 1.e-4
 
 # small number
 EP = 1.e-12
-    
+
 class Geodesics(object):
 
     def __init__(self,a, observer_coords, image_coords, mino_times, affine_times, geo_coords):
@@ -153,8 +153,13 @@ class Geodesics(object):
             nplot = range(nloop)
         else:
             nplot = np.array([nplot]).flatten()
+            
         for j in nplot:
-            mask = (nmax_eq==j)
+            if j==0:
+                mask = (nmax_eq==0) + (nmax_eq==-1)            
+            else:
+                mask = (nmax_eq==j)
+                
             if not plot_inside_cc: #TODO make nicer
                 mask *= (r_s[-1] > 10)
             if not plot_outside_cc:
@@ -162,11 +167,18 @@ class Geodesics(object):
             if np.sum(mask)==0: continue
 
             color = colors[j]
+            if j==-1: color=colors[0]
+            
             xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];
             rs = r_s[:,mask];tau = tausteps[:,mask]
             #trim = xs.shape[-1]//int(np.floor(ngeoplot*xs.shape[-1]/self.npix))
-            trim = max(int(xs.shape[-1]/ngeoplot), 1)
-            if xs.shape[-1] < 5 or j>=4:
+            
+            if ngeoplot is not None:
+                trim = max(int(xs.shape[-1]/ngeoplot), 1)
+            else:
+                trim = 0
+
+            if (xs.shape[-1] < 5 or j>=4 or trim==0):
                 geos = range(xs.shape[-1])
             else:
                 geos = range(0,xs.shape[-1],trim)

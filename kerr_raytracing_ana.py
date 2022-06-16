@@ -22,7 +22,7 @@ import h5py
 
 SPIN = 0.94
 INC = 20*np.pi/180.
-ROUT = 1000. #4.e10 # sgra distance in M
+ROUT = 100000. #4.e10 # sgra distance in M
 NGEO = 250
 NPIX = 1000
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
@@ -42,11 +42,16 @@ else:
     raise Exception("no elliptic Pi option chosen!")
 
 
-pix_1d = np.linspace(-6,0,NPIX)
+pix_1d = np.linspace(-6,6,4*NPIX)
 alpha_default = pix_1d
 beta_default = 0*pix_1d
 #alpha_default = np.hstack((pix_1d,0*pix_1d+1.e-2))
 #beta_default = np.hstack((0*pix_1d,pix_1d))
+
+pix_1d = np.linspace(-6,6,100)
+alpha,beta=np.meshgrid(pix_1d,pix_1d)
+alpha=alpha.flatten()
+beta=beta.flatten()
 
 #TODO -- errors in phi raytracing with alpha=0, beta!=0.
 def raytrace_ana(a=SPIN,
@@ -90,7 +95,7 @@ def raytrace_ana(a=SPIN,
 
     # sign of final angular momentum
     s_o = my_sign(beta)
-
+    
     # angular turning points and number of equatorial crossings
     (u_plus, u_minus, th_plus, th_minus, thclass) = angular_turning(a, th_o, lam, eta)
 
@@ -105,7 +110,7 @@ def raytrace_ana(a=SPIN,
     # mino time is positive back from screen in GL19b conventions
     dtau = MAXTAUFRAC*tau_tot / (ngeo - 1)
     tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo)
-
+    
     # integrate in theta
     print('integrating in theta...',end="\r")
     start = time.time()
@@ -121,7 +126,7 @@ def raytrace_ana(a=SPIN,
                                           do_phi_and_t=do_phi_and_t)
     stop = time.time()
     print('integrating in r...%0.2f s'%(stop-start))
-
+    
     # combine integrals to get phi, t, and sigma as a function of time
     sig_s = 0 + I_sig + a**2 * G_t # GL19a 15
     t_s = 0 + I_t + a**2 * G_t     # GL19a 12
@@ -171,14 +176,14 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
     th_s = np.zeros(tausteps.shape)
     G_ph = np.zeros(tausteps.shape)
     G_t  = np.zeros(tausteps.shape)
-
+    
     # ordinary motion:
     if(np.any(eta>0.)):
         mask = eta>=0.
         up = u_plus[mask]
         um = u_minus[mask]
         s = s_o[mask]
-
+        
         # compute factors up/um and a**2 * um (in zero spin limit)
         if(a<MINSPIN):
             uratio = np.zeros(eta.shape)
@@ -208,7 +213,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
                 Gt_o[maskk] = 0.125*(-2*elliparg + np.sin(2*elliparg))[maskk]
             if np.any(~maskk):
                 Gt_o[~maskk] = 2*up*pref* (sp.ellipeinc(elliparg,k) - F)[~maskk]/(2*k[~maskk]) # GL 19a, 31
-
+                                                
         # compute the amplitude Phi_tau
         snarg = np.sqrt(-a2um)*(-tausteps[:,mask] + s*Gth_o)
         snarg = snarg.astype(float)
@@ -248,10 +253,11 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             if np.any(maskk): # limit as k-> 0, occurs when a==0
                 Gtout[:,maskk] = 0.125*(-2*Phi_tau + np.sin(2*Phi_tau))[:,maskk]
             if np.any(~maskk):
-                Gtout[:,~maskk] = (2*up*pref* (sp.ellipeinc(Phi_tau,k) - F))[:,~maskk]/(2*k[~maskk]) # GL 19a, 31
+                Gtout[:,~maskk] = (2*up*pref* (sp.ellipeinc(Phi_tau,k) - sp.ellipkinc(Phi_tau,k)))[:,~maskk]/(2*k[~maskk]) # GL 19a, 31
+                
+            Gtout =  Gtout - s*Gt_o
             G_t[:,mask] = Gtout
-
-
+                                    
     # vortical motion cause
     # most eta=0 exact points are a limit of vortical motion
     if(np.any(eta<=0.)):
