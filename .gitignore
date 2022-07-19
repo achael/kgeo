@@ -4,6 +4,8 @@
 *.so
 *.h5
 *.fits
+*.png
+*.pdf
 
 gsl_ellip.c
 toms_ellip_binding.py
