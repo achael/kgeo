@@ -8,7 +8,7 @@ Alternatively, elliptic integrals may be performed with bindings to GSL (which a
 
   ctypes.CDLL('libgsl.so') 
   
-Then modify the following global variables at the top of kerr_raytracing_ana.py
+Then modify the following global variables at the top of kgeo/kerr_raytracing_ana.py
 
 .. code-block:: bash
 
@@ -19,5 +19,5 @@ To run a simple example, try
 
 .. code-block:: bash
 
-  from kerr_raytracing_ana import *
+  from kgeo.kerr_raytracing_ana import *
   out = raytrace_ana(plotdata=True)
