@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from tqdm import tqdm
 import time
-from kerr_raytracing_utils import *
+from kgeo.kerr_raytracing_utils import *
 import h5py
 
 SPIN = 0.94
@@ -31,11 +31,11 @@ MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge
 SCIPY = True
 GSL = False
 if SCIPY:
-    from scipy_ellip_binding import ellip_pi_arr
+    from .scipy_ellip_binding import ellip_pi_arr
     ellippi_arr = ellip_pi_arr
     #sellippi_arr = np.vectorize(ellip_pi)
 elif GSL:
-    from gsl_ellip_binding import ellip_pi_gsl
+    from .gsl_ellip_binding import ellip_pi_gsl
     ellippi_arr_gsl = np.frompyfunc(ellip_pi_gsl,3,1)
     ellippi_arr = ellippi_arr_gsl
 else:

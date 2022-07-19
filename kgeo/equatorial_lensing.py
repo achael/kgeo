@@ -8,8 +8,8 @@ from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus, n_equatorial_crossings, n_poloidal_orbits
-from kerr_raytracing_ana import r_integrate
+from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus, n_equatorial_crossings, n_poloidal_orbits
+from kgeo.kerr_raytracing_ana import r_integrate
 import ehtim.parloop as parloop
 import ehtim.observing.obs_helpers as obsh
 from multiprocessing import cpu_count, Pool

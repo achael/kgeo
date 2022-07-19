@@ -2,7 +2,6 @@ import numpy as np
 import scipy.special as sp
 import mpmath
 import matplotlib.pyplot as plt
-from gsl_ellip_binding import ellip_pi_gsl
 import h5py
 
 # minimum spin for full formulas to work before taking limits.

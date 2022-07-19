@@ -6,8 +6,8 @@
 import numpy as np
 import scipy.special as sp
 from tqdm import tqdm
-from kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
-from equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
+from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
+from kgeo.equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
 import time
 # Fitting function parameters for emissivity and velocity
 ELLISCO =1.; VRISCO = 2;

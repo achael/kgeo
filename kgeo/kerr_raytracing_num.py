@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from tqdm import tqdm
 import time
-from kerr_raytracing_utils import *
+from kgeo.kerr_raytracing_utils import *
 import h5py
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
