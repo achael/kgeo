@@ -152,6 +152,7 @@ def ellip_pi_arr(n,phi,m):
         outarr[mask4] = np.nan        
     donemask += mask4
     
+    # TODO this limit causes issues in G_ph when alpha=0
     mask5 = (np.abs(phi)>halfpi) * (n==1) * ~donemask
     if np.any(mask5):
         outarr[mask5] = np.infty        

@@ -27,6 +27,9 @@ NGEO = 250
 NPIX = 1000
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 
+alpha_default = np.linspace(-6,6,4*NPIX)
+beta_default = 0*alpha_default
+
 # GSL elliptic functions
 SCIPY = True
 GSL = False
@@ -40,18 +43,6 @@ elif GSL:
     ellippi_arr = ellippi_arr_gsl
 else:
     raise Exception("no elliptic Pi option chosen!")
-
-
-pix_1d = np.linspace(-6,6,4*NPIX)
-alpha_default = pix_1d
-beta_default = 0*pix_1d
-#alpha_default = np.hstack((pix_1d,0*pix_1d+1.e-2))
-#beta_default = np.hstack((0*pix_1d,pix_1d))
-
-pix_1d = np.linspace(-8,8,256)
-alpha,beta=np.meshgrid(pix_1d,pix_1d)
-alpha=alpha.flatten()
-beta=beta.flatten()
 
 #TODO -- errors in phi raytracing with alpha=0, beta!=0.
 def raytrace_ana(a=SPIN,
@@ -67,8 +58,10 @@ def raytrace_ana(a=SPIN,
     [alpha, beta] = image_coords
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+    if (a<0):
+        print("WARNING a<0! Not fully verified!")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float >= 100")
     if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
@@ -89,13 +82,13 @@ def raytrace_ana(a=SPIN,
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
     
     # spin zero should have no vortical geodesics
-    if(a<MINSPIN and np.any(eta<0)):
+    if(np.abs(a)<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
         print("WARNING: there were eta<0 points for spin %f<MINSPIN!"%a)
 
     # sign of final angular momentum
     s_o = my_sign(beta)
-    
+        
     # angular turning points and number of equatorial crossings
     (u_plus, u_minus, th_plus, th_minus, thclass) = angular_turning(a, th_o, lam, eta)
 
@@ -111,6 +104,8 @@ def raytrace_ana(a=SPIN,
     dtau = MAXTAUFRAC*tau_tot / (ngeo - 1)
     tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo)
     
+    #pol_orbits = n_poloidal_orbits(a, th_o, alpha, beta, tausteps)
+        
     # integrate in theta
     print('integrating in theta...',end="\r")
     start = time.time()
@@ -160,8 +155,8 @@ def raytrace_ana(a=SPIN,
 
 def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
                  do_phi_and_t=True):
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not isinstance(s_o, np.ndarray): s_o = np.array([s_o]).flatten()
     if not isinstance(eta, np.ndarray): eta= np.array([eta]).flatten()
     if not isinstance(lam, np.ndarray): lam= np.array([lam]).flatten()
@@ -185,9 +180,9 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         s = s_o[mask]
         
         # compute factors up/um and a**2 * um (in zero spin limit)
-        if(a<MINSPIN):
-            uratio = np.zeros(eta.shape)
-            a2um = -(eta+lam**2)
+        if(np.abs(a)<MINSPIN):
+            uratio = np.zeros(eta.shape)[mask]
+            a2um = -(eta+lam**2)[mask]
         else:
             uratio = up/um
             a2um = a**2 * um
@@ -261,7 +256,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
     # vortical motion case
     # most eta=0 exact points are a limit of vortical motion
     if(np.any(eta<=0.)):
-        if(a<MINSPIN):
+        if(np.abs(a)<MINSPIN):
             raise Exception("below MINSPIN but there are eta<0 points in th_integrate!")
 
         mask = eta<0.
@@ -332,8 +327,8 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
     # Follow G19a, interchange source <--> observer labels and send tau -> -tau
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
     if not isinstance(lam, np.ndarray): lam  = np.array([lam]).flatten()
@@ -487,7 +482,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
             R1_b_0, R2_b_0 = R1_R2(al0,auxarg,k3)
             R1_a_p, _ = R1_R2(alp,amX3,k3,ret_r2=False)
             R1_b_p, _ = R1_R2(alp,auxarg,k3,ret_r2=False)
-            if a>MINSPIN:
+            if np.abs(a)>MINSPIN:
                 R1_a_m, _ = R1_R2(alm,amX3,k3,ret_r2=False)
                 R1_b_m, _ = R1_R2(alm,auxarg,k3,ret_r2=False)
             else:

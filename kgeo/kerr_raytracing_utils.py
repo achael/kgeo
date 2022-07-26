@@ -220,8 +220,8 @@ def angular_turning(a, th_o, lam, eta):
     """Calculate angular turning theta_pm points for a geodisic with conserved (lam,eta)"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be float in range (0,pi/2)")
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
@@ -255,8 +255,8 @@ def uplus_uminus(a,th_o,lam,eta):
        including in spin->0 limit"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
@@ -264,7 +264,7 @@ def uplus_uminus(a,th_o,lam,eta):
     if len(lam) != len(eta):
         raise Exception("lam, eta are different lengths!")
 
-    if(a<MINSPIN):  # spin 0 limit
+    if(np.abs(a)<MINSPIN):  # spin 0 limit
         u_plus = eta / (eta + lam*lam)
         u_minus = u_plus
     else:
@@ -277,10 +277,15 @@ def uplus_uminus(a,th_o,lam,eta):
     mask = (np.cos(th_o)**2 - u_plus) > 0
     u_plus[mask] = np.cos(th_o)**2
 
+    # ensure u_plus^2<=1 exactly
+    mask = u_plus**2 > 1
+    u_plus[mask] = 1
+    
     # for geodesics with eta==0, exactly u_minus=0.
     # This breaks some equations for th integrals
-    # bump up u_minus to a small value # TODO ok?
-    u_minus[(u_minus==0)*(eta<0)] = EP
+    # bump up u_minus to a small value 
+    # TODO ok?
+    u_minus[(u_minus==0)*(eta<0)]  =  EP
     u_minus[(u_minus==0)*(eta>=0)] = -EP
 
     # for vortical geodeiscs, ensure th_o is inside [th_minus, th_2] exactly
@@ -290,7 +295,7 @@ def uplus_uminus(a,th_o,lam,eta):
     u_minus[mask] = np.cos(th_o)**2
 
     # compute ratio
-    if(a<MINSPIN):
+    if(np.abs(a)<MINSPIN):
         uratio = 0. * u_minus
         a2u_minus = -(eta+lam**2)
     else:
@@ -303,8 +308,8 @@ def radial_roots(a, lam, eta):
     """Calculate radial roots r1,r2,r3,r4, for a geodisic with conserved (lam,eta)"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if len(lam) != len(eta):
@@ -356,8 +361,8 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
 
     # checks
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float >= 100")
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
@@ -524,8 +529,8 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
     """the number of poloidal orbits as a function of Mino time tau (GL 19b Eq 35)
        only applies for normal geodesics eta>0"""
 
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
@@ -579,8 +584,8 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
         equation only applies for normal geodesics eta>0"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be a float in range (0,pi/2]")
 
@@ -616,7 +621,6 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
         eta_reg = eta[~vortmask]
         beta_reg = beta[~vortmask]
         tau_reg = tau[:,~vortmask]
-
                        
         # angular turning points
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
@@ -648,12 +652,114 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
             
     return n_equatorial
 
+def n_angular_turnings(a, th_o, alpha, beta, tau):
+    """ the fractional number of equatorial crossings
+        equation only applies for normal geodesics eta>0"""
+
+    # checks
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
+        raise Exception("th_o should be a float in range (0,pi/2]")
+
+    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
+    if len(alpha) != len(beta):
+        raise Exception("alpha, beta are different lengths!")
+
+    # TODO hacky way to handle different shape tau arrays
+    if len(tau.shape)==1:
+        tau = tau.reshape(1,tau.shape[0])
+        alltau = False
+    else:
+        alltau = True     
+    if not(tau.shape[1]==len(alpha)): #TODO
+        raise Exception("tau has incompatible shape in n_poloidal_orbits!")
+        
+    # conserved quantities
+    lam = -alpha*np.sin(th_o)
+    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    
+    # output array
+    n_turning = np.empty(tau.shape)
+
+    # TODO is vortical motion important? ? 
+    vortmask = (eta<=0)
+    n_turning[:,vortmask] = 0
+
+    # regular motion
+    if np.any(~vortmask):
+
+        lam_reg = lam[~vortmask]
+        eta_reg = eta[~vortmask]
+        beta_reg = beta[~vortmask]
+        tau_reg = tau[:,~vortmask]
+                       
+        # angular turning points
+        (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
+
+        # equation 12 for F0
+        # checks on xFarg should be handled in uplus_uminus function
+        xFarg = np.cos(th_o)/np.sqrt(u_plus)
+        F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
+
+        # equation 17 for K
+        K = sp.ellipkinc(0.5*np.pi, uratio)
+
+        # from eq 51
+        # Analagous to Equation 81 from GL 2019b for the number of maximual crossings Nmax_eq
+        nturn_reg = np.empty(tau_reg.shape)
+
+        betamask = (beta_reg<=0)
+        if np.any(betamask):
+            nturn_reg[:,betamask] = ((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K))[:,betamask] + 0.5
+        if np.any(~betamask):
+            nturn_reg[:,~betamask] = ((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K) - 1)[:,~betamask] + 1.5
+
+        n_turning[:,~vortmask] = nturn_reg           
+    if np.any(vortmask):
+
+        lam_v = lam[vortmask]
+        eta_v = eta[vortmask]
+        beta_v = beta[vortmask]
+        tau_v = tau[:,vortmask]
+                       
+        # angular turning points
+        (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_v,eta_v)
+
+        # equation 56 for source, assume northern hemisphere h=1
+        Nu = np.arcsin(np.sqrt((np.cos(th_o)**2-u_minus)/(u_plus-u_minus)))
+        G0 = sp.ellipkinc(Nu, 1-uratio)
+
+        # equation 60 for K
+        K = sp.ellipkinc(0.5*np.pi, 1-uratio)
+
+
+        # these come from eq 70 and are currently not right
+        nturn_v = np.empty(tau_v.shape)
+
+        
+        betamask = (beta_v<=0)
+        if np.any(betamask):
+            #nturn_v[:,betamask] = ((tau_v*np.sqrt(a2u_minus) - G0) / (2*K))[:,betamask] + 0.5
+            nturn_v[:,betamask] = ((tau_v*np.sqrt(a2u_minus) - G0) / (K))[:,betamask] +1# TODO -- plus one? 
+                        
+        if np.any(~betamask):
+            nturn_v[:,~betamask] = ((tau_v*np.sqrt(a2u_minus) + G0) / (K))[:,~betamask]   
+
+        n_turning[:, vortmask] = nturn_v
+    
+    if not alltau:
+        n_turning = n_equatorial[0]
+            
+    return n_turning
+    
 def is_outside_crit(a, th_o, alpha, beta):
     """is the point alpha, beta outside the critical curve?"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
