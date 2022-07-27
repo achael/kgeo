@@ -27,8 +27,10 @@ def nmax_equatorial(a, r_o, th_o, alpha, beta):
     """Return the maximum number of equatorial crossings"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+    if (a<0):
+        print("WARNING a<0! Not fully verified!")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
     if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
@@ -58,8 +60,10 @@ def nmax_poloidal(a, r_o, th_o, alpha, beta):
     """Return the maximum number of poloidal orbits"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+    if (a<0):
+        print("WARNING a<0! Not fully verified!")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
     if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
@@ -95,8 +99,10 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
        Nmax is the maximum number of equatorial crossings"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+    if (a<0):
+        print("WARNING a<0! Not fully verified!")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
     if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
