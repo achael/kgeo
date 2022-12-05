@@ -212,8 +212,9 @@ def objfunc(rho, varphi, a, th0, r_target, mbar=0):
 
     return delta
 
-def rho_of_req(a, th0, req, mbar=0):
-    varphis = np.linspace(-180,179,360)*np.pi/180.
+def rho_of_req(a, th0, req, mbar=0, varphis=None):
+    if varphis is None:
+        varphis = np.linspace(-180,179,360)*np.pi/180.
 
     # bounding ranges eyeballed from Gralla+Lupsasca Fig 6
     if mbar==0:
