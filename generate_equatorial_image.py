@@ -36,7 +36,7 @@ imarr2 = np.flipud(outarr_I[:,2].reshape(npix,npix))
 imarrRings = np.flipud(np.sum(outarr_I[:,2:],axis=1).reshape(npix,npix))
 
 imarr = imarr0 + fudge1*imarr1 + fudge*imarrRings
-s
+
 # make an Image and normalize and save
 psize_rad = psize*MoD*eh.RADPERUAS
 im = eh.image.Image(imarr, psize_rad, ra, dec)
