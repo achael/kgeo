@@ -9,6 +9,7 @@ from tqdm import tqdm
 from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
 from kgeo.equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
 import time
+
 # Fitting function parameters for emissivity and velocity
 ELLISCO =1.; VRISCO = 2;
 P1=6.; P2=2.; DD=0.2;  # from the simulation....
@@ -16,7 +17,8 @@ P1E=-2.; P2E=-.5; # for  230 GHz
 #P1E=0; P2E=-.75;  # for 86 GHz
 
 
-def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max, psize, nmax_only=False):
+def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max, psize,
+               whichvel='simfit',nmax_only=False):
     """computes an image in range (alpha_min, alpha_max) x (beta_min, beta_max)
       for all orders of m up to mbar_max
       and pixel size psize"""
@@ -30,7 +32,9 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
         raise Exception("th_o should be a float in range (0,pi/2]")
     if not (isinstance(mbar_max,int) and (mbar_max>=0)):
         raise Exception("mbar_max should be an integer >=0!")
-
+    if not whichvel in ['simfit','cunningham','zamo']:
+        raise Exception("whichvel must be 'simfit', 'cunningham' or 'zamo'!") 
+    
     # determine pixel grid
     n_alpha = int(np.floor(alpha_max - alpha_min)/psize)
     alphas = np.linspace(alpha_min, alpha_min+n_alpha*psize, n_alpha)
@@ -64,7 +68,7 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
         for mbar in range(mbar_max+1):
             print('image %i...'%mbar, end="\r")
             tstart = time.time()
-            (Ipix, g, r_s, Ir, Imax, Nmax) = Iobs(a, r_o, th_o, mbar, alpha_arr, beta_arr)
+            (Ipix, g, r_s, Ir, Imax, Nmax) = Iobs(a, r_o, th_o, mbar, alpha_arr, beta_arr,whichvel=whichvel)
             outarr_I[:,mbar] = Ipix
             outarr_r[:,mbar] = r_s
             outarr_t[:,mbar] = Ir
@@ -75,7 +79,7 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
 
     return (outarr_I, outarr_r, outarr_t, outarr_g, outarr_n, outarr_np)
 
-def Iobs(a, r_o, th_o, mbar, alpha, beta):
+def Iobs(a, r_o, th_o, mbar, alpha, beta, whichvel='simfit'):
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
        g is the Doppler factor
@@ -93,7 +97,9 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta):
         raise Exception("th_o should be a float in range (0,pi/2]")
     if not (isinstance(mbar,int) and (mbar>=0)):
         raise Exception("mbar should be an integer >=0!")
-
+    if not whichvel in ['simfit','cunningham','zamo']:
+        raise Exception("whichvel must be 'simfit', 'cunningham' or 'zamo'!") 
+        
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
@@ -132,24 +138,29 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta):
         ##################
         sign = radial_momentum_sign(a, th_o, alpha[~zeromask], beta[~zeromask], Ir[~zeromask], Imax[~zeromask])
         
-        # zero angular momentum        
-        #gg = g_zamo(a,r_s[~zeromask],lam[~zeromask])
-        
-        # keplerian with infall inside
-        #gg = g_kep(a,r_z[~zeromask],lam[~zeromask],eta[~zeromask],ur_sign=sign) 
+        # zero angular momentum  
+        if whichvel=='zamo':      
+            gg = g_zamo(a,r_s[~zeromask],lam[~zeromask])
+
+        # keplerian with infall inside        
+        elif whichvel=='cunningham':
+            gg = g_kep(a,r_s[~zeromask],lam[~zeromask],eta[~zeromask],ur_sign=sign) 
         
         #subkeplerian with infall inside
         #gg = g_subkep(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], ur_sign=sign, fac_subkep=.75)
         
         # fit to grmhd data
-        gg = g_grmhd_fit(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], sign)
+        elif whichvel=='simfit':
+            gg = g_grmhd_fit(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], sign)
 
+        else:
+            raise Exception("whichvel must be 'simfit', 'cunningham' or 'zamo'!") 
+            
         g[~zeromask] = gg
 
         ##################
         # observed emission
-        ##################   
-             
+        ##################         
         #Iobs[~zeromask] = Iemis * (gg**4)
         Iobs[~zeromask] = Iemis * (gg**3)
         #Iobs[~zeromask] = Iemis * (gg**2)
@@ -180,36 +191,49 @@ def radial_momentum_sign(a, th_o, alpha, beta, Ir, Irmax):
 
     return sign
 
-# def g_kep(a, r, lam, eta, ur_sign=1):
-#     """redshift factor for material on keplerian orbits and infalling inside isco"""
-#
-#     # isco radius
-#     z1 = 1 + np.cbrt(1-a**2)*(np.cbrt(1+a) + np.cbrt(1-a))
-#     z2 = np.sqrt(3*a**2 + z1**2)
-#     r_isco = 3 + z2 - np.sqrt((3-z1)*(3+z1+2*z2))
-#
-#     if r>= r_isco:
-#         g = np.sqrt(r**3 - 3*r**2 + 2*a*r**1.5)/(r**1.5 + (a-lam))
-#     else:
-#         # isco conserved
-#         gam_isco = np.sqrt(1-2./(3.*r_isco)) #nice expression only for keplerian isco
-#         lam_isco = (r_isco**2 - 2*a*np.sqrt(r_isco) + a**2)/(r_isco**1.5 - 2*np.sqrt(r_isco) + a)
-#
-#         # preliminaries
-#         Delta = (r**2 - 2*r + a**2)
-#         H = (2*r - a*lam_isco)/Delta
-#         R = (r**2 + a**2 -a*lam)**2 - Delta*(eta + (lam-a)**2)
-#
-#         # velocity components
-#         ut = gam_isco*(1 + (2/r)*(1+H))
-#         up = gam_isco*(lam_isco + a*H)/(r**2)
-#         ur = -np.sqrt(2./(3*r_isco))*(r_isco/r - 1)**1.5
-#
-#         # redshift
-#         ginv = ut - up*lam - np.sign(ur_sign)*ur*np.sqrt(R)/Delta
-#         g = 1./ginv
-#     return g
-#
+def g_kep(a, r, lam, eta, ur_sign=1):
+    """Cunningham redshift factor for material on keplerian orbits and infalling inside isco"""
+
+    # isco radius
+    z1 = 1 + np.cbrt(1-a**2)*(np.cbrt(1+a) + np.cbrt(1-a))
+    z2 = np.sqrt(3*a**2 + z1**2)
+    r_isco = 3 + z2 - np.sqrt((3-z1)*(3+z1+2*z2))
+
+    g = np.empty(r.shape)
+    iscomask = (r >= r_isco)
+    
+    # outside isco
+    if np.any(iscomask):
+        rmask = r[iscomask]
+        lammask = lam[iscomask]
+        g[iscomask] = np.sqrt(rmask**3 - 3*rmask**2 + 2*a*rmask**1.5)/(rmask**1.5 + (a-lammask))
+    
+    # inside isco
+    if np.any(~iscomask):
+        rmask = r[~iscomask]
+        lammask = lam[~iscomask]
+        etamask = eta[~iscomask]
+            
+        # isco conserved
+        gam_isco = np.sqrt(1-2./(3.*r_isco)) #nice expression only for keplerian isco
+        lam_isco = (r_isco**2 - 2*a*np.sqrt(r_isco) + a**2)/(r_isco**1.5 - 2*np.sqrt(r_isco) + a)
+
+        # preliminaries
+        Delta = (rmask**2 - 2*rmask + a**2)
+        H = (2*rmask - a*lam_isco)/Delta
+        R = (rmask**2 + a**2 -a*lammask)**2 - Delta*(etamask + (lammask-a)**2)
+
+        # velocity components
+        ut = gam_isco*(1 + (2/rmask)*(1+H))
+        up = gam_isco*(lam_isco + a*H)/(rmask**2)
+        ur = -np.sqrt(2./(3*r_isco))*(r_isco/rmask - 1)**1.5
+
+        # redshift
+        ginv = ut - up*lammask - np.sign(ur_sign[~iscomask])*ur*np.sqrt(R)/Delta
+        g[~iscomask] = 1./ginv
+        
+    return g
+
 # def g_subkep(a, r, lam, eta, ur_sign=1, fac_subkep=1):
 #     """redshift factor for sub-keplerian orbits"""
 #
