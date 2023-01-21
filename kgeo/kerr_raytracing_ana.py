@@ -27,7 +27,7 @@ NGEO = 250
 NPIX = 1000
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 
-alpha_default = np.linspace(-6,6,4*NPIX)
+alpha_default = np.linspace(-6,6,NPIX)
 beta_default = 0*alpha_default
 
 # GSL elliptic functions
@@ -64,8 +64,8 @@ def raytrace_ana(a=SPIN,
         print("WARNING a<0! Not fully verified!")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float >= 100")
-    if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2)")
+    #if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
+    #    raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
@@ -268,7 +268,9 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         a2um = a**2 * um
 
         # compute antideriviatives at the observer point
-        h = 1. # sign(cos(th)) GL19a 54, we always consider northern hemisphere
+        if th_o <= np.pi/2: h = 1. # sign(cos(th)) GL19a 54,  hemisphere
+        else: h = -1
+        
         prefA = 1/np.sqrt(a2um) # u_minus>0 always for eta<0
         prefB = prefA / (1.-um)
         prefC = np.sqrt(um/a**2)
