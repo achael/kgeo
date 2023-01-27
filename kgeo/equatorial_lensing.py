@@ -15,24 +15,20 @@ import ehtim.observing.obs_helpers as obsh
 from multiprocessing import cpu_count, Pool
 import os
 
-# TODO -- vectorize / numba!
-#from numba import jit
-
 INF = 1.e50
 R0 = np.infty
 NPROC = 10
-
 
 def nmax_equatorial(a, r_o, th_o, alpha, beta):
     """Return the maximum number of equatorial crossings"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-    #    raise Exception("th_o should be a float in range (0,pi/2]")
+    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
+        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -58,12 +54,12 @@ def nmax_poloidal(a, r_o, th_o, alpha, beta):
     """Return the maximum number of poloidal orbits"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-    #    raise Exception("th_o should be a float in range (0,pi/2]")
+    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
+        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -95,12 +91,12 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
        Nmax is the maximum number of equatorial crossings"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-    #    raise Exception("th_o should be a float in range (0,pi/2]")
+    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
+        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
     if not (isinstance(mbar,int) and (mbar>=0)):
         raise Exception("mbar should be an integer >=0!")
 
