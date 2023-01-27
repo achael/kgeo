@@ -9,12 +9,15 @@ from kgeo.velocities import Velocity
 from kgeo.emissivities import Emissivity
 from scipy.interpolate import interp1d
 
+##################################
+# definitions
+##################################
 # bh and observer parameters
 th_o = 50*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
 spin = -0.99          # black hole spin, does not work for a=0 or a=1 exactly!
 r_o = np.inf          # outer radius
 ring_radius = 6.      # equatorial emission ring radius
-mbar = 1
+mbar = 0
 specind = 1
 polarization = True
 rh = 1 + np.sqrt(1-spin**2)
@@ -26,20 +29,20 @@ color = 'b'
 emissivity = Emissivity('constant')
 
 # velocity
-#velocity = Velocity('gelles', gelles_beta=0., gelles_chi=0.)
-velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
-#velocity = Velocity('subkep', retrograde=False, fac_subkep=1)
-#velocity = Velocity('simfit')
+#velocity = Velocity('gelles', gelles_beta=0., gelles_chi=0.) # should be zamo, appropriate for zack fig 1,2
+velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.) # appropriate for zack fig 3,4
+#velocity = Velocity('kep', retrograde=False) # appropriate for QU loops, zack fig 7,8
 
 # bfield 
-polarization = True
 #bfield = Bfield("simple", Cr=0.87, Cph=0.5 Cvert=0)
-bfield = Bfield("simple_rm1", Cr=0.5, Cph=0.87, Cvert=0) 
-#bfield = Bfield("const_comoving", Cr=0.5, Cph=0.87, Cvert=0) 
-#bfield = Bfield("bz_monopole",C=1)
-#bfield = Bfield("bz_guess",C=1)
+bfield = Bfield("simple_rm1", Cr=0.5, Cph=0.87, Cvert=0) # should be close to what's in zack's paper, left col fig 3,4
+#bfield = Bfield("simple_rm1", Cr=0.71, Cph=0.71, Cvert=0) # should be close to whats in zack's paper, fig 7
+#bfield = Bfield("simple_rm1", Cr=0.0, Cph=0.0, Cvert=1) # should be close to whats in zack's paper, fig 8
+#bfield = Bfield("const_comoving", Cr=0.5, Cph=0.87, Cvert=0) # should be exactly what's in zack's paper, not 100% sure about comoving convention still
 
-
+##################################
+# calculations
+##################################
 # get critical curve alpha,betas
 varphis = np.linspace(-180,179,npoints)*np.pi/180.
 #(alphas_c, betas_c) = critical_curve(spin, th_o, n=500) # numerically solving for high m works better
@@ -60,7 +63,7 @@ varphis = np.linspace(-180,179,npoints)*np.pi/180.
                                                              polarization=polarization,
                                                              specind=specind)
 ##################################
-# plot
+# plots
 ##################################
 #plt.close('all')
 
@@ -106,5 +109,14 @@ plt.quiver(alphas[thin], betas[thin], x[thin], y[thin],pivot='mid',color=color,a
            units='width', width=0.005, headwidth=1, headlength=0.01, minlength=0, minshaft=1)
 
 plt.title(r'$a=%0.2f$, $\theta_o=%0.0f$ deg, $r_{eq}=%0.1f$, $m=%i$'%(spin, th_o*180/np.pi, ring_radius,mbar))         
+
+# plot QU loop 
+plt.figure()
+plt.plot(Qvals,Uvals,'k-',color=color)
+plt.plot(0,0,'k+')
+plt.title(r'$a=%0.2f$, $\theta_o=%0.0f$ deg, $r_{eq}=%0.1f$, $m=%i$'%(spin, th_o*180/np.pi, ring_radius,mbar))         
+plt.gca().set_aspect('equal')
 plt.show()
+
+
                            
