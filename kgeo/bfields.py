@@ -48,7 +48,7 @@ class Bfield(object):
         if self.fieldframe not in ['lab','comoving']:
             raise Exception("Bfield fieldframe must be 'lab' or 'comoving'!")
 
-        if self.fieldtype in ['bz_monopole' or 'bz_guess']:
+        if self.fieldtype in ['bz_monopole','bz_guess']:
             self.C = self.kwargs.get('C', 1)
         else:
             if self.fieldtype=='rad':

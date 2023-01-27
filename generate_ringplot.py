@@ -67,7 +67,6 @@ varphis = np.linspace(-180,179,npoints)*np.pi/180.
 ##################################
 #plt.close('all')
 
-
 # preamble
 fig = plt.figure()
 ax = plt.gca()
