@@ -24,7 +24,7 @@ f0 = 1            # scaling factor for n=0 flux
 f1 = 0            # scaling factor for n=1 flux
 f2 = 0            # scaling factor for n>=2 flux
 nmax = 2          # maximum subring number
-rotation = 90*eh.DEGREE  # rotation angle in display only
+rotation = 90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
 s
 # bh and observer parameters
 th_o = 160*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
@@ -39,7 +39,7 @@ specind = 1
 
 # velocity
 #velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
-velocity = Velocity('subkep', retrograde=True, fac_subkep=1)
+velocity = Velocity('subkep', retrograde=False, fac_subkep=1)
 #velocity = Velocity('simfit')
 
 # bfield 
