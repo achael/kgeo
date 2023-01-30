@@ -15,24 +15,20 @@ import ehtim.observing.obs_helpers as obsh
 from multiprocessing import cpu_count, Pool
 import os
 
-# TODO -- vectorize / numba!
-#from numba import jit
-
 INF = 1.e50
 R0 = np.infty
 NPROC = 10
-
 
 def nmax_equatorial(a, r_o, th_o, alpha, beta):
     """Return the maximum number of equatorial crossings"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2]")
+    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
+        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -58,12 +54,12 @@ def nmax_poloidal(a, r_o, th_o, alpha, beta):
     """Return the maximum number of poloidal orbits"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2]")
+    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
+        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -95,12 +91,12 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
        Nmax is the maximum number of equatorial crossings"""
 
     # checks
-    if not (isinstance(a,float) and (0<=a<1)):
-        raise Exception("a should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2]")
+    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
+        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
     if not (isinstance(mbar,int) and (mbar>=0)):
         raise Exception("mbar should be an integer >=0!")
 
@@ -144,9 +140,6 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
         # equation 17 for K
         K = sp.ellipkinc(0.5*np.pi, uratio)
 
-        # which subring are we in?
-        m = mbar + np.heaviside(beta_reg, 0)
-
         # radial roots
         (r1,r2,r3,r4,rclass) = radial_roots(a,lam_reg,eta_reg)
 
@@ -160,14 +153,32 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
         Nmax_reg = np.empty(Imax_reg.shape)
         Ir_reg = np.empty(Imax_reg.shape)
 
-        betamask = (beta_reg<=0)
-        if np.any(betamask):
-            Nmax_reg[betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) - F0) / (2*K)))[betamask]
-            Ir_reg[betamask] = ((2*m*K + F0)/np.sqrt(-a2u_minus))[betamask]
-        if np.any(~betamask):
-            Nmax_reg[~betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) + F0) / (2*K)) - 1)[~betamask]
-            Ir_reg[~betamask] = ((2*m*K - F0)/np.sqrt(-a2u_minus))[~betamask]
+        # TODO: is this right for th_o > pi/2 ???
+        # TODO: shouldn't duplicate function in n_equatorial_crossings!
+        if th_o < (np.pi/2.):
 
+            # which subring are we in?
+            m = mbar + np.heaviside(beta_reg, 0)
+                
+            betamask = (beta_reg<=0)
+            if np.any(betamask):
+                Nmax_reg[betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) - F0) / (2*K)))[betamask]
+                Ir_reg[betamask] = ((2*m*K + F0)/np.sqrt(-a2u_minus))[betamask]
+            if np.any(~betamask):
+                Nmax_reg[~betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) + F0) / (2*K)) - 1)[~betamask]
+                Ir_reg[~betamask] = ((2*m*K - F0)/np.sqrt(-a2u_minus))[~betamask]
+        else:
+            # which subring are we in?
+            m = mbar + np.heaviside(-beta_reg, 0)
+                    
+            betamask = (beta_reg>=0)
+            if np.any(betamask):
+                Nmax_reg[betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) + F0) / (2*K)))[betamask]
+                Ir_reg[betamask] = ((2*m*K - F0)/np.sqrt(-a2u_minus))[betamask]
+            if np.any(~betamask):
+                Nmax_reg[~betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) - F0) / (2*K)) - 1)[~betamask]
+                Ir_reg[~betamask] = ((2*m*K + F0)/np.sqrt(-a2u_minus))[~betamask]
+                        
         # calculate the emission radius given the elapsed mino time
         # TODO -- clean up hacky indexing here
         r_s_reg,_,_,_ = r_integrate(a,r_o,lam_reg,eta_reg,

@@ -222,8 +222,8 @@ def angular_turning(a, th_o, lam, eta):
     # checks
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-        raise Exception("th_o should be float in range (0,pi/2)")
+    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
+    #    raise Exception("th_o should be float in range (0,pi/2)")
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if len(lam) != len(eta):
@@ -257,8 +257,8 @@ def uplus_uminus(a,th_o,lam,eta):
     # checks
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2)")
+    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
+    #    raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if len(lam) != len(eta):
@@ -531,8 +531,8 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
 
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2)")
+    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
+    #    raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
@@ -586,8 +586,8 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
     # checks
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2]")
+    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
+    #    raise Exception("th_o should be a float in range (0,pi/2]")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -638,12 +638,20 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
         #using sign(0) = 1
         neq_reg = np.empty(tau_reg.shape)
 
-        betamask = (beta_reg<=0)
-        if np.any(betamask):
-            neq_reg[:,betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K)))[:,betamask]
-        if np.any(~betamask):
-            neq_reg[:,~betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K)) - 1)[:,~betamask]
 
+        # TODO is this right for th_o > pi/2 ???
+        if th_o < (np.pi/2.):
+            betamask = (beta_reg<=0)
+            if np.any(betamask):
+                neq_reg[:,betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K)))[:,betamask]
+            if np.any(~betamask):
+                neq_reg[:,~betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K)) - 1)[:,~betamask]
+        else:
+            betamask = (beta_reg>=0)
+            if np.any(betamask):
+                neq_reg[:,betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K)))[:,betamask]
+            if np.any(~betamask):
+                neq_reg[:,~betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K)) - 1)[:,~betamask]        
     # return data
     n_equatorial[:,~vortmask] = neq_reg
 
@@ -659,8 +667,8 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
     # checks
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2]")
+    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
+    #    raise Exception("th_o should be a float in range (0,pi/2]")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -760,8 +768,8 @@ def is_outside_crit(a, th_o, alpha, beta):
     # checks
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2)")
+    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
+    #    raise Exception("th_o should be a float in range (0,pi/2)")
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
