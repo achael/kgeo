@@ -34,14 +34,15 @@ r_o = np.inf          # outer radius
 # emissivity
 #emissivity = Emissivity("ring", r_ring=4, sigma=0.3, emiscut_in=3.5, emiscut_out=4.5)
 #emissivity = Emissivity("ring", r_ring=6, sigma=0.3, emiscut_in=5.5, emiscut_out=6.5)
+#emissivity = Emissivity("glm", sigma=0.5, gamma_off=-1)
 emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
 specind = 1
 
 # velocity
+#velocity = Velocity('simfit')
 #velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
 #velocity = Velocity('subkep', retrograde=True, fac_subkep=0.7)
-velocity = Velocity('general', retrograde=False, fac_subkep=1, beta_phi=0.7, beta_r=0.7)
-#velocity = Velocity('simfit')
+velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.7, beta_r=0.7)
 
 # bfield 
 polarization = True
