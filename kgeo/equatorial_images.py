@@ -362,10 +362,10 @@ def calc_polquantities(a, th_o,  r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
 
     ######
     # print comparison to ramesh model close to 4.5
-    rmask = np.argmin((r-4.5)**2)
-    print("polvel r, ph",(u1/u0)[rmask], (u3*r/u0)[rmask])
+    #rmask = np.argmin((r-4.5)**2)
+    #print("polvel r, ph",(u1/u0)[rmask], (u3*r/u0)[rmask])
     #print("polvel Br, Bth, Bph",B1[rmask], B2[rmask], B3[rmask])
-    print("polvel Bx, By, Bz",Bp_x[rmask]/Bp_mag[rmask], Bp_y[rmask]/Bp_mag[rmask], Bp_z[rmask]/Bp_mag[rmask])
+    #print("polvel Bx, By, Bz",Bp_x[rmask]/Bp_mag[rmask], Bp_y[rmask]/Bp_mag[rmask], Bp_z[rmask]/Bp_mag[rmask])
     #####
     
     # wavevector in comoving frame  

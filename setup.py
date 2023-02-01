@@ -33,6 +33,8 @@ if __name__ == "__main__":
             'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
             'Programming Language :: Python :: 3.8',
           ],
+          include_package_data=True,
+          package_data={'': ['*.dat']},
 
          )
 

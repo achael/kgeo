@@ -7,6 +7,7 @@ import time
 from mpmath import polylog
 from scipy.interpolate import UnivariateSpline
 import os
+import pkg_resources
 
 def f(r):
     """BZ monopole f(r) function"""
@@ -23,7 +24,8 @@ NINTERP = 100000
 #fsinterp = np.array([f(r) for r in rsinterp])
     
 # get f(r) from pre-saved data
-datafile = os.path.join(os.path.dirname(__file__), 'bz_fr_data.dat')
+#datafile = os.path.join(os.path.dirname(__file__), 'bz_fr_data.dat')
+datafile = pkg_resources.resource_stream(__name__, 'bz_fr_data.dat')
 (rsinterp,fsinterp) = np.loadtxt(datafile)
 
 # interpolate f(r) and get its derivative

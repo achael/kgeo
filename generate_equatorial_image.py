@@ -25,10 +25,10 @@ f1 = 0            # scaling factor for n=1 flux
 f2 = 0            # scaling factor for n>=2 flux
 nmax = 2          # maximum subring number
 rotation = 90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
-s
+
 # bh and observer parameters
 th_o = 160*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
-spin = 0.94           # black hole spin, does not work for a=0 or a=1 exactly!
+spin = 0.5           # black hole spin, does not work for a=0 or a=1 exactly!
 r_o = np.inf          # outer radius
 
 # emissivity
@@ -39,7 +39,8 @@ specind = 1
 
 # velocity
 #velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
-velocity = Velocity('subkep', retrograde=False, fac_subkep=1)
+#velocity = Velocity('subkep', retrograde=True, fac_subkep=0.7)
+velocity = Velocity('general', retrograde=False, fac_subkep=1, beta_phi=0.7, beta_r=0.7)
 #velocity = Velocity('simfit')
 
 # bfield 
@@ -99,7 +100,7 @@ if save_image: im.save_fits('./m87_model_%s.fits'%label)
 
 # display image
 if display_image:
-    im.blur_circ(10*eh.RADPERUAS,10*eh.RADPERUAS).rotate(0*eh.DEGREE).display(
+    im.blur_circ(10*eh.RADPERUAS,10*eh.RADPERUAS).rotate(rotation).display(
                  cbar_unit=['Tb'],has_cbar=False,label_type='scale',has_title=False,
                  plotp=True,pcut=.001,scale_ticks=True,nvec=20)
 
