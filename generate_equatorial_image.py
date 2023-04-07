@@ -9,8 +9,8 @@ from kgeo.emissivities import Emissivity
 
 # file label
 label='test'
-save_image = False
-display_image = True
+save_image = True
+display_image = False
 
 # source and image parameters
 source = 'M87'
@@ -18,16 +18,16 @@ MoD = 3.77883459  # this is what was used for M/D in uas for the M87 simulations
 ra = 12.51373 
 dec = 12.39112 
 flux230 = 0.6     # total flux
-npix = 512        # number of pixels
+npix = 2056        # number of pixels
 amax = 15         # maximum alpha,beta in R
 f0 = 1            # scaling factor for n=0 flux
-f1 = 0            # scaling factor for n=1 flux
-f2 = 0            # scaling factor for n>=2 flux
-nmax = 2          # maximum subring number
+f1 = 1            # scaling factor for n=1 flux
+f2 = 1            # scaling factor for n>=2 flux
+nmax = 4          # maximum subring number
 rotation = 90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
 
 # bh and observer parameters
-th_o = 160*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
+th_o = 163*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
 spin = 0.5           # black hole spin, does not work for a=0 or a=1 exactly!
 r_o = np.inf          # outer radius
 

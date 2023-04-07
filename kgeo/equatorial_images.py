@@ -24,6 +24,7 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                bfield=bfield_default,
                velocity=vel_default, 
                polarization=False, 
+               efluid_nonzero=False,
                specind=SPECIND):
     """computes an image in range (alpha_min, alpha_max) x (beta_min, beta_max)
       for all orders of m up to mbar_max
@@ -82,6 +83,7 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                                                               velocity=velocity,
                                                               bfield=bfield,
                                                               polarization=polarization,
+                                                              efluid_nonzero=efluid_nonzero,
                                                               specind=specind)
             outarr_I[:,mbar] = Ipix
             outarr_Q[:,mbar] = Qpix
@@ -100,7 +102,7 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
 
 def Iobs(a, r_o, th_o, mbar, alpha, beta, 
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
-         polarization=False, specind=SPECIND):
+         polarization=False,  efluid_nonzero=False, specind=SPECIND):
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
        g is the Doppler factor
@@ -177,7 +179,8 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         ###############################
         if polarization:
             (sinthb, kappa) = calc_polquantities(a, th_o, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
-                                                 kr_sign, kth_sign, u0, u1, u2, u3, bfield=bfield)
+                                                 kr_sign, kth_sign, u0, u1, u2, u3, 
+                                                 bfield=bfield,  efluid_nonzero=efluid_nonzero)
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
         else:
             sinthb = 1
@@ -258,9 +261,10 @@ def calc_redshift(a, r, lam, eta, kr_sign, u0, u1, u2, u3):
     
     return g
 
-def calc_polquantities(a, th_o,  r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, bfield=bfield_default):
+def calc_polquantities(a, th_o,  r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, 
+                       bfield=bfield_default, efluid_nonzero=False):
     """ calculate polarization quantities
-        everything assumes u^2 = 0 for now"""
+        everything assumes u^\theta= 0 for now"""
 
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
@@ -305,7 +309,7 @@ def calc_polquantities(a, th_o,  r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     # covarient velocity
     u0_l = g00*u0 + g03*u3
     u1_l = g11*u1
-    u2_l = g22*u2 # should be zero!
+    u2_l = g22*u2   # should be zero!
     u3_l = g33*u3 + g03*u0
     
     # define tetrads to comoving frame
@@ -329,16 +333,34 @@ def calc_polquantities(a, th_o,  r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     e3_z = -u0_l/Nph
                                        
     # B-field defined in the lab frame: transform to fluid-frame quantities
+
     if bfield.fieldframe=='lab':
     
         # get lab frame B^i
         (B1, B2, B3) = bfield.bfield_lab(a, r)
+
+        # here, we get the general field from the defn b^\mu = u_\nu sF^{\nu\mu}
+        # fluid-frame electric field will in general not be 0!!
+        if efluid_nonzero:
         
-        # get fluid-frame b-field 4 vector b^mu
-        b0 = B1*u1_l + B2*u2_l + B3*u3_l
-        b1 = (B1 + b0*u1)/u0
-        b2 = (B2 + b0*u2)/u0
-        b3 = (B3 + b0*u3)/u0     
+            # ANDREW TODO nicer tensors and vectors!!
+            (sF01, sF02, sF03, sF12, sF13, sF23) = bfield.maxwell(a,r)
+            (sF10, sF20, sF30, sF21, sF31, sF32) = (-sF01, -sF02, -sF03, -sF12, -sF13, -sF23)
+            
+            b0 =    (0)*u0_l + (sF10)*u1_l + (sF20)*u2_l + (sF30)*u3_l             
+            b1 = (sF01)*u0_l +    (0)*u1_l + (sF21)*u2_l + (sF31)*u3_l
+            b2 = (sF02)*u0_l + (sF12)*u1_l +    (0)*u2_l + (sF32)*u3_l
+            b3 = (sF03)*u0_l + (sF13)*u1_l + (sF23)*u2_l +    (0)*u3_l
+
+                
+        # here, we assume the field is degenerate and e^\mu = u_\nu F^{\mu\nu} = 0
+        # (standard GRMHD assumption)
+        else:
+
+            b0 = B1*u1_l + B2*u2_l + B3*u3_l
+            b1 = (B1 + b0*u1)/u0
+            b2 = (B2 + b0*u2)/u0
+            b3 = (B3 + b0*u3)/u0     
 
         b0_l = g00*b0 + g03*b3
         b1_l = g11*b1
@@ -352,11 +374,15 @@ def calc_polquantities(a, th_o,  r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
         Bp_y = e0_y*b0_l + e1_y*b1_l  + e2_y*b2_l + e3_y*b3_l
         Bp_z = e0_z*b0_l + e1_z*b1_l  + e2_z*b2_l + e3_z*b3_l
     
+ 
     # B-field defined directly in comoving frame as in Gelles+2021
     elif bfield.fieldframe=='comoving':
         print('comoving!')
         (Bp_x, Bp_y, Bp_z) = bfield.bfield_comoving(a,r)
     
+    else:
+        raise Exception("bfield.fluidframe=%s not recognized!"%bfield.fieldframe)
+        
     # comvoving frame magnitude    
     Bp_mag = np.sqrt(Bp_x**2 + Bp_y**2 + Bp_z**2)
 

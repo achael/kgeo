@@ -140,7 +140,7 @@ def u_kep(a, r, retrograde=False):
     z1 = 1 + np.cbrt(1-a**2)*(np.cbrt(1+a) + np.cbrt(1-a))
     z2 = np.sqrt(3*a**2 + z1**2)
     ri = 3 + z2 - s*np.sqrt((3-z1)*(3+z1+2*z2))
-    print("r_isco: ",ri)
+    #print("r_isco: ",ri)
     
     u0 = np.zeros(r.shape)
     u1 = np.zeros(r.shape)
@@ -184,8 +184,8 @@ def u_subkep(a, r, fac_subkep=1, retrograde=False):
     # checks
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (0<fac_subkep<=1):
-        raise Exception("fac_subkep should be in the range (0,1]")
+    if not (0<=fac_subkep<=1):
+        raise Exception("fac_subkep should be in the range [0,1]")
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
     
     if retrograde:
@@ -197,7 +197,7 @@ def u_subkep(a, r, fac_subkep=1, retrograde=False):
     z1 = 1 + np.cbrt(1-a**2)*(np.cbrt(1+a) + np.cbrt(1-a))
     z2 = np.sqrt(3*a**2 + z1**2)
     ri = 3 + z2 - s*np.sqrt((3-z1)*(3+z1+2*z2))
-    print("r_isco:", ri)
+    #print("r_isco:", ri)
     
 
     u0 = np.zeros(r.shape)
@@ -339,8 +339,8 @@ def u_general(a, r, fac_subkep=1, beta_phi=1, beta_r=1, retrograde=False):
     # checks
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (0<fac_subkep<=1):
-        raise Exception("fac_subkep should be in the range (0,1]")
+    if not (0<=fac_subkep<=1):
+        raise Exception("fac_subkep should be in the range [0,1]")
     if not (0<=beta_phi<=1):
         raise Exception("beta_phi should be in the range [0,1]")        
     if not (0<=beta_r<=1):

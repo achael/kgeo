@@ -18,15 +18,17 @@ def f(r):
     return float(np.real(out))
 
 # compute f(r) 
-RMAXINTERP = 100
-NINTERP = 100000
+#RMAXINTERP = 100
+#NINTERP = 100000
 #rsinterp = np.linspace(1,RMAXINTERP,NINTERP)
 #fsinterp = np.array([f(r) for r in rsinterp])
-    
+#np.savetxt('./bz_fr_data.dat', np.vstack((rsinterp,fsinterp)).T)
+
 # get f(r) from pre-saved data
-#datafile = os.path.join(os.path.dirname(__file__), 'bz_fr_data.dat')
 datafile = pkg_resources.resource_stream(__name__, 'bz_fr_data.dat')
 (rsinterp,fsinterp) = np.loadtxt(datafile)
+NINTERP = len(rsinterp)
+RMAXINTERP = np.max(rsinterp)
 
 # interpolate f(r) and get its derivative
 fi = UnivariateSpline(rsinterp, fsinterp, k=1,s=0, ext=0)
@@ -50,7 +52,7 @@ class Bfield(object):
         if self.fieldframe not in ['lab','comoving']:
             raise Exception("Bfield fieldframe must be 'lab' or 'comoving'!")
 
-        if self.fieldtype in ['bz_monopole','bz_guess']:
+        if self.fieldtype in ['bz_monopole','bz_guess','bz_approx']:
             self.C = self.kwargs.get('C', 1)
         else:
             if self.fieldtype=='rad':
@@ -78,7 +80,7 @@ class Bfield(object):
             b_components = Bfield_simple_rm1(a, r, (self.Cr, self.Cvert, self.Cph))
         elif self.fieldtype=='bz_monopole':
             b_components = Bfield_BZmonopole(a, r, self.C)  
-        elif self.fieldtype=='bz_guess':
+        elif self.fieldtype=='bz_guess' or self.fieldtype=='bz_approx':
             b_components = Bfield_BZmagic(a, r, self.C)
         else: 
             raise Exception("fieldtype %s not recognized in Bfield.bfield_lab!"%self.fieldtype)
@@ -98,7 +100,77 @@ class Bfield(object):
             
         return b_components
 
+    # TODO ANDREW FIX THESE WITH BETTER DATA STRUCTURES
+    def maxwell(self, a, r):
+        """Maxwell tensor starF^{\mu\nu} in BL coordinates. 
+           below defn is for stationary, axisymmetric fields"""
 
+        if self.fieldtype=='bz_monopole':
+            (B1,B2,B3) = Bfield_BZmonopole(a, r, self.C)  
+            OmegaF     = OmegaF_BZmonopole(a,r)
+            
+            sF01 = -B1
+            sF02 = -B2
+            sF03 = -B3
+            sF12 = 0*B3
+            sF13 = OmegaF*B1
+            sF23 = OmegaF*B2
+                        
+            sF_out = (sF01, sF02, sF03, sF12, sF13, sF23)
+            
+        else: 
+            raise Exception("self.maxwell currently only works for self.fieldtype='bz_monople'!")                        
+            
+        return sF_out
+         
+    def faraday(self, a, r):
+        """Faraday tensor F^{\mu\nu} in BL coordinates. 
+           below defn is for stationary, axisymmetric fields"""
+
+        if self.fieldtype=='bz_monopole':
+            (B1,B2,B3) = Bfield_BZmonopole(a, r, self.C)  
+            OmegaF     = OmegaF_BZmonopole(a,r)
+
+            # Metric in BL
+            a2 = a**2
+            r2 = r**2
+            th = np.pi/2. # TODO equatorial only
+            cth2 = np.cos(th)**2
+            sth2 = np.sin(th)**2
+            Delta = r2 - 2*r + a2
+            Sigma = r2 + a2 * cth2
+            
+            gdet = Sigma*np.sin(th)
+            
+            g00_up = -(r2 + a2 + 2*r*a2*sth2/Sigma) / Delta
+            g11_up = Delta/Sigma
+            g22_up = 1./Sigma
+            g33_up = (Delta - a2*sth2)/(Sigma*Delta*sth2)
+            g03_up = -(2*a*r)/(Sigma*Delta)
+            
+            # F_{\mu\nu}
+            F_01 = -gdet*OmegaF*B2
+            F_02 =  gdet*OmegaF*B1
+            F_03 =  0*B3
+            F_12 =  gdet*B3
+            F_13 = -gdet*B2
+            F_23 =  gdet*B1
+            
+            # raise indices
+            F01 = g00_up*g11_up*F_01 + g03_up*g11_up*(-F_13)
+            F02 = g00_up*g22_up*F_02 + g03_up*g22_up*(-F_23)
+            F03 = 0*B3
+            F12 = g11_up*g22_up*F_12
+            F13 = g11_up*g33_up*F_13 + g11_up*g03_up*(-F_01)
+            F23 = g22_up*g33_up*F_23 + g22_up*g03_up*(-F_02)
+            
+            F_out = (F01, F02, F03, F12, F13, F23)
+            
+        else: 
+            raise Exception("self.faraday currently only works for self.fieldtype='bz_monople'!")                        
+            
+        return F_out
+         
                         
 def Bfield_simple(a, r, coeffs):
     """magnetic field vector in the lab frame in equatorial plane,
@@ -148,47 +220,7 @@ def Bfield_simple_rm1(a, r, coeffs):
     Bph = ator*(1./gdet) 
    
     return (Br, Bth, Bph)  
-      
-def Bfield_BZmonopole(a,r, C=1):
-    """perturbative BZ monopole solution.
-       C is overall sign of monopole"""
-
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
-
-    th = np.pi/2. # TODO equatorial plane only
-    a2 = a**2
-    r2 = r**2
-    th = np.pi/2. # equatorial
-    sth = np.sin(th)
-    cth = np.cos(th)
-    cth2 = cth**2
-    sth2 = sth**2
-    Delta = r2 - 2*r + a2
-    Sigma = r2 + a2*cth2
-    gdet = sth*Sigma
-    
-    
-    fr = fi(r)
-    fr[r>RMAXINTERP] = 1./(4.*r[r>RMAXINTERP])
-    frp = fiprime(r)
-    frp[r>RMAXINTERP] = -1./(4.*r2[r>RMAXINTERP])
-    
-    phi = C*(1 - cth) + C*a2*fr*sth2*cth
-    
-    dphidtheta = C*sth*(1 + 0.5*a2*fr*(1 + 3*np.cos(2*th)))
-    dphidr =  C*a2*sth2*cth*frp
-    Br = dphidtheta / gdet
-    Bth = -dphidr / gdet
-        
-    # TODO: sign of current? 
-    f2 = (6*np.pi*np.pi - 49.)/72.
-    omega2 = 1./32. - sth2*(4*f2 - 1)/64.
-    I = -1*C*2*np.pi*sth2*(a/8. + (a**3)*(omega2 + 0.25*fr*cth2))
-    Bph = I / (2*np.pi*Delta*sth2)
-    
-    return(Br, Bth, Bph)
- 
+       
 def Bfield_BZmagic(a, r, C=1):
     """Guess ratio for Bphi/Br from split monopole
        C is overall sign of monopole"""
@@ -228,4 +260,60 @@ def Bfield_BZmagic(a, r, C=1):
     Bth = 0*Br
     
     return(Br, Bth, Bph)
+
+def Bfield_BZmonopole(a,r, C=1):
+    """perturbative BZ monopole solution.
+       C is overall sign of monopole"""
+
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+
+    th = np.pi/2. # TODO equatorial plane only
+    a2 = a**2
+    r2 = r**2
+    sth = np.sin(th)
+    cth = np.cos(th)
+    cth2 = cth**2
+    sth2 = sth**2
+    Delta = r2 - 2*r + a2
+    Sigma = r2 + a2*cth2
+    gdet = sth*Sigma
     
+    
+    fr = fi(r)
+    fr[r>RMAXINTERP] = 1./(4.*r[r>RMAXINTERP])
+    frp = fiprime(r)
+    frp[r>RMAXINTERP] = -1./(4.*r2[r>RMAXINTERP])
+    
+    phi = C*(1 - cth) + C*a2*fr*sth2*cth
+    
+    dphidtheta = C*sth*(1 + 0.5*a2*fr*(1 + 3*np.cos(2*th)))
+    dphidr =  C*a2*sth2*cth*frp
+    Br = dphidtheta / gdet
+    Bth = -dphidr / gdet
+        
+    # TODO: sign of current? 
+    f2 = (6*np.pi*np.pi - 49.)/72.
+    omega2 = 1./32. - sth2*(4*f2 - 1)/64.
+    I = -1*C*2*np.pi*sth2*(a/8. + (a**3)*(omega2 + 0.25*fr*cth2)) 
+    Bph = I / (2*np.pi*Delta*sth2)
+    
+    return(Br, Bth, Bph)
+    
+def OmegaF_BZmonopole(a,r):
+    """angular velocity of the BZ monopole"""
+    
+    spin = np.abs(a)
+    th = np.pi/2. # TODO equatorial plane only
+    sth = np.sin(th)
+    sth2 = sth**2
+            
+
+    f2 = (6*np.pi*np.pi - 49.)/72.
+    omegaBZ = spin/8. + spin**2 * (1./32. - sth2*(4*f2 - 1)/64.)
+    
+    # TODO is the a<0 case correct here? 
+    if a<0: omegaBZ*=-1
+    
+    return omegaBZ
+       

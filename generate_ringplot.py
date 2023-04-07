@@ -9,6 +9,10 @@ from kgeo.velocities import Velocity
 from kgeo.emissivities import Emissivity
 from scipy.interpolate import interp1d
 
+plt.close('all')
+plt.ion()
+plt.show()
+
 ##################################
 # definitions
 ##################################
@@ -86,14 +90,14 @@ ax.set_ylim(-9,9)
 ax.set_aspect('equal')
 
 # first do the critical curve
-plt.plot(alphas_c,betas_c,'k--',color=color,lw=1)
+plt.plot(alphas_c,betas_c,ls='--',color=color,lw=1)
 
 # next do the filled inner shadow
 f_low = interp1d(alphas_is[varphis<0], betas_is[varphis<0],kind=3,fill_value='extrapolate')
 plt.fill_between(alphas_is[varphis>0], f_low(alphas_is[varphis>0]), betas_is[varphis>0], ec=None,fc='k',alpha=.3)
 
 # next the ring curve
-plt.plot(alphas,betas,'k-', color=color, ls='-', lw=0.5)
+plt.plot(alphas,betas,color=color, ls='-', lw=0.5)
     
 # next the quiver tick plots
 
@@ -111,11 +115,13 @@ plt.title(r'$a=%0.2f$, $\theta_o=%0.0f$ deg, $r_{eq}=%0.1f$, $m=%i$'%(spin, th_o
 
 # plot QU loop 
 plt.figure()
-plt.plot(Qvals,Uvals,'k-',color=color)
+plt.plot(Qvals,Uvals,ls='-',color=color)
 plt.plot(0,0,'k+')
 plt.title(r'$a=%0.2f$, $\theta_o=%0.0f$ deg, $r_{eq}=%0.1f$, $m=%i$'%(spin, th_o*180/np.pi, ring_radius,mbar))         
 plt.gca().set_aspect('equal')
-plt.show()
 
+# display
+plt.show()
+plt.pause(0.01)
 
                            
