@@ -17,6 +17,9 @@ P1=6.; P2=2.; DD=0.2;
 BETA = 0.3
 CHI = -150*np.pi/180.
 
+# default b field for drift frame
+BFIELD_DEFAULT = Bfield('bz_monopole', secondorder_only=True)
+
 class Velocity(object):
     """ object for lab frame velocity as a function of r, only in equatorial plane for now """
     
@@ -53,7 +56,7 @@ class Velocity(object):
             self.dd = self.kwargs.get('dd', DD)
         
         elif self.veltype=='driftframe':
-            self.bfield = self.kwargs.get('bfield', Bfield('bz_monopole'))
+            self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
             self.nu_parallel = self.kwargs.get('nu_parallel',0)
                            
         else: 
@@ -76,7 +79,7 @@ class Velocity(object):
         elif self.veltype=='simfit':                        
             ucon = u_grmhd_fit(a,r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)    
         elif self.veltype=='driftframe':
-            ucon = u_driftframe(a, r, nu_parallel=self.nu_parallel)
+            ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel)
         else: 
             raise Exception("veltype %s not recognized in Velocity.u_lab!"%self.veltype)
             
@@ -371,7 +374,7 @@ def u_general(a, r, fac_subkep=1, beta_phi=1, beta_r=1, retrograde=False):
     
     return (u0, u1, 0, u3) 
    
-def u_driftframe(a,r, bfield=Bfield('bz_monopole',secondorder_only=True), nu_parallel=0):
+def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0):
     """drift frame velocity for a given EM field in BL""" 
     
     # checks
@@ -405,16 +408,16 @@ def u_driftframe(a,r, bfield=Bfield('bz_monopole',secondorder_only=True), nu_par
     alpha= np.sqrt(alpha2) #lapse
     eta1 = 0
     eta2 = 0
-    eta3 = -alpha*(-2*a*r/(Delta*Sigma))
+    eta3 = 2*a*r/np.sqrt(Delta*Sigma*Xi)
     
     # e and b field
     omega = bfield.omega_field(a,r)
     (B1,B2,B3) = bfield.bfield_lab(a,r)
     (E1,E2,E3) = bfield.efield_lab(a,r)
 
-    #E1 = (omega-omegaz)*Xi*np.sin(th)*B2/Sigma
-    #E2 = -(omega-omegaz)*Xi*np.sin(th)*B1/(Sigma*Delta)
-    #E3 = 0            
+    E1 = (omega-omegaz)*Xi*np.sin(th)*B2/Sigma
+    E2 = -(omega-omegaz)*Xi*np.sin(th)*B1/(Sigma*Delta)
+    E3 = 0            
                 
     Bsq = g11*B1*B1 + g22*B2*B2 + g33*B3*B3
     Esq = g11*E1*E1 + g22*E2*E2 + g33*E3*E3    
@@ -439,15 +442,13 @@ def u_driftframe(a,r, bfield=Bfield('bz_monopole',secondorder_only=True), nu_par
     vpar3 = nu_parallel*vpar_max*B3/np.sqrt(Bsq)
     
     # convert to four-velocity
-    v1 = vpar1 + vperp1
-    v2 = vpar2 + vperp2
-    v3 = vpar3 + vperp3
-    vpardotvperp = g11*vpar1*vperp1 + g22*vpar2*vperp2 + g33*vpar3*vperp3
-    vsq_par = g11*vpar1*vpar1 + g22*vpar2*vpar2 + g33*vpar3*vpar3
-    vsq_perp = g11*vperp1*vperp1 + g22*vperp2*vperp2 + g33*vperp3*vperp3
+    v1 = vperp1 + vpar1
+    v2 = vperp2 + vpar2
+    v3 = vperp3 + vpar3
+    
     vsq = g11*v1*v1 + g22*v2*v2 + g33*v3*v3
     gamma = 1./np.sqrt(1-vsq)
-        
+    
     u0 = gamma/alpha
     u1 = gamma*(v1 + eta1)
     u2 = gamma*(v2 + eta2)
