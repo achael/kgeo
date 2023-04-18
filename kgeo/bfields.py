@@ -52,25 +52,28 @@ class Bfield(object):
         if self.fieldframe not in ['lab','comoving']:
             raise Exception("Bfield fieldframe must be 'lab' or 'comoving'!")
 
-        if self.fieldtype in ['bz_monopole','bz_guess','bz_approx']:
+        if self.fieldtype in ['bz_monopole','bz_guess']:
+            self.secondorder_only = self.kwargs.get('secondorder_only', False)
             self.C = self.kwargs.get('C', 1)
-        else:
-            if self.fieldtype=='rad':
-                self.Cr=1; self.Cvert=0; self.Cph=0
-            elif self.fieldtype=='vert':
-                self.Cr=0; self.Cvert=1; self.Cph=0
-            elif self.fieldtype=='tor':
-                self.Cr=0; self.Cvert=0; self.Cph=1
-            else:                            
-                self.Cr = self.kwargs.get('Cr',0)
-                self.Cvert = self.kwargs.get('Cvert',0)
-                self.Cph = self.kwargs.get('Cph',0)
-                            
+        elif self.fieldtype=='bz_guess':
+            self.C = self.kwargs.get('C', 1)        
+        elif self.fieldtype=='rad':
+            self.Cr=1; self.Cvert=0; self.Cph=0
+        elif self.fieldtype=='vert':
+            self.Cr=0; self.Cvert=1; self.Cph=0
+        elif self.fieldtype=='tor':
+            self.Cr=0; self.Cvert=0; self.Cph=1
+        else:                            
+            self.Cr = self.kwargs.get('Cr',0)
+            self.Cvert = self.kwargs.get('Cvert',0)
+            self.Cph = self.kwargs.get('Cph',0)
+                        
             if self.Cr==self.Cvert==self.Cph==0.:
                 raise Exception("all field coefficients are 0!")
-                                 
+                                     
     def bfield_lab(self, a, r):
-        
+        """lab frame b field starF^i0"""
+         
         if self.fieldframe!='lab':
             raise Exception("Bfield.bfield_lab only supported for Bfield.fieldtype==lab")
                    
@@ -78,12 +81,16 @@ class Bfield(object):
             b_components = Bfield_simple(a, r, (self.Cr, self.Cvert, self.Cph))
         elif self.fieldtype=='simple_rm1':
             b_components = Bfield_simple_rm1(a, r, (self.Cr, self.Cvert, self.Cph))
+            
         elif self.fieldtype=='bz_monopole':
-            b_components = Bfield_BZmonopole(a, r, self.C)  
-        elif self.fieldtype=='bz_guess' or self.fieldtype=='bz_approx':
-            b_components = Bfield_BZmagic(a, r, self.C)
+            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, self.C, secondorder_only=self.secondorder_only)  
+            b_components = (B1,B2,B3)
+        elif self.fieldtype=='bz_guess':
+            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, self.C)
+            b_components = (B1,B2,B3)            
         else: 
             raise Exception("fieldtype %s not recognized in Bfield.bfield_lab!"%self.fieldtype)
+            
         return b_components
                                 
     def bfield_comoving(self, a, r):
@@ -101,14 +108,39 @@ class Bfield(object):
         return b_components
 
     # TODO ANDREW FIX THESE WITH BETTER DATA STRUCTURES
+    def omega_field(self, a, r):
+        """fieldline angular speed"""    
+        if self.fieldtype=='bz_monopole':
+            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, self.C,secondorder_only=self.secondorder_only)
+        elif self.fieldtype=='bz_guess':
+            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, self.C)
+        else: 
+            raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")       
+        return omega
+        
+    def efield_lab(self, a, r):
+        """lab frame electric field F^{0i} in BL coordinates. 
+           below defn is for stationary, axisymmetric fields"""
+
+        if self.fieldtype=='bz_monopole' and self.secondorder_only:
+            e_components = Efield_BZmonopole(a,r,self.C)
+        elif self.fieldtype in ['bz_monopole','bz_guess']:
+            (F01, F02, F03, F12, F13, F23) = self.faraday(a,r)
+            e_components = (F01, F02, F03)
+        else: 
+            raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")                        
+            
+        return e_components
+        
     def maxwell(self, a, r):
         """Maxwell tensor starF^{\mu\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
-        if self.fieldtype=='bz_monopole':
-            (B1,B2,B3) = Bfield_BZmonopole(a, r, self.C)  
-            OmegaF     = OmegaF_BZmonopole(a,r)
-            
+        if self.fieldtype in ['bz_monopole','bz_guess']:
+            if self.fieldtype=='bz_monopole':
+                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, self.C)  
+            elif self.fieldtype=='bz_guess':
+                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, self.C)
             sF01 = -B1
             sF02 = -B2
             sF03 = -B3
@@ -119,7 +151,7 @@ class Bfield(object):
             sF_out = (sF01, sF02, sF03, sF12, sF13, sF23)
             
         else: 
-            raise Exception("self.maxwell currently only works for self.fieldtype='bz_monople'!")                        
+            raise Exception("self.maxwell currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")                        
             
         return sF_out
          
@@ -127,10 +159,12 @@ class Bfield(object):
         """Faraday tensor F^{\mu\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
-        if self.fieldtype=='bz_monopole':
-            (B1,B2,B3) = Bfield_BZmonopole(a, r, self.C)  
-            OmegaF     = OmegaF_BZmonopole(a,r)
-
+        if self.fieldtype in ['bz_monopole','bz_guess']:
+            if self.fieldtype=='bz_monopole':
+                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, self.C)  
+            elif self.fieldtype=='bz_guess':
+                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, self.C)     
+                         
             # Metric in BL
             a2 = a**2
             r2 = r**2
@@ -167,7 +201,7 @@ class Bfield(object):
             F_out = (F01, F02, F03, F12, F13, F23)
             
         else: 
-            raise Exception("self.faraday currently only works for self.fieldtype='bz_monople'!")                        
+            raise Exception("self.faraday currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")                        
             
         return F_out
          
@@ -246,22 +280,25 @@ def Bfield_BZmagic(a, r, C=1):
     OmegaH = a/(2*rH)
     
     # angular velocity guess from split Monopole
+    # TODO is this right for negative spin? 
+    spin = np.abs(a)
     omega0 = 1./8.
     f2 = (6*np.pi*np.pi - 49.)/72.
     omega2 = 1./32. - (4*f2 - 1)*sth2/64.
-    Omega = a*omega0 + (a**3)*omega2
-
+    OmegaBZ = spin*omega0 + (spin**3)*omega2
+    if a<0: OmegaBZ*=-1 #  TODO: is this right for a<0? 
+    
     # Magnetic field ratio Bphi/Br
     # TODO sign seems right, now consistent with BZ monopole
-    Bratioguess = -1 * (OmegaH - Omega)*np.sqrt(Pi)/Delta
+    Bratioguess = -1 * (OmegaH - OmegaBZ)*np.sqrt(Pi)/Delta
     
     Br = C/r2
     Bph = Bratioguess*Br
     Bth = 0*Br
     
-    return(Br, Bth, Bph)
+    return(Br, Bth, Bph, OmegaBZ)
 
-def Bfield_BZmonopole(a,r, C=1):
+def Bfield_BZmonopole(a, r, C=1, secondorder_only=False):
     """perturbative BZ monopole solution.
        C is overall sign of monopole"""
 
@@ -279,41 +316,48 @@ def Bfield_BZmonopole(a,r, C=1):
     Sigma = r2 + a2*cth2
     gdet = sth*Sigma
     
-    
     fr = fi(r)
     fr[r>RMAXINTERP] = 1./(4.*r[r>RMAXINTERP])
     frp = fiprime(r)
     frp[r>RMAXINTERP] = -1./(4.*r2[r>RMAXINTERP])
     
-    phi = C*(1 - cth) + C*a2*fr*sth2*cth
-    
+    phi = C*(1 - cth) + C*a2*fr*sth2*cth    
     dphidtheta = C*sth*(1 + 0.5*a2*fr*(1 + 3*np.cos(2*th)))
     dphidr =  C*a2*sth2*cth*frp
-    Br = dphidtheta / gdet
-    Bth = -dphidr / gdet
-        
-    # TODO: sign of current? 
+       
+    # sign of current corresponds to energy outflow 
     f2 = (6*np.pi*np.pi - 49.)/72.
     omega2 = 1./32. - sth2*(4*f2 - 1)/64.
-    I = -1*C*2*np.pi*sth2*(a/8. + (a**3)*(omega2 + 0.25*fr*cth2)) 
+    I = -1*C*2*np.pi*sth2*(a/8. + (a**3)*(omega2 + 0.25*fr*cth2))
+    
+    # field components
+    Br = dphidtheta / gdet
+    Bth = -dphidr / gdet   
     Bph = I / (2*np.pi*Delta*sth2)
     
-    return(Br, Bth, Bph)
     
-def OmegaF_BZmonopole(a,r):
-    """angular velocity of the BZ monopole"""
+    if secondorder_only: # divergence happens at 2M here, not horizon
+        Br = C*(1./r2 + a2*(-cth2 + r2*fr*(0.5 + 1.5*np.cos(2*th)))/(r2*r2))
+        Bth = -C*a2*frp*cth*sth/r2
+        Bph = -C*0.125*a*(1./(r2-2*r)) #+ C*a**3*(0.125/(r2-2*r)**2 - (omega2 + 0.25*cth2*fr)/(r2-2*r))
     
-    spin = np.abs(a)
-    th = np.pi/2. # TODO equatorial plane only
-    sth = np.sin(th)
-    sth2 = sth**2
-            
+    # angular frequency
+    spin = np.abs(a)    
+    OmegaBZ = spin/8. + spin**2 * omega2
+    if a<0: OmegaBZ*=-1 #  TODO: is this right for a<0? 
+                
+    return(Br, Bth, Bph, OmegaBZ)
+ 
+def Efield_BZmonopole(a, r, C=1, secondorder_only=False):
+    """perturbative BZ monopole solution for electric field
+       only up to 2nd order
+       C is overall sign of monopole"""
 
-    f2 = (6*np.pi*np.pi - 49.)/72.
-    omegaBZ = spin/8. + spin**2 * (1./32. - sth2*(4*f2 - 1)/64.)
-    
-    # TODO is the a<0 case correct here? 
-    if a<0: omegaBZ*=-1
-    
-    return omegaBZ
-       
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+
+    th = np.pi/2. # TODO equatorial plane only
+    Eth = a*np.sin(th)*(-1./8. + 2./r**3)/(r**2 - 2*r)
+                
+    return(0, Eth, 0)   
+   

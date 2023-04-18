@@ -165,7 +165,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         # get velocity and redshift
         ###############################        
         (u0,u1,u2,u3) = velocity.u_lab(a, r_s[~zeromask])    
-        gg = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, u0, u1, u2, u3)   
+        gg = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3)   
         g[~zeromask] = gg
 
         ###############################
@@ -178,7 +178,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         # if polarization not used, set sin(theta_b) = 1 everywhere
         ###############################
         if polarization:
-            (sinthb, kappa) = calc_polquantities(a, th_o, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
+            (sinthb, kappa) = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
                                                  kr_sign, kth_sign, u0, u1, u2, u3, 
                                                  bfield=bfield,  efluid_nonzero=efluid_nonzero)
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
@@ -241,7 +241,7 @@ def theta_momentum_sign(th_o, mbar):
         sign = 1*np.power(-1, np.mod(mbar,2))
     return sign
              
-def calc_redshift(a, r, lam, eta, kr_sign, u0, u1, u2, u3):
+def calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3):
     """ calculate redshift factor"""
 
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
@@ -252,19 +252,28 @@ def calc_redshift(a, r, lam, eta, kr_sign, u0, u1, u2, u3):
     if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
         raise Exception("g_grmhd_fit input arrays are different lengths!")
     
-    if u2!=0:
-        raise Exception("calc_redshift currently only works for u2=0!")
-            
-    Delta = r**2 - 2*r + a**2
-    R = (r**2 + a**2 -a*lam)**2 - Delta*(eta + (lam-a)**2)
-    g = 1 / (1*u0 - lam*u3 - np.sign(kr_sign)*u1*np.sqrt(R)/Delta)
+
+    # Metric
+    a2 = a**2
+    r2 = r**2
+    th = np.pi/2. # equatorial
+    cth2 = np.cos(th)**2
+    sth2 = np.sin(th)**2
+    Delta = r2 - 2*r + a2
+    Sigma = r2 + a2 * cth2
+    
+    # potentials/photon momentum  
+    R = (r2 + a2 -a*lam)**2 - Delta*(eta + (lam-a)**2)
+    TH = eta + a2*cth2 - lam*lam*cth2/sth2
+    
+    # redshift
+    g = 1 / (1*u0 - lam*u3 - np.sign(kth_sign)*u2*np.sqrt(TH) - np.sign(kr_sign)*u1*np.sqrt(R)/Delta)
     
     return g
 
-def calc_polquantities(a, th_o,  r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, 
+def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, 
                        bfield=bfield_default, efluid_nonzero=False):
-    """ calculate polarization quantities
-        everything assumes u^\theta= 0 for now"""
+    """ calculate polarization quantities"""
 
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
@@ -274,8 +283,6 @@ def calc_polquantities(a, th_o,  r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
         raise Exception("g_grmhd_fit input arrays are different lengths!")
     
-    if u2!=0:
-        raise Exception("calc_redshift currently only works for u2=0!")
             
     # Metric
     a2 = a**2
@@ -309,7 +316,7 @@ def calc_polquantities(a, th_o,  r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     # covarient velocity
     u0_l = g00*u0 + g03*u3
     u1_l = g11*u1
-    u2_l = g22*u2   # should be zero!
+    u2_l = g22*u2 
     u3_l = g33*u3 + g03*u0
     
     # define tetrads to comoving frame

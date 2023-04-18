@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.special as sp
 from tqdm import tqdm
+from kgeo.bfields import Bfield
 from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
 from kgeo.equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
 import time
@@ -50,7 +51,11 @@ class Velocity(object):
             self.p1 = self.kwargs.get('p1', P1)
             self.p2 = self.kwargs.get('p2', P2)
             self.dd = self.kwargs.get('dd', DD)
-                        
+        
+        elif self.veltype=='driftframe':
+            self.bfield = self.kwargs.get('bfield', Bfield('bz_monopole'))
+            self.nu_parallel = self.kwargs.get('nu_parallel',0)
+                           
         else: 
             raise Exception("veltype %s not recognized in Velocity!"%self.veltype)
             
@@ -65,11 +70,13 @@ class Velocity(object):
             ucon = u_subkep(a, r, retrograde=self.retrograde, fac_subkep=self.fac_subkep)  
         elif self.veltype=='general':
             ucon = u_general(a, r, retrograde=self.retrograde, fac_subkep=self.fac_subkep,
-                             beta_phi=self.beta_phi, beta_r=self.beta_r)              
+                             beta_phi=self.beta_phi, beta_r=self.beta_r) 
         elif self.veltype=='gelles':
             ucon = u_gelles(a, r, beta=self.gelles_beta, chi=self.gelles_chi)
         elif self.veltype=='simfit':                        
-            ucon = u_simfit(ell_isco=ell_isco, vr_isco=vr_isco, p1=p1, p2=p2, dd=dd)               
+            ucon = u_grmhd_fit(a,r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)    
+        elif self.veltype=='driftframe':
+            ucon = u_driftframe(a, r, nu_parallel=self.nu_parallel)
         else: 
             raise Exception("veltype %s not recognized in Velocity.u_lab!"%self.veltype)
             
@@ -273,7 +280,7 @@ def u_gelles(a, r, beta=0.3, chi=-150*(np.pi/180.)):
     Delta = r2 - 2*r + a2
     Sigma = r2 + a2 * cth2
     Xi = (r2 + a2)**2 - Delta*a2*sth2
-    omegam = 2*a*r/Xi
+    omegaz = 2*a*r/Xi
     
     gamma = 1/np.sqrt(1-beta**2)
     coschi = np.cos(chi)
@@ -281,7 +288,7 @@ def u_gelles(a, r, beta=0.3, chi=-150*(np.pi/180.)):
     
     u0 = (gamma/r)*np.sqrt(Xi/Delta)
     u1 = (beta*gamma*coschi/r)*np.sqrt(Delta)
-    u3 = (gamma*omegam/r)*np.sqrt(Xi/Delta) + (r*beta*gamma*sinchi)/np.sqrt(Xi)
+    u3 = (gamma*omegaz/r)*np.sqrt(Xi/Delta) + (r*beta*gamma*sinchi)/np.sqrt(Xi)
 
     return (u0, u1, 0, u3)            
           
@@ -363,4 +370,87 @@ def u_general(a, r, fac_subkep=1, beta_phi=1, beta_r=1, retrograde=False):
     u3 = u0*Omega
     
     return (u0, u1, 0, u3) 
+   
+def u_driftframe(a,r, bfield=Bfield('bz_monopole',secondorder_only=True), nu_parallel=0):
+    """drift frame velocity for a given EM field in BL""" 
     
+    # checks
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+    if not (-1<nu_parallel<1):
+        raise Exception("nu_parallel should be in the range (-1,1)")
+    if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+    
+    # metric 
+    a2 = a**2
+    r2 = r**2
+    th = np.pi/2. # TODO equatorial only
+    cth2 = np.cos(th)**2
+    sth2 = np.sin(th)**2
+    
+    Delta = r2 - 2*r + a2
+    Sigma = r2 + a2 * cth2
+    Xi = (r2 + a2)**2 - Delta*a2*sth2
+    omegaz = 2*a*r/Xi
+    gdet = Sigma*np.sin(th)
+    
+    g00 = -(1-2*r/Sigma)
+    g11 = Sigma/Delta
+    g22 = Sigma
+    g33 = Xi*sth2/Sigma
+    g03 = -2*r*a*np.sin(th)**2 / Sigma
+    
+    # lapse and shift   
+    alpha2 = Delta*Sigma/Xi
+    alpha= np.sqrt(alpha2) #lapse
+    eta1 = 0
+    eta2 = 0
+    eta3 = -alpha*(-2*a*r/(Delta*Sigma))
+    
+    # e and b field
+    omega = bfield.omega_field(a,r)
+    (B1,B2,B3) = bfield.bfield_lab(a,r)
+    (E1,E2,E3) = bfield.efield_lab(a,r)
+
+    #E1 = (omega-omegaz)*Xi*np.sin(th)*B2/Sigma
+    #E2 = -(omega-omegaz)*Xi*np.sin(th)*B1/(Sigma*Delta)
+    #E3 = 0            
+                
+    Bsq = g11*B1*B1 + g22*B2*B2 + g33*B3*B3
+    Esq = g11*E1*E1 + g22*E2*E2 + g33*E3*E3    
+    
+    B1_cov = g11*B1
+    B2_cov = g22*B2
+    B3_cov = g33*B3
+    
+    E1_cov = g11*E1
+    E2_cov = g22*E2
+    E3_cov = g33*E3
+        
+    # perp velocity in the lnrf, vtilde_perp
+    vperp1 = (alpha/(Bsq*gdet))*(E2_cov*B3_cov - B2_cov*E3_cov)
+    vperp2 = (alpha/(Bsq*gdet))*(E3_cov*B1_cov - B3_cov*E1_cov)
+    vperp3 = (alpha/(Bsq*gdet))*(E1_cov*B2_cov - B1_cov*E2_cov)       
+   
+    # parallel velocity in the lnrf, vtilde_perp   
+    vpar_max = np.sqrt(1 - Esq/Bsq)
+    vpar1 = nu_parallel*vpar_max*B1/np.sqrt(Bsq)
+    vpar2 = nu_parallel*vpar_max*B2/np.sqrt(Bsq)
+    vpar3 = nu_parallel*vpar_max*B3/np.sqrt(Bsq)
+    
+    # convert to four-velocity
+    v1 = vpar1 + vperp1
+    v2 = vpar2 + vperp2
+    v3 = vpar3 + vperp3
+    vpardotvperp = g11*vpar1*vperp1 + g22*vpar2*vperp2 + g33*vpar3*vperp3
+    vsq_par = g11*vpar1*vpar1 + g22*vpar2*vpar2 + g33*vpar3*vpar3
+    vsq_perp = g11*vperp1*vperp1 + g22*vperp2*vperp2 + g33*vperp3*vperp3
+    vsq = g11*v1*v1 + g22*v2*v2 + g33*v3*v3
+    gamma = 1./np.sqrt(1-vsq)
+        
+    u0 = gamma/alpha
+    u1 = gamma*(v1 + eta1)
+    u2 = gamma*(v2 + eta2)
+    u3 = gamma*(v3 + eta3)
+    
+    return (u0, u1, u2, u3)
