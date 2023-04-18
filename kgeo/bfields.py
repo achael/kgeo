@@ -125,8 +125,25 @@ class Bfield(object):
         if self.fieldtype=='bz_monopole' and self.secondorder_only:
             e_components = Efield_BZmonopole(a,r,self.C)
         elif self.fieldtype in ['bz_monopole','bz_guess']:
-            (F01, F02, F03, F12, F13, F23) = self.faraday(a,r)
-            e_components = (F01, F02, F03)
+            if self.fieldtype=='bz_monopole':
+                (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, self.C,secondorder_only=self.secondorder_only)
+            elif self.fieldtype=='bz_guess':
+                (B1,B2,B3,omega) = Bfield_BZmagic(a, r, self.C)
+            a2 = a**2
+            r2 = r**2
+            th = np.pi/2. # TODO equatorial only
+            cth2 = np.cos(th)**2
+            sth2 = np.sin(th)**2
+            Delta = r2 - 2*r + a2
+            Sigma = r2 + a2 * cth2  
+            Pi = (r2+a2)**2 - a2*Delta*sth2
+            omegaz=2*a*r/Pi;
+            E1 = (omega-omegaz)*Pi*np.sin(th)*B2/Sigma
+            E2 = -(omega-omegaz)*Pi*np.sin(th)*B1/(Sigma*Delta)
+            E3 = 0
+            e_components = (E1, E2, E3)                               
+#            (F01, F02, F03, F12, F13, F23) = self.faraday(a,r)
+#            e_components = (F01, F02, F03)
         else: 
             raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")                        
             
@@ -335,20 +352,20 @@ def Bfield_BZmonopole(a, r, C=1, secondorder_only=False):
     Bth = -dphidr / gdet   
     Bph = I / (2*np.pi*Delta*sth2)
     
-    
+    # second (or third?) order only
     if secondorder_only: # divergence happens at 2M here, not horizon
-        Br = C*(1./r2 + a2*(-cth2 + r2*fr*(0.5 + 1.5*np.cos(2*th)))/(r2*r2))
+        Br = C/r2 + C*a2*(-cth2/(r2*r2) + fr*(0.5 + 1.5*np.cos(2*th))/r2)
         Bth = -C*a2*frp*cth*sth/r2
-        Bph = -C*0.125*a*(1./(r2-2*r)) #+ C*a**3*(0.125/(r2-2*r)**2 - (omega2 + 0.25*cth2*fr)/(r2-2*r))
+        Bph = -C*0.125*a/(r2-2*r) + C*(a**3)*(0.125/((r2-2*r)**2) - (omega2 + 0.25*cth2*fr)/((r2-2*r)))
     
     # angular frequency
     spin = np.abs(a)    
-    OmegaBZ = spin/8. + spin**2 * omega2
+    OmegaBZ = spin/8. + spin**3 * omega2
     if a<0: OmegaBZ*=-1 #  TODO: is this right for a<0? 
                 
     return(Br, Bth, Bph, OmegaBZ)
  
-def Efield_BZmonopole(a, r, C=1, secondorder_only=False):
+def Efield_BZmonopole(a, r, C=1):
     """perturbative BZ monopole solution for electric field
        only up to 2nd order
        C is overall sign of monopole"""
