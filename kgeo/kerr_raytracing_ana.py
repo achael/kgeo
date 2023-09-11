@@ -143,9 +143,11 @@ def raytrace_ana(a=SPIN,
     if plotdata and do_phi_and_t:
         print('plotting data...')
         try:
-            plt.ion()
+            #plt.ion()
             geos.plotgeos()
+            plt.pause(1.e-3)
             plt.show()
+            plt.pause(1.e-3)
         except:
             print("Error plotting data!")
 
