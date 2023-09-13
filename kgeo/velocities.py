@@ -62,7 +62,7 @@ class Velocity(object):
         else: 
             raise Exception("veltype %s not recognized in Velocity!"%self.veltype)
             
-    def u_lab(self, a, r):  
+    def u_lab(self, a, r, th=np.pi/2):  
         if self.veltype=='zamo':
             ucon = u_zamo(a, r) 
         elif self.veltype=='infall':
@@ -79,7 +79,7 @@ class Velocity(object):
         elif self.veltype=='simfit':                        
             ucon = u_grmhd_fit(a,r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)    
         elif self.veltype=='driftframe':
-            ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel)
+            ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th)
         else: 
             raise Exception("veltype %s not recognized in Velocity.u_lab!"%self.veltype)
             
@@ -374,7 +374,7 @@ def u_general(a, r, fac_subkep=1, beta_phi=1, beta_r=1, retrograde=False):
     
     return (u0, u1, 0, u3) 
    
-def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0):
+def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2):
     """drift frame velocity for a given EM field in BL""" 
     
     # checks
@@ -387,7 +387,7 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0):
     # metric 
     a2 = a**2
     r2 = r**2
-    th = np.pi/2. # TODO equatorial only
+#    th = np.pi/2. # TODO equatorial only
     cth2 = np.cos(th)**2
     sth2 = np.sin(th)**2
     
@@ -411,9 +411,9 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0):
     eta3 = 2*a*r/np.sqrt(Delta*Sigma*Xi)
     
     # e and b field
-    omega = bfield.omega_field(a,r)
-    (B1,B2,B3) = bfield.bfield_lab(a,r)
-    (E1,E2,E3) = bfield.efield_lab(a,r)
+    omega = bfield.omega_field(a,r,thetas=th)
+    (B1,B2,B3) = bfield.bfield_lab(a,r,thetas=th)
+    (E1,E2,E3) = bfield.efield_lab(a,r,thetas=th)
 
     E1 = (omega-omegaz)*Xi*np.sin(th)*B2/Sigma
     E2 = -(omega-omegaz)*Xi*np.sin(th)*B1/(Sigma*Delta)
