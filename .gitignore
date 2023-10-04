@@ -6,6 +6,8 @@
 *.fits
 *.png
 *.pdf
+*.egg-info*
+build/*
 
 gsl_ellip.c
 toms_ellip_binding.py
