@@ -8,6 +8,7 @@
 *.pdf
 *.egg-info*
 build/*
+*.ipynb_checkpoints*
 
 gsl_ellip.c
 toms_ellip_binding.py
