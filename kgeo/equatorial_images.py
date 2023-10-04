@@ -332,7 +332,7 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     u3_l = g33*u3 + g03*u0
     
     # define tetrads to comoving frame
-    Nr = np.sqrt(-g11*(u0_l*u0 + u3_l*u3)*(1+u2_l*u2))
+    Nr = np.sqrt(-g11*(u0_l*u0 + u3_l*u3)*(1 + u2_l*u2))
     Nth = np.sqrt(g22*(1 + u2_l*u2))
     Nph = np.sqrt(-Delta*sth2*(u0_l*u0 + u3_l*u3))        
 
