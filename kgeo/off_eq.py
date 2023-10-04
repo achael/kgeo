@@ -60,6 +60,7 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
         # get velocity and redshift
         ###############################        
         (u0,u1,u2,u3) = velocity.u_lab(a, r_s[~zeromask],th=th_s) 
+
         gg = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s)   
         g[~zeromask] = gg
 
@@ -108,7 +109,7 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
 
 
 #get stokes parameters for a grid with off-equatorial emission in BZ model
-def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, constA=1, outgeo=None, tol=1e-8): #neqmax is the maximum number of equatorial crossings
+def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, constA=1, outgeo=None, tol=1e-8, nu_parallel = 0): #neqmax is the maximum number of equatorial crossings
     ashape = alphavals.shape #store shapes for later
     alphavals = alphavals.flatten() #flatten since we need everything to be a vector for our code to work
     betavals = betavals.flatten()
@@ -129,15 +130,15 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     alphavals = np.tile(alphavals, guesses_shape[0])
     betavals = np.tile(betavals, guesses_shape[0])
 
-    dvals = density(rvals, thvals, a, constA, model=model)
+    dvals = densityhere(rvals, thvals, a, constA, model=model)
     
     
     #initialize arrays
     bf = Bfield('bz_para') if model == 'para' else Bfield('bz_monopole') #initialize bfield
 
     outvec = Iobs_off(a, r_o, rvals, th_o, alphavals, betavals, signpr, signptheta,
-    emissivity=Emissivity('constant'), velocity=Velocity('driftframe'), bfield=bf,
-    polarization=True,  efluid_nonzero=True, specind=SPECIND, th_s=thvals, density=dvals) #generate data
+    emissivity=Emissivity('constant'), velocity=Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel), bfield=bf,
+    polarization=True,  efluid_nonzero=False, specind=SPECIND, th_s=thvals, density=dvals) #generate data
 
     iobs = np.copy(outvec[0])
     qobs = np.copy(outvec[1])
@@ -150,7 +151,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     uobs = np.real(np.nan_to_num(np.array(uobs)))
 
     #call sorter here
-    ivec, qvec, uvec = sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape)
+    ivec, qvec, uvec = sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax)
     evpa = np.real(np.nan_to_num(0.5*np.arctan(uvec/qvec)))
     
     return ivec, qvec, uvec, evpa

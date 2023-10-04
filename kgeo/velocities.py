@@ -18,7 +18,7 @@ BETA = 0.3
 CHI = -150*np.pi/180.
 
 # default b field for drift frame
-BFIELD_DEFAULT = Bfield('bz_monopole', secondorder_only=True)
+BFIELD_DEFAULT = Bfield('bz_para')
 
 class Velocity(object):
     """ object for lab frame velocity as a function of r, only in equatorial plane for now """
@@ -429,11 +429,12 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2):
     E1_cov = g11*E1
     E2_cov = g22*E2
     E3_cov = g33*E3
+
         
     # perp velocity in the lnrf, vtilde_perp
-    vperp1 = (alpha/(Bsq*gdet))*(E2_cov*B3_cov - B2_cov*E3_cov)
-    vperp2 = (alpha/(Bsq*gdet))*(E3_cov*B1_cov - B3_cov*E1_cov)
-    vperp3 = (alpha/(Bsq*gdet))*(E1_cov*B2_cov - B1_cov*E2_cov)       
+    vperp1 = (alpha/(Bsq*gdet))*(E2_cov*B3_cov - B2_cov*E3_cov) 
+    vperp2 = (alpha/(Bsq*gdet))*(E3_cov*B1_cov - B3_cov*E1_cov) 
+    vperp3 = (alpha/(Bsq*gdet))*(E1_cov*B2_cov - B1_cov*E2_cov) 
    
     # parallel velocity in the lnrf, vtilde_perp   
     vpar_max = np.sqrt(1 - Esq/Bsq)

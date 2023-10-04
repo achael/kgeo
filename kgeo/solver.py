@@ -93,7 +93,7 @@ def get_maxtau_forwardjet(a, r_o, th_o, alpha, beta, neqmax=1): #maximum minotim
 
 def makegoodarray(arr): #converts guess array into correct dimensions
     max_length = max(len(a) for a in arr)
-    result = np.zeros((len(arr), max_length))
+    result = -np.ones((len(arr), max_length))
     for i, a in enumerate(arr):
         result[i, :len(a)] = a
     return np.transpose(np.copy(result))
@@ -108,17 +108,17 @@ def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_
         minfunc = np.roll(psifromgeo[:,i], -1)*psifromgeo[:,i] #we need to make sure this function crosses zero
         
         indmax = np.argmin(np.abs(outgeo.mino_times[:,i]-taumaxes[i]))
-        minfunc = minfunc[:indmax+2] #+1 for python and conventions and +1 again to be sure we allow the whole upper half plane
+        minfunc = minfunc[:indmax+1] #+1 for python and conventions
         
-        minfunc = minfunc[1:-1] #don't trust endpoints
+        minfunc = minfunc[:-1] #don't trust right endpoint
         mininds = np.where(minfunc<0)[0] #indices of zero crossings
                         
         if len(mininds) == 0: #no solution
-            tauguesses.append(np.array([0]))
+            tauguesses.append(np.array([-1]))
             continue
 
-        mininds += 1 #necessary since we cut off the endpoints earlier
-        tauguesses.append(np.array([outgeo.mino_times[indfinal, i] for indfinal in mininds]))
+        #mininds += 1 #necessary since we cut off the endpoints earlier
+        tauguesses.append(np.array([(outgeo.mino_times[indfinal, i]+outgeo.mino_times[indfinal+1, i])/2 for indfinal in mininds])) #averages two points which the zero lives between
     
     return makegoodarray(tauguesses)
 
@@ -168,13 +168,13 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
                                         do_phi_and_t=True)
         
         arrhere = psifunc(r_s[0], th_s[0], a, model=model) - psitarget
-        arrhere[guesses == 0] = 0
+        arrhere[guesses == -1] = 0 #no intersections
 
         return arrhere
 
     perturb = 1e-5
     print('before solve')
-    outqty = scipy.optimize.newton(get_coord_intersect, guesses, maxiter=1000, tol=tol)
+    outqty = scipy.optimize.newton(get_coord_intersect, guesses, maxiter=500, tol=tol)
     print('after solve')
 
     #integration in theta
@@ -190,13 +190,13 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
                                   do_phi_and_t=True)
     
     
-    signpr = np.sign(r_s_further-r_s)[0]
+    signpr = np.sign(r_s-r_s_further)[0]
     signptheta = np.sign(th_s-th_s_further)[0]
     r_s = np.copy(r_s[0])
     th_s = np.copy(th_s[0])
 
     neqvals = getneq(a, outqty, u_minus, u_plus, th_s, th_o, signptheta, betatile)
 
-    outqty[guesses == 0] = r_s[guesses==0] = th_s[guesses==0] = signpr[guesses==0] = signptheta[guesses==0] = 0
+    outqty[guesses == -1] = r_s[guesses==-1] = th_s[guesses==-1] = signpr[guesses==-1] = signptheta[guesses==-1] = 0 #no crossing
         
     return outqty, r_s, th_s, signpr, signptheta, neqvals, guesses_shape

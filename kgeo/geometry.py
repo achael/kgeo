@@ -16,7 +16,7 @@ def lapse(r, th, a): #lapse function for Kerr metric
     return np.sqrt(delta*sig/pi)
 
 #density as solution to continuity equation for perpendicular drift velocity
-def density(r, th, a, constA, model='para'): #constA is multiplicative factor out front (doesn't affect continuity equation)
+def densityhere(r, th, a, constA, model='para'): #constA is multiplicative factor out front (doesn't affect continuity equation)
     bpara = Bfield("bz_para", C=1) if model == 'para' else Bfield("bz_monopole", C=1)
     bupper = np.transpose(bpara.bfield_lab(a, r, thetas=th))
     eupper = np.transpose(bpara.efield_lab(a, r, thetas=th))
@@ -33,14 +33,12 @@ def density(r, th, a, constA, model='para'): #constA is multiplicative factor ou
 
 
 #returns images contained in order of neq
-def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape):
-    neqmax = np.max(neqvals)
-    iarr = []#initialize arrays
+def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax):
+    iarr = [] #initialize arrays
     qarr = []
     uarr = []
-    print(neqmax)
 
-    for neq in np.arange(0, neqmax+1, 1):
+    for neq in np.arange(0, neqmax, 1):
         ihere = np.copy(iobs)
         qhere = np.copy(qobs)
         uhere = np.copy(uobs)

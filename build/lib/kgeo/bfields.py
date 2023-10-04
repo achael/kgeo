@@ -432,12 +432,12 @@ def Bfield_BZpara(a, r, th, C=1):
         OmegaBZ = C*omega_BZpara(th, psi, a)*((argvals>=-1/np.e).astype('int'))
     
     #current
-    I = -4*np.pi*psi*OmegaBZ
+    I = -4*np.pi*psi*OmegaBZ * np.sign(cth)
 
     # # field components
     Br = C*dpsidtheta / gdet
     Bth = -C*dpsidr / gdet   
-    Bph = I / (2*np.pi*Delta*sth2)
+    Bph = I / (2*np.pi*Delta*sth2) 
 
     return(Br, Bth, Bph, OmegaBZ)
 
