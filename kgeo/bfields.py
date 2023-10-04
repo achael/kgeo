@@ -9,6 +9,7 @@ from scipy.interpolate import UnivariateSpline
 import os
 import pkg_resources
 
+
 def f(r):
     """BZ monopole f(r) function"""
     r = r + 0j
@@ -40,7 +41,7 @@ class Bfield(object):
     def __init__(self, fieldtype="rad", **kwargs):
 
         self.fieldtype = fieldtype
-        if self.fieldtype in ['rad','vert','tor','simple','simple_rm1','bz_monopole','bz_guess']:
+        if self.fieldtype in ['rad','vert','tor','simple','simple_rm1','bz_monopole','bz_guess','bz_para']:
             self.fieldframe = 'lab'
         elif self.fieldtype in ['const_comoving']:
             self.fieldframe = 'comoving'
@@ -52,11 +53,9 @@ class Bfield(object):
         if self.fieldframe not in ['lab','comoving']:
             raise Exception("Bfield fieldframe must be 'lab' or 'comoving'!")
 
-        if self.fieldtype in ['bz_monopole','bz_guess']:
+        if self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
             self.secondorder_only = self.kwargs.get('secondorder_only', False)
             self.C = self.kwargs.get('C', 1)
-        elif self.fieldtype=='bz_guess':
-            self.C = self.kwargs.get('C', 1)        
         elif self.fieldtype=='rad':
             self.Cr=1; self.Cvert=0; self.Cph=0
         elif self.fieldtype=='vert':
@@ -71,7 +70,7 @@ class Bfield(object):
             if self.Cr==self.Cvert==self.Cph==0.:
                 raise Exception("all field coefficients are 0!")
                                      
-    def bfield_lab(self, a, r):
+    def bfield_lab(self, a, r, thetas=np.pi/2):
         """lab frame b field starF^i0"""
          
         if self.fieldframe!='lab':
@@ -81,12 +80,14 @@ class Bfield(object):
             b_components = Bfield_simple(a, r, (self.Cr, self.Cvert, self.Cph))
         elif self.fieldtype=='simple_rm1':
             b_components = Bfield_simple_rm1(a, r, (self.Cr, self.Cvert, self.Cph))
-            
         elif self.fieldtype=='bz_monopole':
-            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, self.C, secondorder_only=self.secondorder_only)  
+            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, thetas, self.C, secondorder_only=self.secondorder_only)  
+            b_components = (B1,B2,B3)
+        elif self.fieldtype=='bz_para':
+            (B1,B2,B3,omega) = Bfield_BZpara(a, r, thetas, self.C)  
             b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_guess':
-            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, self.C)
+            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, thetas, self.C)
             b_components = (B1,B2,B3)            
         else: 
             raise Exception("fieldtype %s not recognized in Bfield.bfield_lab!"%self.fieldtype)
@@ -108,30 +109,34 @@ class Bfield(object):
         return b_components
 
     # TODO ANDREW FIX THESE WITH BETTER DATA STRUCTURES
-    def omega_field(self, a, r):
+    def omega_field(self, a, r, thetas=np.pi/2):
         """fieldline angular speed"""    
         if self.fieldtype=='bz_monopole':
-            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, self.C,secondorder_only=self.secondorder_only)
+            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, thetas, self.C,secondorder_only=self.secondorder_only)
         elif self.fieldtype=='bz_guess':
-            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, self.C)
+            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, thetas, self.C)
+        elif self.fieldtype=='bz_para':
+            (B1,B2,B3,omega) = Bfield_BZpara(a, r, thetas, self.C) 
         else: 
             raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")       
         return omega
         
-    def efield_lab(self, a, r):
+    def efield_lab(self, a, r, thetas=np.pi/2):
         """lab frame electric field F^{0i} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
         if self.fieldtype=='bz_monopole' and self.secondorder_only:
-            e_components = Efield_BZmonopole(a,r,self.C)
-        elif self.fieldtype in ['bz_monopole','bz_guess']:
+            e_components = Efield_BZmonopole(a,r,thetas, self.C)
+        elif self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
             if self.fieldtype=='bz_monopole':
-                (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, self.C,secondorder_only=self.secondorder_only)
+                (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, thetas, self.C,secondorder_only=self.secondorder_only)
             elif self.fieldtype=='bz_guess':
-                (B1,B2,B3,omega) = Bfield_BZmagic(a, r, self.C)
+                (B1,B2,B3,omega) = Bfield_BZmagic(a, r, thetas, self.C)
+            elif self.fieldtype=='bz_para':
+                (B1,B2,B3,omega) = Bfield_BZpara(a, r, thetas, self.C)
             a2 = a**2
             r2 = r**2
-            th = np.pi/2. # TODO equatorial only
+            th = thetas 
             cth2 = np.cos(th)**2
             sth2 = np.sin(th)**2
             Delta = r2 - 2*r + a2
@@ -140,7 +145,7 @@ class Bfield(object):
             omegaz=2*a*r/Pi;
             E1 = (omega-omegaz)*Pi*np.sin(th)*B2/Sigma
             E2 = -(omega-omegaz)*Pi*np.sin(th)*B1/(Sigma*Delta)
-            E3 = 0
+            E3 = np.zeros_like(E2) if hasattr(E2, '__len__') else 0
             e_components = (E1, E2, E3)                               
 #            (F01, F02, F03, F12, F13, F23) = self.faraday(a,r)
 #            e_components = (F01, F02, F03)
@@ -149,15 +154,17 @@ class Bfield(object):
             
         return e_components
         
-    def maxwell(self, a, r):
+    def maxwell(self, a, r, thetas=np.pi/2):
         """Maxwell tensor starF^{\mu\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
-        if self.fieldtype in ['bz_monopole','bz_guess']:
+        if self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
             if self.fieldtype=='bz_monopole':
-                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, self.C)  
+                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, thetas, self.C)  
             elif self.fieldtype=='bz_guess':
-                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, self.C)
+                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, thetas, self.C)
+            elif self.fieldtype=='bz_para':
+                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, thetas, self.C)
             sF01 = -B1
             sF02 = -B2
             sF03 = -B3
@@ -172,20 +179,22 @@ class Bfield(object):
             
         return sF_out
          
-    def faraday(self, a, r):
+    def faraday(self, a, r, thetas=np.pi/2):
         """Faraday tensor F^{\mu\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
-        if self.fieldtype in ['bz_monopole','bz_guess']:
+        if self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
             if self.fieldtype=='bz_monopole':
-                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, self.C)  
+                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, thetas, self.C)  
             elif self.fieldtype=='bz_guess':
-                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, self.C)     
+                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, thetas, self.C)   
+            elif self.fieldtype=='bz_para':
+                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, thetas, self.C)   
                          
             # Metric in BL
             a2 = a**2
             r2 = r**2
-            th = np.pi/2. # TODO equatorial only
+            th = thetas 
             cth2 = np.cos(th)**2
             sth2 = np.sin(th)**2
             Delta = r2 - 2*r + a2
@@ -272,7 +281,7 @@ def Bfield_simple_rm1(a, r, coeffs):
    
     return (Br, Bth, Bph)  
        
-def Bfield_BZmagic(a, r, C=1):
+def Bfield_BZmagic(a, r, th, C=1):
     """Guess ratio for Bphi/Br from split monopole
        C is overall sign of monopole"""
 
@@ -280,10 +289,10 @@ def Bfield_BZmagic(a, r, C=1):
         raise Exception("|a| should be a float in range [0,1)")
 
 
-    th = np.pi/2. # TODO equatorial plane only
+   # th = np.pi/2. # TODO equatorial plane only
     a2 = a**2
     r2 = r**2
-    th = np.pi/2. # equatorial
+#    th = np.pi/2. # equatorial
     sth = np.sin(th)
     cth = np.cos(th)
     cth2 = cth**2
@@ -315,14 +324,14 @@ def Bfield_BZmagic(a, r, C=1):
     
     return(Br, Bth, Bph, OmegaBZ)
 
-def Bfield_BZmonopole(a, r, C=1, secondorder_only=False):
+def Bfield_BZmonopole(a, r, th, C=1, secondorder_only=False):
     """perturbative BZ monopole solution.
        C is overall sign of monopole"""
 
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
 
-    th = np.pi/2. # TODO equatorial plane only
+#    th = np.pi/2. # TODO equatorial plane only
     a2 = a**2
     r2 = r**2
     sth = np.sin(th)
@@ -362,10 +371,10 @@ def Bfield_BZmonopole(a, r, C=1, secondorder_only=False):
     spin = np.abs(a)    
     OmegaBZ = spin/8. + spin**3 * omega2
     if a<0: OmegaBZ*=-1 #  TODO: is this right for a<0? 
-                
+
     return(Br, Bth, Bph, OmegaBZ)
  
-def Efield_BZmonopole(a, r, C=1):
+def Efield_BZmonopole(a, r, th, C=1):
     """perturbative BZ monopole solution for electric field
        only up to 2nd order
        C is overall sign of monopole"""
@@ -373,8 +382,63 @@ def Efield_BZmonopole(a, r, C=1):
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
 
-    th = np.pi/2. # TODO equatorial plane only
+#    th = np.pi/2. # TODO equatorial plane only
     Eth = a*np.sin(th)*(-1./8. + 2./r**3)/(r**2 - 2*r)
                 
     return(0, Eth, 0)   
-   
+
+def omega_BZpara(th, psi, a):
+    rp = 1+np.sqrt(1-a**2) #outer radius
+    abscth = np.abs(np.cos(th))
+    wfunc = sp.lambertw(-psi/rp+np.log(4), k=0)
+    xfunc = np.exp(wfunc)
+    yfunc = 1+psi/(1+wfunc)/(xfunc*(2-xfunc))
+    return a/4/yfunc
+
+def Bfield_BZpara(a, r, th, C=1):
+    """perturbative BZ paraboloid solution.
+       C is overall sign"""
+
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+
+#    th = np.pi/2. # TODO equatorial plane only
+    a2 = a**2
+    r2 = r**2
+    rp = 1+np.sqrt(1-a2) #outer horizon
+    sth = np.sin(th)
+    cth = np.cos(th)
+    abscth = np.abs(cth)
+    cth2 = cth**2
+    sth2 = sth**2
+    Delta = r2 - 2*r + a2
+    Sigma = r2 + a2*cth2
+    gdet = sth*Sigma
+    
+    #vector potential
+    psi = r*(1-abscth)+rp*(1+abscth)*(1-np.log(1+abscth))-2*rp*(1-np.log(2))
+    dpsidtheta = np.sign(cth) * sth * (r+rp*np.log(1+abscth))
+    dpsidr = 1-abscth
+
+    argvals = -psi/rp + np.log(4) #valid solution up until this equals zero
+
+    if not hasattr(psi, '__len__'): #allows for psi to be an array or a scalar
+        if argvals > 0:
+            OmegaBZ = omega_BZpara(th, psi, a)
+        else:
+            OmegaBZ = 0
+
+    else:
+        OmegaBZ = C*omega_BZpara(th, psi, a)*((argvals>=-1/np.e).astype('int'))
+    
+    #current
+    I = -4*np.pi*psi*OmegaBZ * np.sign(cth)
+
+    # # field components
+    Br = C*dpsidtheta / gdet
+    Bth = -C*dpsidr / gdet   
+    Bph = I / (2*np.pi*Delta*sth2) 
+
+    return(Br, Bth, Bph, OmegaBZ)
+
+
