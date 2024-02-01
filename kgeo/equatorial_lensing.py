@@ -10,7 +10,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus, n_equatorial_crossings, n_poloidal_orbits
 from kgeo.kerr_raytracing_ana import r_integrate
-import ehtim.parloop as parloop
+from kgeo.partools import Counter
 import ehtim.observing.obs_helpers as obsh
 from multiprocessing import cpu_count, Pool
 import os
@@ -363,7 +363,7 @@ def generate_library(which='rh'):
     allspins = allspins.flatten()
     ntot = len(allincs)
 
-    counter = parloop.Counter(initval=0, maxval=ntot)
+    counter = Counter(initval=0, maxval=ntot)
     print("Using Multiprocessing with %d Processes" % processes)
     pool = Pool(processes=processes, initializer=init, initargs=(counter,))
 

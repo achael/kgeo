@@ -2,7 +2,6 @@
 import numpy as np
 from kgeo.equatorial_images import Iobs
 from kgeo.equatorial_lensing import rho_of_req, critical_curve
-import ehtim as eh
 import matplotlib.pyplot as plt
 from kgeo.bfields import Bfield
 from kgeo.velocities import Velocity
