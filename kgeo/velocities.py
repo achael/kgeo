@@ -16,6 +16,13 @@ CHI = -150*np.pi/180.
 # default b field for drift frame
 BFIELD_DEFAULT = Bfield('bz_para')
 
+
+# used in testing
+_allowed_velocity_models = [
+    'zamo', 'infall', 'kep', 'cunningham', 'subkep', 'cunningham_subkep',
+    'general', 'gelles', 'simfit', 'driftframe'
+]
+
 class Velocity(object):
     """
     Parent class definition for velocity object with member functions
@@ -79,6 +86,11 @@ class Velocity(object):
         self.veltype = veltype
         self.kwargs = kwargs
 
+        # this check ensures that _allowed_velocity_models is updated when
+        # new velocity models are added, which is important for testing
+        if self.veltype not in _allowed_velocity_models:
+            raise Exception("veltype %s not recognized in Velocity!" % self.veltype)
+
         if self.veltype=='zamo' or self.veltype=='infall':
             pass
 
@@ -110,8 +122,6 @@ class Velocity(object):
             self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
             self.nu_parallel = self.kwargs.get('nu_parallel',0)
 
-        else:
-            raise Exception("veltype %s not recognized in Velocity!" % self.veltype)
 
     def u_lab(self, a, r, th=np.pi/2):
         """

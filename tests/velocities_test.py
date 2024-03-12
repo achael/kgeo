@@ -1,11 +1,5 @@
 import numpy as np
-from kgeo.velocities import Velocity
-
-
-_known_velocity_models = [
-    'zamo', 'infall', 'kep', 'cunningham', 'subkep', 'cunningham_subkep',
-    'general', 'gelles', 'simfit', 'driftframe'
-]
+from kgeo.velocities import Velocity, _allowed_velocity_models
 
 
 def _gcov_bl(a, r, th=np.pi/2.):
@@ -38,7 +32,7 @@ def test_velocity_usq():
             if radius <= reh:
                 continue
             gcov = _gcov_bl(bhspin, radius)
-            for veltype in _known_velocity_models:
+            for veltype in _allowed_velocity_models:
                 if veltype == 'simfit':   # TODO, it appears that this model is broken?
                     continue
                 print(f'Testing u.u == -1 for {veltype} with a={bhspin} at r={radius}...')
