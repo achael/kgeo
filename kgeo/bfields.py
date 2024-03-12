@@ -171,8 +171,8 @@ class Bfield(object):
             E2 = -(omega-omegaz)*Pi*np.sin(th)*B1/(Sigma*Delta)
             E3 = np.zeros_like(E2) if hasattr(E2, '__len__') else 0
             e_components = (E1, E2, E3)
-#            (F01, F02, F03, F12, F13, F23) = self.faraday(a,r)
-#            e_components = (F01, F02, F03)
+            # (F01, F02, F03, F12, F13, F23) = self.faraday(a,r)
+            # e_components = (F01, F02, F03)
         else:
             raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")
 
@@ -279,6 +279,7 @@ def Bfield_simple(a, r, coeffs):
 
     return (Br, Bth, Bph)
 
+
 def Bfield_simple_rm1(a, r, coeffs):
     """magnetic field vector in the lab frame in equatorial plane,
        simple configurations, all fall as 1/r"""
@@ -303,6 +304,7 @@ def Bfield_simple_rm1(a, r, coeffs):
     Bph = ator*(1./gdet)
 
     return (Br, Bth, Bph)
+
 
 def Bfield_BZmagic(a, r, th, C=1):
     """Guess ratio for Bphi/Br from split monopole
@@ -355,7 +357,10 @@ def Bfield_BZmonopole(a, r, th, C=1, secondorder_only=False):
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
 
-    # th = np.pi/2. # TODO equatorial plane only
+    # convert type to play better with array slices
+    if isinstance(r, float):
+        r = np.float64(r)
+
     a2 = a**2
     r2 = r**2
     sth = np.sin(th)
@@ -421,6 +426,7 @@ def omega_BZpara(th, psi, a):
     yfunc = 1+psi/(1+wfunc)/(xfunc*(2-xfunc))
     return a/4/yfunc
 
+
 def Bfield_BZpara(a, r, th, C=1):
     """perturbative BZ paraboloid solution.
        C is overall sign"""
@@ -466,5 +472,3 @@ def Bfield_BZpara(a, r, th, C=1):
     Bph = I / (2*np.pi*Delta*sth2)
 
     return(Br, Bth, Bph, OmegaBZ)
-
-

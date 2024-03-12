@@ -69,5 +69,4 @@ def test_velocity_general():
         )
         v = Velocity('general', **kwargs)
         ucon_out = np.squeeze(v.u_lab(bhspin, radius, th=theta))
-        print(ucon_out, ucon)
         assert np.allclose(ucon_out, ucon, rtol=1.e-5)
