@@ -61,6 +61,12 @@ class Velocity(object):
                 "cunningham_subkep" veltypes are are alises to the "general"
                 model with certain defaults for parameters.
 
+                Note the retrograde flag has two general effects:
+                    - the radius of the ISCO is flipped
+                    - in computing Omega_kep, both the sign of the spin and 
+                      the overall sign of Omega_kep are flipped, so that
+                      Omega = - 1 / (r^1.5 - a)
+
     "zamo" - Zero angular momentum observer velocity, which has u_phi = 0.
 
     "gelles" - Velocity prescription from Gelles+ 2021.
@@ -203,8 +209,8 @@ def u_infall(a,r):
 def u_kep(a, r, retrograde=False):
     """Cunningham velocity for material on keplerian orbits and infalling inside isco"""
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    if not (isinstance(a,float) and (0<np.abs(a)<1)):  # TODO: breaks when a==0 (np.sign?)
+        raise Exception("|a| should be a float in range (0,1)")
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
     if retrograde:
@@ -259,7 +265,7 @@ def u_kep(a, r, retrograde=False):
 def u_subkep(a, r, fac_subkep=1, retrograde=False):
     """(sub) keplerian velocty and infalling inside isco"""
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+    if not (isinstance(a,float) and (0<np.abs(a)<1)):  # TODO: breaks when a==0 (np.sign?)
         raise Exception("|a| should be a float in range [0,1)")
     if not (0<=fac_subkep<=1):
         raise Exception("fac_subkep should be in the range [0,1]")
@@ -283,7 +289,7 @@ def u_subkep(a, r, fac_subkep=1, retrograde=False):
     iscomask = (r >= ri)
     spin = np.abs(a)
     asign = np.sign(a)
-    # outside isco)
+    # outside isco
     if np.any(iscomask):
         rr = r[iscomask]
 
