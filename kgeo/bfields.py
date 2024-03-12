@@ -155,7 +155,7 @@ class Bfield(object):
         return e_components
         
     def maxwell(self, a, r, thetas=np.pi/2):
-        """Maxwell tensor starF^{\mu\nu} in BL coordinates. 
+        """Maxwell tensor starF^{\\mu\\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
@@ -180,7 +180,7 @@ class Bfield(object):
         return sF_out
          
     def faraday(self, a, r, thetas=np.pi/2):
-        """Faraday tensor F^{\mu\nu} in BL coordinates. 
+        """Faraday tensor F^{\\mu\\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
