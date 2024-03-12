@@ -356,7 +356,7 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     if bfield.fieldframe=='lab':
     
         # get lab frame B^i
-        (B1, B2, B3) = bfield.bfield_lab(a, r, thetas=th)
+        (B1, B2, B3) = bfield.bfield_lab(a, r, th=th)
 
         # here, we get the general field from the defn b^\mu = u_\nu sF^{\nu\mu}
         # fluid-frame electric field will in general not be 0!!

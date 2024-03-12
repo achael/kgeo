@@ -18,8 +18,8 @@ def lapse(r, th, a): #lapse function for Kerr metric
 #density as solution to continuity equation for perpendicular drift velocity
 def densityhere(r, th, a, constA, model='para'): #constA is multiplicative factor out front (doesn't affect continuity equation)
     bpara = Bfield("bz_para", C=1) if model == 'para' else Bfield("bz_monopole", C=1)
-    bupper = np.transpose(bpara.bfield_lab(a, r, thetas=th))
-    eupper = np.transpose(bpara.efield_lab(a, r, thetas=th))
+    bupper = np.transpose(bpara.bfield_lab(a, r, th=th))
+    eupper = np.transpose(bpara.efield_lab(a, r, th=th))
     
     blower = lower_spatial_vec(bupper, r, th, a)
     elower = lower_spatial_vec(eupper, r, th, a)
