@@ -2,14 +2,14 @@
 
 import numpy as np
 from ctypes import CDLL, CFUNCTYPE
-from ctypes import c_double, c_int,c_uint, c_void_p,c_char_p
+from ctypes import c_double, c_int, c_uint, c_char_p
 from ctypes import pointer, POINTER, Structure
 from enum import IntEnum
 from collections.abc import Callable
 
 
 import mpmath as mp
-import scipy.special as sp
+
 
 # Load the gsl library
 # the path to gsl on my system /usr/lib/x86_64-linux-gnu/libgsl.so,
@@ -17,16 +17,19 @@ import scipy.special as sp
 native = CDLL('libgsl.so')
 
 ###########################################
-## PRECISION STUFF
+# PRECISION STUFF
 gsl_mode_t = c_uint
+
+
 class Mode(IntEnum):
     default = 0
     double = 0
     single = 1
     approx = 2
 
+
 ###########################################
-## RESULT DEFNS
+# RESULT DEFNS
 class sf_result(Structure):
     _fields_ = [('val', c_double),
                 ('err', c_double)]
@@ -36,8 +39,9 @@ def make_sf_result_p():
     """Construct and initialise a pointer to a gsl_sf_result struct."""
     return pointer(sf_result(0.0, 0.0))
 
+
 ###########################################
-## ERROR HANDLING STUFF
+# ERROR HANDLING STUFF
 native.gsl_strerror.argtypes = (c_int,)
 native.gsl_strerror.restype = c_char_p
 
@@ -81,6 +85,7 @@ error_codes = {1: ValueError,
                31: RuntimeError,
                32: EOFError}
 
+
 def exception_from_result(error_code):
     """Get an exception instance suitable for a GSL error code."""
     exception_class = error_codes.get(error_code, Exception)
@@ -96,7 +101,10 @@ def exception_on_error(reason, file, line, errno):
 
     raise exception_class(exception_text)
 
+
 _handlers = []
+
+
 def set_error_handler(fn):
     """Set the given function as the GSL error handler.
     The function must accept four arguments:
@@ -125,11 +133,13 @@ def set_error_handler(fn):
 
         return native.gsl_set_error_handler(handler)
 
+
 def sf_error_handler(result, func, arguments):
     """Check the return code."""
     if result:
         raise exception_from_result(result)
     return result
+
 
 ###################################################################################
 # Disable crash-on-error and raise Python exceptions instead.
@@ -151,11 +161,13 @@ native.gsl_sf_ellint_RC_e.argtypes = (c_double,c_double,gsl_mode_t,sf_result_p)
 native.gsl_sf_ellint_RC_e.restype = c_int
 native.gsl_sf_ellint_RC_e.errcheck = sf_error_handler
 
-def ellip_pi_gsl(n,phi,m,precision=Mode.default):
+
+def ellip_pi_gsl(n, phi, m, precision=Mode.default):
     """Incomplete Elliptic Integral of the Third Kind Pi(n;phi|m)
        Convention following Abramowitz & Stegun & Mathematica
        DIFFERENT from gsl convention.
-       Implemented using CarlsonRJ and CarlsonRF and periodicities to account for full range
+       Implemented using CarlsonRJ and CarlsonRF and periodicities to
+       account for full range
        """
 
     # real range is m sin^2(phi) < 1, n sin^2 phi < 1
@@ -163,11 +175,11 @@ def ellip_pi_gsl(n,phi,m,precision=Mode.default):
     # need to use periodicity outside this range
 
     # limit as phi->0
-    if np.abs(phi)<=1.e-10: # TODO what value cutoff?
+    if np.abs(phi) <= 1.e-10:  # TODO what value cutoff?
         return phi
 
     # limit as m->-infinity
-    if(m<-1.e14): # TODO what value cutoff?
+    if m < -1.e14:  # TODO what value cutoff?
         return 0.
 
     cphi = np.cos(phi)
@@ -187,7 +199,7 @@ def ellip_pi_gsl(n,phi,m,precision=Mode.default):
         return np.infty
     if (rho==0):
         return np.infty
-    if (np.isinf(n)): # TODO large n limit
+    if (np.isinf(n)):  # TODO large n limit
         return 0.
 
     # account for periodicity
@@ -199,7 +211,7 @@ def ellip_pi_gsl(n,phi,m,precision=Mode.default):
         incomp_part = ellip_pi_gsl(n,phi2,m,precision=precision)
         Pi = comp_part + incomp_part
 
-    elif(np.pi/2.<np.abs(phi)<=np.pi): #TODO can we merge with previous case somehow?
+    elif(np.pi/2.<np.abs(phi)<=np.pi):  #TODO can we merge with previous case somehow?
         s = np.sign(phi)
         phi2 = -phi + s*np.pi
         comp_part = s*2*ellip_pi_gsl(n,np.pi/2.,m,precision=precision)
@@ -217,7 +229,7 @@ def ellip_pi_gsl(n,phi,m,precision=Mode.default):
             retRJ = native.gsl_sf_ellint_RJ_e(x,y,z,rho,precision,resultRJ)
             CRJ = resultRJ.contents.val
 
-        else: # transform for rho<0, https://dlmf.nist.gov/19.20#E14 19.20.14
+        else:  # transform for rho<0, https://dlmf.nist.gov/19.20#E14 19.20.14
             q = -rho
             p = (z*(x+y+q) - x*y) / (z + q)
 
@@ -236,7 +248,8 @@ def ellip_pi_gsl(n,phi,m,precision=Mode.default):
 
     return Pi
 
-def test_ellip_pi(n = .8, m=-.33):
+
+def test_ellip_pi(n=.8, m=-.33):
 
     args = [[n,.026,m],[n,.1,m],[n,np.pi/2.,m],[n,2.37,m],[n,4.1,m],
             [n,6.,m],[n,7.7,m],[n,14.3,m],[n,215.,m],
