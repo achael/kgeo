@@ -8,6 +8,8 @@
 *.pdf
 *.egg-info*
 build/*
+scripts/*.mp4
+scripts/*.pdf
 *.ipynb_checkpoints*
 
 gsl_ellip.c

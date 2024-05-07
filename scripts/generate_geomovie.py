@@ -18,12 +18,12 @@ rplus  = 1 + np.sqrt(1-spin**2) # horizon radius
 # movie params
 xlim = 10  # max image radius 
 rmax = 10  # max radius around BH where we start to plot 
-nframes = 50  # number of frames
+nframes = 100  # number of frames
 fps = 10      # frames per second in output
 dpi = 100     # image quality ipython
 ringcolors = ['darkgrey','b','g','orange','r'] # colors of the different photon rings
 ringalphas=[0.2,0.2,0.2,0.4,0.5]       
-rings_to_plot = [1] # nring+1, so n=0 ring is 1. Max is 4. 
+rings_to_plot = [1,2,3,4] # nring+1, so n=0 ring is 1. Max is 4. 
 plot_lines = True # if True, plot thin lines under moving geodesic points
 outfile = './demo.mp4'
 
@@ -138,13 +138,6 @@ for jj in range(5):
     else:
         pts.append(None)
 
-
-#ptsIS = ax.scatter3D(xx[maskIS*maskh],yy[maskIS*maskh],zz[maskIS*maskh],alpha=.2,marker=".",color=ringcolors[0],s=10,linewidths=0) 
-#pts0 = ax.scatter3D(xx[mask0*maskh],yy[mask0*maskh],zz[mask0*maskh],alpha=.2,marker=".",color=ringcolors[1],s=10,linewidths=0)      
-#pts1 = ax.scatter3D(xx[mask1*maskh],yy[mask1*maskh],zz[mask1*maskh],alpha=.2,marker=".",color=ringcolors[2],s=10,linewidths=0)      
-#pts2 = ax.scatter3D(xx[mask2*maskh],yy[mask2*maskh],zz[mask2*maskh],alpha=.4,marker=".",color=ringcolors[3],s=10,linewidths=0)                                   
-#pts3 = ax.scatter3D(xx[mask3*maskh],yy[mask3*maskh],zz[mask3*maskh],alpha=.5,marker=".",color=ringcolors[4],s=10,linewidths=0)                                   
- 
 # plot update function   
 def update_plot(kk):
     times = np.linspace(-geos.r_o+15,-geos.r_o-100,nframes)
@@ -155,12 +148,6 @@ def update_plot(kk):
         mask = masks[jj]
         pts[jj]._offsets3d=(xx[mask*maskh],yy[mask*maskh],zz[mask*maskh])
 
-    
-    #ptsIS._offsets3d=(xx[maskIS*maskh],yy[maskIS*maskh],zz[maskIS*maskh])
-    #pts0._offsets3d=(xx[mask0*maskh],yy[mask0*maskh],zz[mask0*maskh])
-    #pts1._offsets3d=(xx[mask1*maskh],yy[mask1*maskh],zz[mask1*maskh])
-    #pts2._offsets3d=(xx[mask2*maskh],yy[mask2*maskh],zz[mask2*maskh])                
-    #pts3._offsets3d=(xx[mask3*maskh],yy[mask3*maskh],zz[mask3*maskh])                
     plt.draw()   
                
 # make and save animation
