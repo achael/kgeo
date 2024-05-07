@@ -198,12 +198,17 @@ class Geodesics(object):
             #    ax.plot3D(x,y,z,color)
         return
 
-    def savegeos(self,path='./'):
-
-        fname = path + 'a%0.2f_th%0.2f_geo.h5'%(self.a,self.th_o*180/np.pi)
+    def savegeos(self,outfile=None,path='./'):
+        if outfile is None:
+            fname = path + 'a%0.2f_th%0.2f_geo.h5'%(self.a,self.th_o*180/np.pi)
+        else:
+            fname = outfile
         hf = h5py.File(fname,'w')
         hf.create_dataset('spin',data=self.a)
+        
         hf.create_dataset('inc',data=self.th_o)
+        hf.create_dataset('r_o',data=self.r_o)
+        
         hf.create_dataset('alpha',data=self.alpha)
         hf.create_dataset('beta',data=self.beta)
         hf.create_dataset('t',data=self.t_s)
@@ -216,6 +221,24 @@ class Geodesics(object):
         #hf.create_dataset('frac_orbits',data=n_tot)
         hf.close()
 
+def loadgeos(infile):
+    hf = h5py.File(infile,'r')
+    a = hf['spin'][()]
+    r_o = hf['r_o'][()]
+    th_o = hf['inc'][()]
+    alpha = hf['alpha'][()] 
+    beta = hf['beta'][()]
+    mino_times = hf['mino'][()]
+    affine_times = hf['affine'][()]
+    t_s = hf['t'][()]
+    r_s = hf['r'][()]
+    th_s = hf['theta'][()]
+    ph_s = hf['phi'][()]
+    hf.close()
+    
+    geos = Geodesics(a, [0,r_o,th_o,0], [alpha,beta], mino_times, affine_times, [t_s,r_s,th_s,ph_s])
+    return geos
+    
 def angular_turning(a, th_o, lam, eta):
     """Calculate angular turning theta_pm points for a geodisic with conserved (lam,eta)"""
 

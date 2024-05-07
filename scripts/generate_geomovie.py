@@ -11,9 +11,9 @@ import numpy as np
 
 # bh params
 spin = 0.94            # black hole spin, does not work for a=0 or a=1 exactly!
-npix = 255             # number of pixels in each dimension
+npix = 251             # number of pixels in each dimension
 amax = 7               # maximum alpha,beta in R
-th_o = 17*np.pi/180.   # inclination angle, does not work for th0=0 exactly!
+th_o = 20*np.pi/180.   # inclination angle, does not work for th0=0 exactly!
 r_o = 100000.          # outer radius
 ngeo = 250             # number of points along geodesic
 rplus  = 1 + np.sqrt(1-spin**2) # horizon radius
@@ -25,12 +25,13 @@ nframes = 100  # number of frames
 fps = 10      # frames per second in output
 dpi = 200     # image quality ipython
 ringcolors = ['darkgrey','b','g','orange','r'] # colors of the different photon rings
-ringalphas=[0.1,0.1,0.25,0.5,0.75]       
+ringalphas=[0.1,0.1,0.2,0.5,0.75]       
+ringsizes = [8,8,8,10,12]
 rings_to_plot = [1,2,3] # nring+1, so n=0 ring is 1. Max is 4. 
 plot_lines = True # if True, plot thin lines under moving geodesic points
 forward_time = True # if True, plot forward in time instead of backwards
-outfile = './demo'
-markersize=10
+outfile = './geomovie_demo'
+
 
 ####################################################################################################################
 # determine pixel grid
@@ -109,7 +110,7 @@ if plot_lines:
     for jj in rings_to_plot:
         mask = masks[jj]
         color = ringcolors[jj]
-        
+        alpha=ringalphas[jj]
         xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];
         rs = r_s[:,mask];tau = tausteps[:,mask]
         plotgeos = range(0,xs.shape[-1],100)
@@ -119,7 +120,7 @@ if plot_lines:
             mask = ((rs[:,i] < rmax) + (tau[:,i] < .5*tau[-1,i]))
             mask *= rs[:,i] < 3*rmax
             x = x[mask]; y = y[mask]; z = z[mask]
-            ax.plot3D(x,y,z,color,alpha=.1,linewidth=1) 
+            ax.plot3D(x,y,z,color,alpha=alpha,linewidth=1) 
                   
 # get points in time  
 def get_pts(t):
@@ -145,8 +146,9 @@ for jj in range(5):
     mask = masks[jj]
     alpha = ringalphas[jj]
     color = ringcolors[jj]
+    ms = ringsizes[jj]
     if jj in rings_to_plot:
-        pts.append(ax.scatter3D(xx[mask*maskh],yy[mask*maskh],zz[mask*maskh],alpha=alpha,marker=".",s=markersize,color=color,linewidths=0,zorder=100*(jj+1)))
+        pts.append(ax.scatter3D(xx[mask*maskh],yy[mask*maskh],zz[mask*maskh],alpha=alpha,marker=".",s=ms,color=color,linewidths=0,zorder=(jj+1)))
     else:
         pts.append(None)
 
