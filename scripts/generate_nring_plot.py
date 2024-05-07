@@ -1,5 +1,4 @@
-# Overplot curves for M87: analytic, grmhd, reconstruction
-
+# Make an image of subring order for M87 type models
 import numpy as np
 import ehtim as eh
 import matplotlib.pyplot as plt

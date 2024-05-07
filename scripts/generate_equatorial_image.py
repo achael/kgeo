@@ -18,40 +18,41 @@ MoD = 3.77883459  # this is what was used for M/D in uas for the M87 simulations
 ra = 12.51373 
 dec = 12.39112 
 flux230 = 0.6     # total flux
-npix = 1024        # number of pixels
+npix = 1024       # number of pixels
 amax = 15         # maximum alpha,beta in R
 f0 = 1            # scaling factor for n=0 flux
 f1 = 1            # scaling factor for n=1 flux
 f2 = 1            # scaling factor for n>=2 flux
 nmax = 4          # maximum subring number
 rotation = 90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
+polarization = True      # make polarized image or not
+specind = 1              # spectral index
 
 # bh and observer parameters
 th_o = 163*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
-spin = 0.5           # black hole spin, does not work for a=0 or a=1 exactly!
-r_o = np.inf          # outer radius
+spin = 0.5             # black hole spin, does not work for a=0 or a=1 exactly!
+r_o = np.inf           # outer radius
 
-# emissivity
+# emissivity model
 #emissivity = Emissivity("ring", r_ring=4, sigma=0.3, emiscut_in=3.5, emiscut_out=4.5)
 #emissivity = Emissivity("ring", r_ring=6, sigma=0.3, emiscut_in=5.5, emiscut_out=6.5)
 #emissivity = Emissivity("glm", sigma=0.5, gamma_off=-1)
 emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
-specind = 1
 
-# velocity
-#velocity = Velocity('simfit')
+# velocity model
+#velocity = Velocity('simfit') # note simfit model will not work for all spins!
 #velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
 #velocity = Velocity('subkep', retrograde=True, fac_subkep=0.7)
 velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.7, beta_r=0.7)
 
-# bfield 
-polarization = True
+# bfield model
 #bfield = Bfield("simple", Cr=0.87, Cvert=0, Cph=0.5)
 #bfield = Bfield("simple_rm1", Cr=0.87, Cvert=0, Cph=0.5) 
 #bfield = Bfield("const_comoving", Cr=0.5, Cvert=0, Cph=0.87) 
-#bfield = Bfield("bz_monopole",C=1)
-bfield = Bfield("bz_guess",C=1)
+bfield = Bfield("bz_monopole",C=1)
+#bfield = Bfield("bz_guess",C=1)
 
+################################################################################################################
 # generate the equatorial model image arrays
 psize = 2.*amax/npix
 imagedat = make_image(spin,r_o, th_o, nmax, -amax, amax, -amax, amax, psize,
@@ -59,6 +60,9 @@ imagedat = make_image(spin,r_o, th_o, nmax, -amax, amax, -amax, amax, psize,
                       emissivity=emissivity,velocity=velocity, bfield=bfield,
                       polarization=polarization, specind=specind)
                       
+
+
+# mask nans and add up the subrings
 (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g, outarr_sinthb, outarr_n, outarr_np) = imagedat
 
 nanmask = np.isnan(outarr_I)
@@ -67,7 +71,6 @@ outarr_I[nanmask] = 0
 outarr_Q[nanmask] = 0
 outarr_U[nanmask] = 0
 
-# add up the subrings
 imarr0 = np.flipud(outarr_I[:,0].reshape(npix,npix))
 imarr1 = np.flipud(outarr_I[:,1].reshape(npix,npix))
 imarrRings = np.flipud(np.sum(outarr_I[:,2:],axis=1).reshape(npix,npix))
@@ -89,7 +92,7 @@ if polarization:
     
     imarr_U = f0*imarr0_U + f1*imarr1_U + f2*imarrRings_U
     
-# make an Image and normalize and save
+# make an Image, normalize and save
 psize_rad = psize*MoD*eh.RADPERUAS
 fluxscale = flux230/np.sum(imarr)
 im = eh.image.Image(imarr*fluxscale, psize_rad, ra, dec)
