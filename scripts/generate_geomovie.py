@@ -21,11 +21,11 @@ rplus  = 1 + np.sqrt(1-spin**2) # horizon radius
 # movie params
 xlim = 10  # max image radius 
 rmax = 10  # max radius around BH where we start to plot 
-nframes = 200  # number of frames
-fps = 20      # frames per second in output
+nframes = 100  # number of frames
+fps = 10      # frames per second in output
 dpi = 200     # image quality ipython
 ringcolors = ['darkgrey','b','g','orange','r'] # colors of the different photon rings
-ringalphas=[0.1,0.1,0.3,0.5,0.75]       
+ringalphas=[0.1,0.1,0.25,0.5,0.75]       
 rings_to_plot = [1,2,3] # nring+1, so n=0 ring is 1. Max is 4. 
 plot_lines = True # if True, plot thin lines under moving geodesic points
 forward_time = True # if True, plot forward in time instead of backwards
@@ -167,6 +167,6 @@ print("generating movie...")
 ani = animation.FuncAnimation(fig,update_plot,nframes,interval=30)
 writer = animation.writers['ffmpeg'](fps=fps)
 ani.save(outfile+'.mp4',writer=writer,dpi=dpi,progress_callback=lambda i, nframes: print('frame', i+1, 'of', nframes))
-subprocess.run(['ffmpeg','-i',outfile+'.mp4', outfile+'.gif'])
+subprocess.run(['ffmpeg','-y','-i',outfile+'.mp4', outfile+'.gif'])
 plt.close('all')
       
