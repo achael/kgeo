@@ -1,4 +1,4 @@
-# Generate m87-esque image from equatorial emision model
+# Generate polarized ring and QU loop plots to compare with Gelles+ 2021
 import numpy as np
 from kgeo.equatorial_images import Iobs
 from kgeo.equatorial_lensing import rho_of_req, critical_curve
@@ -28,6 +28,10 @@ rh = 1 + np.sqrt(1-spin**2)
 npoints = 180
 nvec = 25
 color = 'b'
+
+outfileRing = './gelles_ring1_kgeo.pdf'
+outfileQU = './gelles_QUloop_kgeo.pdf'
+display_image=False
 
 # emissivity
 emissivity = Emissivity('constant')
@@ -74,10 +78,6 @@ varphis = np.linspace(-180,179,npoints)*np.pi/180.
 # preamble
 fig = plt.figure()
 ax = plt.gca()
-#ax.spines['left'].set_position('zero')
-#ax.spines['right'].set_color('none')
-##ax.spines['bottom'].set_position('zero')
-#ax.spines['top'].set_color('none')
 ax.axvline(0, -10,10, color='k')
 ax.axhline(0,-10,10,color='k')
 ax.set_xticks(range(-8,10,2))
@@ -86,7 +86,6 @@ ax.set_xticks(range(-9,10,2),minor=True)
 ax.set_yticks(range(-9,10,2),minor=True)
 ax.set_xlim(-9,9)
 ax.set_ylim(-9,9)
-#plt.grid()
 ax.set_aspect('equal')
 
 # first do the critical curve
@@ -100,7 +99,6 @@ plt.fill_between(alphas_is[varphis>0], f_low(alphas_is[varphis>0]), betas_is[var
 plt.plot(alphas,betas,color=color, ls='-', lw=0.5)
     
 # next the quiver tick plots
-
 x = -np.sin(np.angle(Qvals + 1j * Uvals) / 2)
 x *= np.sqrt(Qvals**2 + Uvals**2)             
 y =  np.cos(np.angle(Qvals + 1j * Uvals) / 2)
@@ -113,6 +111,8 @@ plt.quiver(alphas[thin], betas[thin], x[thin], y[thin],pivot='mid',color=color,a
 
 plt.title(r'$a=%0.2f$, $\theta_o=%0.0f$ deg, $r_{eq}=%0.1f$, $m=%i$'%(spin, th_o*180/np.pi, ring_radius,mbar))         
 
+plt.savefig(outfileRing,bbox_inches='tight')
+
 # plot QU loop 
 plt.figure()
 plt.plot(Qvals,Uvals,ls='-',color=color)
@@ -121,7 +121,9 @@ plt.title(r'$a=%0.2f$, $\theta_o=%0.0f$ deg, $r_{eq}=%0.1f$, $m=%i$'%(spin, th_o
 plt.gca().set_aspect('equal')
 
 # display
-plt.show()
-plt.pause(0.01)
+plt.savefig(outfileQU,bbox_inches='tight')
+if display_image: 
+    plt.show()
+    plt.pause(0.01)
 
                            

@@ -1,8 +1,8 @@
 # Generate m87-esque image from equatorial emision model
 import numpy as np
-from kgeo.equatorial_images import make_image
 import ehtim as eh
 import matplotlib.pyplot as plt
+from kgeo.equatorial_images import make_image
 from kgeo.bfields import Bfield
 from kgeo.velocities import Velocity
 from kgeo.emissivities import Emissivity
@@ -18,7 +18,7 @@ MoD = 3.77883459  # this is what was used for M/D in uas for the M87 simulations
 ra = 12.51373 
 dec = 12.39112 
 flux230 = 0.6     # total flux
-npix = 2056        # number of pixels
+npix = 1024        # number of pixels
 amax = 15         # maximum alpha,beta in R
 f0 = 1            # scaling factor for n=0 flux
 f1 = 1            # scaling factor for n=1 flux
