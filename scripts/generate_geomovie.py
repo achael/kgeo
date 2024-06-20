@@ -13,7 +13,7 @@ import numpy as np
 spin = 0.94            # black hole spin, does not work for a=0 or a=1 exactly!
 npix = 251             # number of pixels in each dimension
 amax = 7               # maximum alpha,beta in R
-th_o = 20*np.pi/180.   # inclination angle, does not work for th0=0 exactly!
+th_o = 80*np.pi/180.   # inclination angle, does not work for th0=0 exactly!
 r_o = 100000.          # outer radius
 ngeo = 250             # number of points along geodesic
 rplus  = 1 + np.sqrt(1-spin**2) # horizon radius
@@ -21,16 +21,18 @@ rplus  = 1 + np.sqrt(1-spin**2) # horizon radius
 # movie params
 xlim = 10  # max image radius 
 rmax = 10  # max radius around BH where we start to plot 
-nframes = 100  # number of frames
-fps = 10      # frames per second in output
+nframes = 300  # number of frames
+fps = 30      # frames per second in output
 dpi = 200     # image quality ipython
 ringcolors = ['darkgrey','b','g','orange','r'] # colors of the different photon rings
 ringalphas=[0.1,0.1,0.2,0.5,0.75]       
 ringsizes = [8,8,8,10,12]
-rings_to_plot = [1,2,3] # nring+1, so n=0 ring is 1. Max is 4. 
+rings_to_plot = [0,1,2,3] # nring+1, so n=0 ring is 1. Max is 4. 
 plot_lines = True # if True, plot thin lines under moving geodesic points
 forward_time = True # if True, plot forward in time instead of backwards
-outfile = './geomovie_demo'
+plot_inside_cc=True
+plot_outside_cc=True
+outfile = './geomovie_demo_80'
 
 
 ####################################################################################################################
@@ -93,26 +95,28 @@ mask0 = nmax_eq==0
 mask1 = nmax_eq==1
 mask2 = nmax_eq==2
 mask3 = nmax_eq==3 
-masks = [maskIS,mask0,mask1,mask2,mask3]
 
+masks = np.array([maskIS,mask0,mask1,mask2,mask3])
+
+if not plot_inside_cc: #TODO make nicer
+    masks *= (geos.r_s[-1] > 10)
+if not plot_outside_cc:
+    masks *= (geos.r_s[-1] < 10)
+                
 # plot geos as background thin lines
 if plot_lines:
-    r_s = geos.r_s
-    th_s = geos.th_s
-    ph_s = geos.ph_s
-    tausteps = geos.tausteps
 
-
-    x_s = r_s * np.cos(ph_s) * np.sin(th_s)
-    y_s = r_s * np.sin(ph_s) * np.sin(th_s)
-    z_s = r_s * np.cos(th_s)
+    x_s = geos.r_s * np.cos(geos.ph_s) * np.sin(geos.th_s)
+    y_s = geos.r_s * np.sin(geos.ph_s) * np.sin(geos.th_s)
+    z_s = geos.r_s * np.cos(geos.th_s)
 
     for jj in rings_to_plot:
         mask = masks[jj]
         color = ringcolors[jj]
         alpha=ringalphas[jj]
         xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];
-        rs = r_s[:,mask];tau = tausteps[:,mask]
+        rs = geos.r_s[:,mask];
+        tau = geos.tausteps[:,mask]
         plotgeos = range(0,xs.shape[-1],100)
 
         for i in plotgeos:

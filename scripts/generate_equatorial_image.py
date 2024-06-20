@@ -9,7 +9,7 @@ from kgeo.emissivities import Emissivity
 
 # file label
 label='test'
-save_image = True
+save_image = False
 display_image = False
 
 # source and image parameters
@@ -43,14 +43,16 @@ emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
 #velocity = Velocity('simfit') # note simfit model will not work for all spins!
 #velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
 #velocity = Velocity('subkep', retrograde=True, fac_subkep=0.7)
-velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.7, beta_r=0.7)
+#velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.7, beta_r=0.7)
+velocity = Velocity('kep')
 
 # bfield model
 #bfield = Bfield("simple", Cr=0.87, Cvert=0, Cph=0.5)
 #bfield = Bfield("simple_rm1", Cr=0.87, Cvert=0, Cph=0.5) 
 #bfield = Bfield("const_comoving", Cr=0.5, Cvert=0, Cph=0.87) 
-bfield = Bfield("bz_monopole",C=1)
+#bfield = Bfield("bz_monopole",C=1)
 #bfield = Bfield("bz_guess",C=1)
+bfield = Bfield("simple", Cr=0., Cvert=0, Cph=1)
 
 ################################################################################################################
 # generate the equatorial model image arrays
@@ -121,8 +123,9 @@ if save_image:  imnp.save_fits('./m87_model_%s_np.fits'%label)
 
 if polarization:
     # make a image of the n=0 sin^theta term and save
-    stharr = np.flipud(outarr_sinthb[:,0].reshape(npix,npix))   # number of equatorial crossings
-    imsth = eh.image.Image(stharr**2/np.max(stharr**2), psize_rad, ra, dec)
+    stharr = np.flipud(outarr_sinthb[:,0].reshape(npix,npix))   # sin(theta)
+    imsth = eh.image.Image(stharr, psize_rad, ra, dec)
+    #imsth = eh.image.Image(stharr**2/np.max(stharr**2), psize_rad, ra, dec)
     imsth.source = source
     if save_image:  imsth.save_fits('./m87_model_%s_sinthb.fits'%label)
     
