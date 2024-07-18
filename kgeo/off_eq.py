@@ -5,7 +5,7 @@ from kgeo.image import *
 
 def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
-         polarization=False,  efluid_nonzero=False, specind=SPECIND, th_s=np.pi/2, density=1):
+         polarization=False, specind=SPECIND, th_s=np.pi/2, density=1):
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
        g is the Doppler factor
@@ -77,7 +77,7 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
         if polarization:
             (sinthb, kappa) = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
                                                  kr_sign, kth_sign, u0, u1, u2, u3, 
-                                                 bfield=bfield,  efluid_nonzero=efluid_nonzero, th=th_s)
+                                                 bfield=bfield, th=th_s)
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
         else:
             sinthb = 1
@@ -138,7 +138,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
 
     outvec = Iobs_off(a, r_o, rvals, th_o, alphavals, betavals, signpr, signptheta,
     emissivity=Emissivity('constant'), velocity=Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel), bfield=bf,
-    polarization=True,  efluid_nonzero=False, specind=SPECIND, th_s=thvals, density=dvals) #generate data
+    polarization=True,  specind=SPECIND, th_s=thvals, density=dvals) #generate data
 
     iobs = np.copy(outvec[0])
     qobs = np.copy(outvec[1])

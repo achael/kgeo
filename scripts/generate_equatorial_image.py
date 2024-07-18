@@ -52,7 +52,7 @@ velocity = Velocity('kep')
 #bfield = Bfield("const_comoving", Cr=0.5, Cvert=0, Cph=0.87) 
 #bfield = Bfield("bz_monopole",C=1)
 #bfield = Bfield("bz_guess",C=1)
-bfield = Bfield("simple", Cr=0., Cvert=0, Cph=1)
+bfield = Bfield("simple", Cr=0, Cvert=1, Cph=0)
 
 ################################################################################################################
 # generate the equatorial model image arrays
