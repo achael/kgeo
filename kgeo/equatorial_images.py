@@ -428,7 +428,7 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     if bfield.fieldframe=='lab':
     
         # get lab frame B^i
-        (B1, B2, B3) = bfield.bfield_lab(a, r, thetas=th)
+        (B1, B2, B3) = bfield.bfield_lab(a, r, th=th)
 
                 
         # here, we assume the field is degenerate and e^\mu = u_\nu F^{\mu\nu} = 0

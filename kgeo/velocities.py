@@ -387,7 +387,6 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2):
     # metric 
     a2 = a**2
     r2 = r**2
-#    th = np.pi/2. # TODO equatorial only
     cth2 = np.cos(th)**2
     sth2 = np.sin(th)**2
     
@@ -411,9 +410,9 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2):
     eta3 = 2*a*r/np.sqrt(Delta*Sigma*Xi)
     
     # e and b field
-    omega = bfield.omega_field(a,r,thetas=th)
-    (B1,B2,B3) = bfield.bfield_lab(a,r,thetas=th)
-    (E1,E2,E3) = bfield.efield_lab(a,r,thetas=th)
+    omega = bfield.omega_field(a,r,th=th)
+    (B1,B2,B3) = bfield.bfield_lab(a,r,th=th)
+    (E1,E2,E3) = bfield.efield_lab(a,r,th=th)
 
     E1 = (omega-omegaz)*Xi*np.sin(th)*B2/Sigma
     E2 = -(omega-omegaz)*Xi*np.sin(th)*B1/(Sigma*Delta)

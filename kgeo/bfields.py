@@ -70,7 +70,7 @@ class Bfield(object):
             if self.Cr==self.Cvert==self.Cph==0.:
                 raise Exception("all field coefficients are 0!")
                                      
-    def bfield_lab(self, a, r, thetas=np.pi/2):
+    def bfield_lab(self, a, r, th=np.pi/2):
         """lab frame b field starF^i0"""
          
         if self.fieldframe!='lab':
@@ -81,13 +81,13 @@ class Bfield(object):
         elif self.fieldtype=='simple_rm1':
             b_components = Bfield_simple_rm1(a, r, (self.Cr, self.Cvert, self.Cph))
         elif self.fieldtype=='bz_monopole':
-            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, thetas, self.C, secondorder_only=self.secondorder_only)  
+            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C, secondorder_only=self.secondorder_only)  
             b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_para':
-            (B1,B2,B3,omega) = Bfield_BZpara(a, r, thetas, self.C)  
+            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)  
             b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_guess':
-            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, thetas, self.C)
+            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
             b_components = (B1,B2,B3)            
         else: 
             raise Exception("fieldtype %s not recognized in Bfield.bfield_lab!"%self.fieldtype)
@@ -109,34 +109,33 @@ class Bfield(object):
         return b_components
 
     # TODO ANDREW FIX THESE WITH BETTER DATA STRUCTURES
-    def omega_field(self, a, r, thetas=np.pi/2):
+    def omega_field(self, a, r, th=np.pi/2):
         """fieldline angular speed"""    
         if self.fieldtype=='bz_monopole':
-            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, thetas, self.C,secondorder_only=self.secondorder_only)
+            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C,secondorder_only=self.secondorder_only)
         elif self.fieldtype=='bz_guess':
-            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, thetas, self.C)
+            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
         elif self.fieldtype=='bz_para':
-            (B1,B2,B3,omega) = Bfield_BZpara(a, r, thetas, self.C) 
+            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C) 
         else: 
             raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")       
         return omega
         
-    def efield_lab(self, a, r, thetas=np.pi/2):
+    def efield_lab(self, a, r, th=np.pi/2):
         """lab frame electric field F^{0i} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
         if self.fieldtype=='bz_monopole' and self.secondorder_only:
-            e_components = Efield_BZmonopole(a,r,thetas, self.C)
+            e_components = Efield_BZmonopole(a,r,th, self.C)
         elif self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
             if self.fieldtype=='bz_monopole':
-                (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, thetas, self.C,secondorder_only=self.secondorder_only)
+                (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C,secondorder_only=self.secondorder_only)
             elif self.fieldtype=='bz_guess':
-                (B1,B2,B3,omega) = Bfield_BZmagic(a, r, thetas, self.C)
+                (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
-                (B1,B2,B3,omega) = Bfield_BZpara(a, r, thetas, self.C)
+                (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)
             a2 = a**2
             r2 = r**2
-            th = thetas 
             cth2 = np.cos(th)**2
             sth2 = np.sin(th)**2
             Delta = r2 - 2*r + a2
@@ -154,17 +153,17 @@ class Bfield(object):
             
         return e_components
         
-    def maxwell(self, a, r, thetas=np.pi/2):
+    def maxwell(self, a, r, th=np.pi/2):
         """Maxwell tensor starF^{\mu\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
             if self.fieldtype=='bz_monopole':
-                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, thetas, self.C)  
+                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)  
             elif self.fieldtype=='bz_guess':
-                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, thetas, self.C)
+                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
-                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, thetas, self.C)
+                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C)
             sF01 = -B1
             sF02 = -B2
             sF03 = -B3
@@ -179,22 +178,21 @@ class Bfield(object):
             
         return sF_out
          
-    def faraday(self, a, r, thetas=np.pi/2):
+    def faraday(self, a, r, th=np.pi/2):
         """Faraday tensor F^{\mu\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
             if self.fieldtype=='bz_monopole':
-                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, thetas, self.C)  
+                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)  
             elif self.fieldtype=='bz_guess':
-                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, thetas, self.C)   
+                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)   
             elif self.fieldtype=='bz_para':
-                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, thetas, self.C)   
+                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C)   
                          
             # Metric in BL
             a2 = a**2
             r2 = r**2
-            th = thetas 
             cth2 = np.cos(th)**2
             sth2 = np.sin(th)**2
             Delta = r2 - 2*r + a2
