@@ -277,7 +277,7 @@ def u_gelles(a, r, beta=0.3, chi=-150*(np.pi/180.)):
     # Metric
     a2 = a**2
     r2 = r**2
-    th = np.pi/2. # TODO equatorial only
+    th = np.pi/2. # equatorial only
     cth2 = np.cos(th)**2
     sth2 = np.sin(th)**2
     Delta = r2 - 2*r + a2

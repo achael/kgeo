@@ -17,6 +17,7 @@ bfield_default = Bfield('rad')
 vel_default = Velocity('zamo')
 emis_default = Emissivity('bpl')
 SPECIND = 1 # default (negative) spectral index
+DISKANGLE = 0.1 # default h/r for equatorial disk
 
 def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max, psize,
                nmax_only=False,
@@ -25,7 +26,8 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                velocity=vel_default, 
                polarization=False, 
                pathlength=False,
-               specind=SPECIND):
+               specind=SPECIND,
+               diskangle=DISKANGLE):
     """computes an image in range (alpha_min, alpha_max) x (beta_min, beta_max)
       for all orders of m up to mbar_max
       and pixel size psize"""
@@ -88,7 +90,8 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                           bfield=bfield,
                           polarization=polarization,
                           pathlength=pathlength,
-                          specind=specind)
+                          specind=specind,
+                          diskangle=diskangle)
         
             outarr_I[:,mbar] = imdat[0]
             outarr_Q[:,mbar] = imdat[1]
@@ -115,7 +118,7 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
 
 def Iobs(a, r_o, th_o, mbar, alpha, beta, 
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
-         polarization=False, pathlength=False, specind=SPECIND, th_s=np.pi/2):
+         polarization=False, pathlength=False, specind=SPECIND, DISKANGLE=DISKANGLE, th_s=np.pi/2):
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
        g is the Doppler factor
@@ -182,7 +185,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         # get velocity and redshift
         ###############################        
         (u0,u1,u2,u3) = velocity.u_lab(a, r_s[~zeromask],th=th_s)    
-        gg = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s)   
+        gg, lp = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s)   
         g[~zeromask] = gg
 
         ###############################
@@ -208,10 +211,8 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         # observed emission
         ###############################  
         if pathlength:
-            (gg_v2,llp) = calc_pathlength(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s)
-            # TODO -- what is wrong withllp? 
-            #Iobs[~zeromask] = (gg**3) * (gg**specind) * np.abs(llp) * Iemis * (sinthb**(1+specind))
-            Iobs[~zeromask] = (gg**2) * (gg**specind)* Iemis * (sinthb**(1+specind))
+            llp = calc_pathlength(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s, diskangle=diskangle)
+            Iobs[~zeromask] = (gg**3) * (gg**specind) * Iemis * (sinthb**(1+specind)) * np.abs(llp)
             Ie[~zeromask] = Iemis
             lp[~zeromask] = llp
                     
@@ -429,8 +430,7 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     
         # get lab frame B^i
         (B1, B2, B3) = bfield.bfield_lab(a, r, th=th)
-
-                
+         
         # here, we assume the field is degenerate and e^\mu = u_\nu F^{\mu\nu} = 0
         # (standard GRMHD assumption)
         b0 = B1*u1_l + B2*u2_l + B3*u3_l
@@ -487,8 +487,8 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
 
     return (sinthb, kappa)
 
-def calc_pathlength(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2):
-    """ calculate equatorial path length (Narayan+2021 eq 13)"""
+def calc_pathlength(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2, diskangle=DISKANGLE):
+    """ calculate rest frame path length through equatorial disk (Narayan+2021 eq 13)"""
 
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
@@ -497,59 +497,29 @@ def calc_pathlength(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/
         
     if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
         raise Exception("g_grmhd_fit input arrays are different lengths!")
-            
-    # Metric
-    a2 = a**2
-    r2 = r**2
+       
+    # get the redshift g = 1/k_t     
+    gg = calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=th)
+    kthat = 1/gg
+    
+    # get the z component of local photon momentum
+    # TODO this assumes that u^2 == 0!
+    if (isinstance(u2,np.ndarray) and np.any(u2!=0)) or u2!=0:
+        raise Exception("calc_pathlength assumes that u2==0!")
+    if (isinstance(th,np.ndarray) and np.any(th!=np.pi/2)) or th!=np.pi/2:
+        raise Exception("calc_pathlength assumes that th==pi/2!")    
     cth2 = np.cos(th)**2
     sth2 = np.sin(th)**2
-    Delta = r2 - 2*r + a2
-    Sigma = r2 + a2 * cth2
-
-    g00 = -(1 - 2*r/Sigma)
-    g11 = Sigma/Delta
-    g22 = Sigma
-    g33 = (r2 + a2 + 2*r*a2*sth2 / Sigma) * sth2
-    g03 = -2*r*a*sth2 / Sigma
-
-    g00_up = -(r2 + a2 + 2*r*a2*sth2/Sigma) / Delta
-    g11_up = Delta/Sigma
-    g22_up = 1./Sigma
-    g33_up = (Delta - a2*sth2)/(Sigma*Delta*sth2)
-    g03_up = -(2*a*r)/(Sigma*Delta)
-    
-    # photon momentum
-    R = (r2 + a2 -a*lam)**2 - Delta*(eta + (lam-a)**2)
+    a2 = a*a
     TH = eta + a2*cth2 - lam*lam*cth2/sth2
-    
-    k0_l = -1
-    k1_l = kr_sign*np.sqrt(R)/Delta
     k2_l = kth_sign*np.sqrt(TH)
-    k3_l = lam
-
-    k0 = g00_up * k0_l + g03_up * k3_l
-    k1 = g11_up * k1_l
-    k2 = g22_up * k2_l
-    k3 = g33_up * k3_l + g03_up * k0_l   
+    kzhat = -k2_l*r
     
-    # calculate tetrades
-    tetrades = calc_tetrades(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=th)
-    ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z)) = tetrades 
-    
-    # wavevector in comoving frame  
-    kp_t = e0_t*k0_l + e1_t*k1_l  + e2_t*k2_l + e3_t*k3_l
-    kp_x = e0_x*k0_l + e1_x*k1_l  + e2_x*k2_l + e3_x*k3_l
-    kp_y = e0_y*k0_l + e1_y*k1_l  + e2_y*k2_l + e3_y*k3_l
-    kp_z = e0_z*k0_l + e1_z*k1_l  + e2_z*k2_l + e3_z*k3_l  
-    kp_mag = np.sqrt(kp_x**2 + kp_y**2 + kp_z**2)
-    
-    # redshift
-    g = 1/kp_t
-    
-    # path length
-    lp = kp_t/kp_z
-
-    return (g,lp)
+    # get path length 
+    diskheight = diskangle*r
+    lp = diskheight * kthat / kzhat
+         
+    return lp
       
 def calc_evpa(a, th_o, alpha, beta, kappa):    
 
