@@ -118,7 +118,7 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
 
 def Iobs(a, r_o, th_o, mbar, alpha, beta, 
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
-         polarization=False, pathlength=False, specind=SPECIND, DISKANGLE=DISKANGLE, th_s=np.pi/2):
+         polarization=False, pathlength=False, specind=SPECIND, diskangle=DISKANGLE, th_s=np.pi/2):
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
        g is the Doppler factor
