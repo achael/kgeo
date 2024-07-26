@@ -166,7 +166,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
 
     outvec = Iobs_off(a, r_o, rvals, th_o, alphavals, betavals, signpr, signptheta,
     emissivity=Emissivity('constant'), velocity=Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel, gammamax=gammamax), bfield=bf,
-    polarization=True,  efluid_nonzero=False, specind=SPECIND, th_s=thvals, density=dvals, retsin=retsin) #generate data
+    polarization=True, specind=SPECIND, th_s=thvals, density=dvals, retsin=retsin) #generate data
 
 
     iobs = np.copy(outvec[0])

@@ -41,6 +41,7 @@ class Bfield(object):
     def __init__(self, fieldtype="rad", **kwargs):
 
         self.fieldtype = fieldtype
+
         if self.fieldtype in ['rad','vert','tor','simple','simple_rm1','bz_monopole','bz_guess','bz_para','power']:
             self.fieldframe = 'lab'
         elif self.fieldtype in ['const_comoving']:
@@ -75,7 +76,9 @@ class Bfield(object):
             if self.Cr==self.Cvert==self.Cph==0.:
                 raise Exception("all field coefficients are 0!")
                                      
-    def bfield_lab(self, a, r, thetas=np.pi/2):
+
+    def bfield_lab(self, a, r, th=np.pi/2):
+
         """lab frame b field starF^i0"""
          
         if self.fieldframe!='lab':
@@ -86,16 +89,16 @@ class Bfield(object):
         elif self.fieldtype=='simple_rm1':
             b_components = Bfield_simple_rm1(a, r, (self.Cr, self.Cvert, self.Cph))
         elif self.fieldtype=='bz_monopole':
-            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, thetas, self.C, secondorder_only=self.secondorder_only)  
+            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C, secondorder_only=self.secondorder_only)  
             b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_para':
-            (B1,B2,B3,omega) = Bfield_BZpara(a, r, thetas, self.C)  
+            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)  
             b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_guess':
-            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, thetas, self.C)
+            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
             b_components = (B1,B2,B3)    
         elif self.fieldtype=='power':
-            (B1,B2,B3,omega) = Bfield_power(a, r, thetas, self.pval, C=self.C, usemono=self.usemono) 
+            (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono) 
             b_components = (B1,B2,B3)
         else: 
             raise Exception("fieldtype %s not recognized in Bfield.bfield_lab!"%self.fieldtype)
@@ -117,38 +120,39 @@ class Bfield(object):
         return b_components
 
     # TODO ANDREW FIX THESE WITH BETTER DATA STRUCTURES
-    def omega_field(self, a, r, thetas=np.pi/2):
+    def omega_field(self, a, r, th=np.pi/2):
         """fieldline angular speed"""    
         if self.fieldtype=='bz_monopole':
-            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, thetas, self.C,secondorder_only=self.secondorder_only)
+            (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C,secondorder_only=self.secondorder_only)
         elif self.fieldtype=='bz_guess':
-            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, thetas, self.C)
+            (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
         elif self.fieldtype=='bz_para':
-            (B1,B2,B3,omega) = Bfield_BZpara(a, r, thetas, self.C) 
+            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C) 
         elif self.fieldtype=='power':
-             (B1,B2,B3,omega) = Bfield_power(a, r, thetas, self.pval, C=self.C, usemono=self.usemono) 
+             (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono) 
+
         else: 
             raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")       
         return omega
         
-    def efield_lab(self, a, r, thetas=np.pi/2):
+
+    def efield_lab(self, a, r, th=np.pi/2):
         """lab frame electric field F^{0i} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
         if self.fieldtype=='bz_monopole' and self.secondorder_only:
-            e_components = Efield_BZmonopole(a,r,thetas, self.C)
+            e_components = Efield_BZmonopole(a,r,th, self.C)
         elif self.fieldtype in ['bz_monopole','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
-                (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, thetas, self.C,secondorder_only=self.secondorder_only)
+                (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C,secondorder_only=self.secondorder_only)
             elif self.fieldtype=='bz_guess':
-                (B1,B2,B3,omega) = Bfield_BZmagic(a, r, thetas, self.C)
+                (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
-                (B1,B2,B3,omega) = Bfield_BZpara(a, r, thetas, self.C)
+                (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)
             elif self.fieldtype=='power':
-                (B1,B2,B3,omega) = Bfield_power(a, r, thetas, self.pval, C=self.C, usemono=self.usemono)
+                (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
             a2 = a**2
             r2 = r**2
-            th = thetas 
             cth2 = np.cos(th)**2
             sth2 = np.sin(th)**2
             Delta = r2 - 2*r + a2
@@ -165,20 +169,20 @@ class Bfield(object):
             raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")                        
             
         return e_components
-        
-    def maxwell(self, a, r, thetas=np.pi/2):
+
+    def maxwell(self, a, r, th=np.pi/2):
         """Maxwell tensor starF^{\mu\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
-                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, thetas, self.C)  
+                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)  
             elif self.fieldtype=='bz_guess':
-                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, thetas, self.C)
+                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
-                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, thetas, self.C)
+                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C)
             elif self.fieldtype=='power':
-                (B1,B2,B3,omega) = Bfield_power(a, r, thetas, self.pval, C=self.C, usemono=self.usemono)
+                (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
             sF01 = -B1
             sF02 = -B2
             sF03 = -B3
@@ -193,24 +197,24 @@ class Bfield(object):
             
         return sF_out
          
-    def faraday(self, a, r, thetas=np.pi/2):
+    def faraday(self, a, r, th=np.pi/2):
         """Faraday tensor F^{\mu\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
-                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, thetas, self.C)  
+                (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)  
             elif self.fieldtype=='bz_guess':
-                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, thetas, self.C)   
+                (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)   
             elif self.fieldtype=='bz_para':
-                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, thetas, self.C)  
+                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C)  
             elif self.fieldtype=='power' :
-                (B1,B2,B3,omega) = Bfield_power(a, r, thetas, self.pval, C=self.C, usemono=self.usemono)
+                (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+
                          
             # Metric in BL
             a2 = a**2
             r2 = r**2
-            th = thetas 
             cth2 = np.cos(th)**2
             sth2 = np.sin(th)**2
             Delta = r2 - 2*r + a2
@@ -398,6 +402,7 @@ def Efield_BZmonopole(a, r, th, C=1):
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
 
+
     Eth = a*np.sin(th)*(-1./8. + 2./r**3)/(r**2 - 2*r)
                 
     return(0, Eth, 0)   
@@ -410,6 +415,7 @@ def omega_BZpara(th, psi, a):
     yfunc = 1+psi/(1+wfunc)/(xfunc*(2-xfunc))
     return a/4/yfunc
 
+
 def omega_BZpower(th, psi, a, p, usemono=False):
     if usemono or p == 0: #just return the monopole rate
         return a/8
@@ -417,6 +423,7 @@ def omega_BZpower(th, psi, a, p, usemono=False):
     cthhorizon = 1-psi*rp**(-p)
     denomfac = 8/(1+cthhorizon)
     return a/(4+denomfac) #equal to a/(4(1+sec^2(theta/2))) via trig identities
+
 
 def Bfield_BZpara(a, r, th, C=1):
     """perturbative BZ paraboloid solution.
@@ -447,6 +454,7 @@ def Bfield_BZpara(a, r, th, C=1):
 
     if not hasattr(psi, '__len__'): #allows for psi to be an array or a scalar
         if argvals >= 0:
+
             OmegaBZ = omega_BZpara(th, psi, a)
         else:
             OmegaBZ = 0
@@ -463,6 +471,7 @@ def Bfield_BZpara(a, r, th, C=1):
     Bph = I / (2*np.pi*Delta*sth2) 
 
     return(Br, Bth, Bph, OmegaBZ)
+
 
 
 ##power law fields

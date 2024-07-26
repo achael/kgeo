@@ -93,7 +93,7 @@ def Nderiv(r, theta, a, Omegaf, M, bf_here):
     dNdtheta = Omegaf**2*(a**2+r*(r-2*M))+8*M*r*(a*(a*Omegaf-1)+Omegaf*r**2)**2/denomtheta**2
     dNdtheta *= np.sin(2*theta)
     
-    bvec = bf_here.bfield_lab(a, r, thetas=theta)
+    bvec = bf_here.bfield_lab(a, r, th=theta)
     
     return bvec[0]*dNdr + bvec[1]*dNdtheta #B.nabla(N)
 

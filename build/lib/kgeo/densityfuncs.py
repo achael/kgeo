@@ -51,7 +51,7 @@ def density_mono_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel,
     thnew = np.arccos(np.abs(np.cos(np.reshape(thvals, guesses_shape)))) #only works for above equator, but we can employ reflection symmetry
     rhovals = []
     indstart = np.where(rnew[0]!=0)[0][0]
-    omega = bfield.omega_field(spin,rnew[0][indstart],thetas=thnew[0][indstart])
+    omega = bfield.omega_field(spin,rnew[0][indstart],th=thnew[0][indstart])
 
     #stagnation surface
     r0 = r0min_mono(thnew[0][indstart], omega, spin, 1.0)
@@ -62,7 +62,7 @@ def density_mono_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel,
         thdirect = np.reshape(thnew, guesses_shape)[ind]
 
         #magnetic field
-        bupper = np.transpose(np.transpose(bfield.bfield_lab(spin, rdirect, thetas=thdirect)))
+        bupper = np.transpose(np.transpose(bfield.bfield_lab(spin, rdirect, th=thdirect)))
 
         #paraboloid
         velpara = Velocity('driftframe', bfield = bfield, nu_parallel = nu_parallel, gammamax = None)
@@ -124,7 +124,7 @@ def density_para_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel,
     thnew = np.arccos(np.abs(np.cos(np.reshape(thvals, guesses_shape)))) #only works for above equator, but we can employ reflection symmetry
     rhovals = []
     indstart = np.where(np.nan_to_num(rnew)[0]!=0)[0][0]
-    omega = bfield.omega_field(spin,rnew[0][indstart],thetas=thnew[0][indstart])
+    omega = bfield.omega_field(spin,rnew[0][indstart],th=thnew[0][indstart])
 
     #stagnation surface
     r0, theta0 = r0min_para(psiBZpara(rnew[0][indstart], thnew[0][indstart], spin), omega, spin, 1.0)
@@ -135,7 +135,7 @@ def density_para_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel,
         thdirect = np.reshape(thnew, guesses_shape)[ind]
 
         #magnetic field
-        bupper = np.transpose(np.transpose(bfield.bfield_lab(spin, rdirect, thetas=thdirect)))
+        bupper = np.transpose(np.transpose(bfield.bfield_lab(spin, rdirect, th=thdirect)))
 
         #paraboloid
         velpara = Velocity('driftframe', bfield = bfield, nu_parallel = nu_parallel, gammamax = None)
@@ -197,7 +197,7 @@ def density_power_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel
     thnew = np.arccos(np.abs(np.cos(np.reshape(thvals, guesses_shape)))) #only works for above equator, but we can employ reflection symmetry
     rhovals = []
     indstart = np.where(np.nan_to_num(rnew)[0]!=0)[0][0]
-    omega = bfield.omega_field(spin,rnew[0][indstart],thetas=thnew[0][indstart])
+    omega = bfield.omega_field(spin,rnew[0][indstart],th=thnew[0][indstart])
 
     #stagnation surface
     r0, theta0 = r0min_power(psitarget, omega, spin, pval, 1.0, usemono=usemono)
@@ -208,7 +208,7 @@ def density_power_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel
         thdirect = np.reshape(thnew, guesses_shape)[ind]
 
         #magnetic field
-        bupper = np.transpose(np.transpose(bfield.bfield_lab(spin, rdirect, thetas=thdirect)))
+        bupper = np.transpose(np.transpose(bfield.bfield_lab(spin, rdirect, th=thdirect)))
 
         #paraboloid
         velpara = Velocity('driftframe', bfield = bfield, nu_parallel = nu_parallel, gammamax = None)

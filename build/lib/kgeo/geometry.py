@@ -15,7 +15,7 @@ def lapse(r, th, a): #lapse function for Kerr metric
     pi = (r**2+a**2)**2-a**2*delta*np.sin(th)**2
     return np.sqrt(delta*sig/pi)
 
-#density as solution to continuity equation for perpendicular drift velocity
+
 #constA is multiplicative factor out front (doesn't affect continuity equation)
 #"vel" is either 'driftframe' or 'MHD', and nu is the parallel boost parameter in that case
 def densityhere(r, th, a, eta, model='para', vel = 'driftframe', nu_parallel = 0, gammamax=None, pval = 0, sigma = 2): 
@@ -27,12 +27,10 @@ def densityhere(r, th, a, eta, model='para', vel = 'driftframe', nu_parallel = 0
         bpara = Bfield("power", C=1, p=pval)
 
     velocity=Velocity(vel, bfield=bpara, nu_parallel = nu_parallel, gammamax=gammamax)
-    bupper = np.transpose(bpara.bfield_lab(a, r, thetas=th))
+    bupper = np.transpose(bpara.bfield_lab(a, r, th=th))
     (u0,u1,u2,u3) = velocity.u_lab(a, r, th=th) 
     
     return np.abs(eta*bupper[:,0]/u1) #solution to continuity equation, need absolute value because eta flips sign at stagnation surface
-
-
 
 #returns images contained in order of neq
 def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax):
@@ -57,7 +55,6 @@ def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax):
     iarr.append(np.reshape(np.sum(np.reshape(iobs, guesses_shape), axis=0), ashape))
     qarr.append(np.reshape(np.sum(np.reshape(qobs, guesses_shape), axis=0), ashape))
     uarr.append(np.reshape(np.sum(np.reshape(uobs, guesses_shape), axis=0), ashape))
-
 
     return np.array(iarr), np.array(qarr), np.array(uarr)
 
