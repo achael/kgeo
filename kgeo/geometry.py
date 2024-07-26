@@ -15,22 +15,22 @@ def lapse(r, th, a): #lapse function for Kerr metric
     pi = (r**2+a**2)**2-a**2*delta*np.sin(th)**2
     return np.sqrt(delta*sig/pi)
 
-#density as solution to continuity equation for perpendicular drift velocity
-def densityhere(r, th, a, constA, model='para'): #constA is multiplicative factor out front (doesn't affect continuity equation)
-    bpara = Bfield("bz_para", C=1) if model == 'para' else Bfield("bz_monopole", C=1)
-    bupper = np.transpose(bpara.bfield_lab(a, r, th=th))
-    eupper = np.transpose(bpara.efield_lab(a, r, th=th))
-    
-    blower = lower_spatial_vec(bupper, r, th, a)
-    elower = lower_spatial_vec(eupper, r, th, a)
-    
-    bsq = np.sum(bupper*blower, axis=1)
-    esq = np.sum(eupper*elower, axis=1)
-    
-    alphalapse = lapse(r, th, a)
-    
-    return constA/alphalapse*np.sqrt(bsq*(bsq-esq))
 
+#constA is multiplicative factor out front (doesn't affect continuity equation)
+#"vel" is either 'driftframe' or 'MHD', and nu is the parallel boost parameter in that case
+def densityhere(r, th, a, eta, model='para', vel = 'driftframe', nu_parallel = 0, gammamax=None, pval = 0, sigma = 2): 
+    if model == 'para':
+        bpara = Bfield("bz_para", C=1)
+    elif model == 'mono':
+        bpara = Bfield("bz_monopole", C=1)
+    else: #power law case
+        bpara = Bfield("power", C=1, p=pval)
+
+    velocity=Velocity(vel, bfield=bpara, nu_parallel = nu_parallel, gammamax=gammamax)
+    bupper = np.transpose(bpara.bfield_lab(a, r, thetas=th))
+    (u0,u1,u2,u3) = velocity.u_lab(a, r, th=th) 
+    
+    return np.abs(eta*bupper[:,0]/u1) #solution to continuity equation, need absolute value because eta flips sign at stagnation surface
 
 #returns images contained in order of neq
 def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax):

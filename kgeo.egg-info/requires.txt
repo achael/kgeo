@@ -1,0 +1,7 @@
+numpy
+scipy
+mpmath
+tqdm
+matplotlib
+ehtim
+h5py

@@ -4,6 +4,7 @@ from tqdm import tqdm
 from kgeo.bfields import Bfield
 from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
 from kgeo.equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
+from kgeo.ff_boost import *
 import time
 from mpmath import polylog
 from scipy.interpolate import UnivariateSpline
@@ -58,11 +59,14 @@ class Velocity(object):
         elif self.veltype=='driftframe':
             self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
             self.nu_parallel = self.kwargs.get('nu_parallel',0)
+            self.gammamax = self.kwargs.get('gammamax', None)
                            
         else: 
             raise Exception("veltype %s not recognized in Velocity!"%self.veltype)
             
-    def u_lab(self, a, r, th=np.pi/2):  
+
+    def u_lab(self, a, r, th=np.pi/2, retqty=False):  
+
         if self.veltype=='zamo':
             ucon = u_zamo(a, r) 
         elif self.veltype=='infall':
@@ -79,7 +83,8 @@ class Velocity(object):
         elif self.veltype=='simfit':                        
             ucon = u_grmhd_fit(a,r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)    
         elif self.veltype=='driftframe':
-            ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th)
+            ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th, gammamax = self.gammamax, retqty=retqty)
+
         else: 
             raise Exception("veltype %s not recognized in Velocity.u_lab!"%self.veltype)
             
@@ -373,14 +378,56 @@ def u_general(a, r, fac_subkep=1, beta_phi=1, beta_r=1, retrograde=False):
     u3 = u0*Omega
     
     return (u0, u1, 0, u3) 
-   
-def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2):
+
+#get boost parameter that conserves energy in co-rotating frame
+def getnu_cons(bf_here, r, theta, r0, theta0, Omegaf, spin, M):
+    Aconst = getEco(r0, theta0, Omegaf, spin, M) #E-L*Omegaf
+    ghere = metric(r, spin, theta, M) #metric (as a matrix)
+    (alpha, vphiupper, gammap, Bhatphi) = u_driftframe(spin, r, bfield=bf_here, nu_parallel=0, th=theta, retbunit=True) #get quantities from nu=0 case
+    ffunc = gammap*(alpha-(ghere[:,0,3]+ghere[:,3,3]*Omegaf)*vphiupper) #random function (useful for xi computation)
+    bred = Bhatphi*(ghere[:,0,3]+ghere[:,3,3]*Omegaf) #reduced Bphiunit (useful for xi computation)
+    nunum = ffunc*bred+np.sign(np.cos(theta))*np.sign(r-r0)*Aconst*np.sqrt(Aconst**2-ffunc**2+bred**2)
+    nudenom = Aconst**2+bred**2
+    nutot = nunum/nudenom
+    return np.real(nutot)
+
+#gammamax = none means that we're in pure FF, nu_parallel = 'FF' means conserve energy in Force-Free case 
+def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax=None, retbunit = False, retqty = False, eps = -1):
     """drift frame velocity for a given EM field in BL""" 
     
+    #get boost from conservation of energy if requested
+    if nu_parallel == 'FF':
+        ind = np.where(np.nan_to_num(r) != 0)[0][0] #important for indirect images, which are filled with zeros when there's no crossing
+        omega = bfield.omega_field(a,r[ind],thetas=th[ind]) #single fieldline so single omega
+
+        #stagnation surface for monopole
+        if bfield.fieldtype == 'bz_monopole' or (bfield.fieldtype == 'power' and bfield.pval == 0): 
+            theta0 = th[ind]
+            r0 = r0min_mono(theta0, omega, a, 1.0) #1.0 is just the mass scale
+        
+        #stagnation surface for paraboloid
+        elif bfield.fieldtype == 'bz_para':
+            psihere = psiBZpara(r[ind], th[ind], a) #compute psi of the fieldline chosen
+            try:
+                r0, theta0 = r0min_para(psihere, omega, a, 1.0)
+            except:
+                r0, theta0 = r0min_para(.999999*psihere, omega, a, 1.0)
+        
+        elif bfield.fieldtype == 'power':
+            psihere = psiBZpower(r[ind], th[ind], bfield.pval) #compute psi of the fieldline chosen
+            try:
+                r0, theta0 = r0min_power(psihere, omega, a, bfield.pval, 1.0, usemono=bfield.usemono)
+            except:
+                r0, theta0 = r0min_power(.999999*psihere, omega, a, bfield.pval, 1.0, usemono=bfield.usemono)
+
+        #get the parallel boost
+        nu_parallel = getnu_cons(bfield, r, th, r0, theta0, omega, a, 1.0)
+
     # checks
+    nu_parallel = nu_parallel*np.ones_like(r) #make sure that nu_parallel is an appropriately sized
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (-1<nu_parallel<1):
+    if np.any(np.logical_or(nu_parallel>1 , nu_parallel<-1)):
         raise Exception("nu_parallel should be in the range (-1,1)")
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
     
@@ -414,6 +461,7 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2):
     (B1,B2,B3) = bfield.bfield_lab(a,r,th=th)
     (E1,E2,E3) = bfield.efield_lab(a,r,th=th)
 
+
     E1 = (omega-omegaz)*Xi*np.sin(th)*B2/Sigma
     E2 = -(omega-omegaz)*Xi*np.sin(th)*B1/(Sigma*Delta)
     E3 = 0            
@@ -445,13 +493,43 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2):
     v1 = vperp1 + vpar1
     v2 = vperp2 + vpar2
     v3 = vperp3 + vpar3
+
+    if retbunit: #returns gammaperp and raised unit vector along B (useful for FF computations)
+        return (alpha, v3, 1/vpar_max, B3/np.sqrt(Bsq))
+    
     
     vsq = g11*v1*v1 + g22*v2*v2 + g33*v3*v3
     gamma = 1./np.sqrt(1-vsq)
+    
+
+    if gammamax: #approximate MHD gamma by summing gamma_FF and gamma_max in series
+            pval0 = 2.0
+            gammamax = gammamax*np.ones_like(gamma)
+            gammaeff = (1/gammamax**pval0+1/gamma**pval0)**(-1/pval0)
+            #argdiv = np.argmin(np.abs(np.nan_to_num(gammaeff, nan=np.inf)))
+            if eps >= 0:
+                gammaeff0 = (1+eps)*gammaeff#gammaeff*gamma[argdiv]/gammaeff[argdiv] #ensure gamma>1 always
+
+            else:
+                argdiv = np.argmin(np.abs(np.nan_to_num(gammaeff, nan=np.inf)))
+                gammaeff0 = gammaeff*gamma[argdiv]/gammaeff[argdiv] #ensure gamma>1 always
+            
+            vsqeff = 1-1/gammaeff0**2 #convert 
+            v1new  = v1*np.sqrt(vsqeff/vsq)
+            v2new = v2*np.sqrt(vsqeff/vsq)
+            v3new = v3*np.sqrt(vsqeff/vsq)
+
+            v1 = v1new
+            v2 = v2new
+            v3 = v3new
+            gamma = np.real(gammaeff0)
     
     u0 = gamma/alpha
     u1 = gamma*(v1 + eta1)
     u2 = gamma*(v2 + eta2)
     u3 = gamma*(v3 + eta3)
+    
+    if retqty:
+        return (gamma, g11*v1, g22*v2, g33*v3)
     
     return (u0, u1, u2, u3)
