@@ -14,6 +14,13 @@ Classifier: Topic :: Software Development :: Build Tools
 Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
 Classifier: Programming Language :: Python :: 3.8
 License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: mpmath
+Requires-Dist: tqdm
+Requires-Dist: matplotlib
+Requires-Dist: ehtim
+Requires-Dist: h5py
 
 This is a relatively simple implementation of raytracing null geodesics in the Kerr metric using the formalism of `Gralla and Lupsasca 2019 <https://arxiv.org/abs/1910.12881>`_
 

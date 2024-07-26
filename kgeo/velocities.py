@@ -398,7 +398,7 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
     #get boost from conservation of energy if requested
     if nu_parallel == 'FF':
         ind = np.where(np.nan_to_num(r) != 0)[0][0] #important for indirect images, which are filled with zeros when there's no crossing
-        omega = bfield.omega_field(a,r[ind],thetas=th[ind]) #single fieldline so single omega
+        omega = bfield.omega_field(a,r[ind],th=th[ind]) #single fieldline so single omega
 
         #stagnation surface for monopole
         if bfield.fieldtype == 'bz_monopole' or (bfield.fieldtype == 'power' and bfield.pval == 0): 

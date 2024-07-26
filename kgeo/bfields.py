@@ -153,7 +153,6 @@ class Bfield(object):
                 (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
             a2 = a**2
             r2 = r**2
-            th = thetas 
             cth2 = np.cos(th)**2
             sth2 = np.sin(th)**2
             Delta = r2 - 2*r + a2
@@ -216,7 +215,6 @@ class Bfield(object):
             # Metric in BL
             a2 = a**2
             r2 = r**2
-            th = thetas 
             cth2 = np.cos(th)**2
             sth2 = np.sin(th)**2
             Delta = r2 - 2*r + a2

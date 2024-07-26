@@ -1,5 +1,9 @@
+.gitignore
+CITATION.cff
 LICENSE
 README.rst
+equatorial_v1.py
+makeims.ipynb
 setup.py
 kgeo/__init__.py
 kgeo/bfields.py
@@ -24,3 +28,8 @@ kgeo.egg-info/SOURCES.txt
 kgeo.egg-info/dependency_links.txt
 kgeo.egg-info/requires.txt
 kgeo.egg-info/top_level.txt
+notebooks/Kgeo Off-Equatorial.ipynb
+scripts/generate_equatorial_image.py
+scripts/generate_gelles_ringplot.py
+scripts/generate_geomovie.py
+scripts/generate_nring_plot.py

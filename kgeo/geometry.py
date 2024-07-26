@@ -27,7 +27,7 @@ def densityhere(r, th, a, eta, model='para', vel = 'driftframe', nu_parallel = 0
         bpara = Bfield("power", C=1, p=pval)
 
     velocity=Velocity(vel, bfield=bpara, nu_parallel = nu_parallel, gammamax=gammamax)
-    bupper = np.transpose(bpara.bfield_lab(a, r, thetas=th))
+    bupper = np.transpose(bpara.bfield_lab(a, r, th=th))
     (u0,u1,u2,u3) = velocity.u_lab(a, r, th=th) 
     
     return np.abs(eta*bupper[:,0]/u1) #solution to continuity equation, need absolute value because eta flips sign at stagnation surface
