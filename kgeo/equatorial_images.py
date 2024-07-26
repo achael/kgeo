@@ -185,7 +185,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         # get velocity and redshift
         ###############################        
         (u0,u1,u2,u3) = velocity.u_lab(a, r_s[~zeromask],th=th_s)    
-        gg, lp = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s)   
+        gg = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s)   
         g[~zeromask] = gg
 
         ###############################

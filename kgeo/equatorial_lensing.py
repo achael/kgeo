@@ -282,7 +282,6 @@ def critical_curve(a, th0, n=100000):
 
     # screen coordinates
     alpha = -lam / np.sin(th0)
-
     beta = np.sqrt(eta + (a*np.cos(th0))**2 - (lam/np.tan(th0))**2)
 
     # fails a lot...
