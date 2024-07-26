@@ -7,6 +7,7 @@ from kgeo.densityfuncs import *
 def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
          polarization=False,  efluid_nonzero=False, specind=SPECIND, th_s=np.pi/2, density=1, retsin = False):
+
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
        g is the Doppler factor
@@ -76,6 +77,7 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
         ###############################
 
         if polarization:
+
             (sinthb, kappa, pathlength, bsq) = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
                                                  kr_sign, kth_sign, u0, u1, u2, u3, 
                                                  bfield=bfield,  efluid_nonzero=efluid_nonzero, th=th_s)
@@ -86,18 +88,19 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
         
         sin_thb[~zeromask] = sinthb  
         Iemis *= bsq**((1+specind)/2) #for spectral index of 1, we add on factor of B^2 
+
                              
         ###############################
         # observed emission
         ###############################         
+
         Iobs_here[~zeromask] = (gg**3) * (gg**specind) * pathlength * Iemis * (sinthb**(1+specind))       
+
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs_here[~zeromask]
             Uobs[~zeromask] = sin2chi*Iobs_here[~zeromask]
 
-    
-       
     else:
         print("masked all pixels in Iobs! m=%i"%mbar)
 
@@ -107,16 +110,20 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
 
     Iobs_2[r_s<=rh] = Qobs_2[r_s<=rh] = Uobs_2[r_s<=rh] = 0 #zero out emission coming from within the horizon
 
+
     if not retsin:
         return Iobs_2, Qobs_2, Uobs_2
     return Iobs_2, Qobs_2, Uobs_2, sinthb    
+
 
 #returns images contained in order of neq
 
 
 #get stokes parameters for a grid with off-equatorial emission in BZ model
+
 def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, eta=1, outgeo=None, tol=1e-8, 
               nu_parallel = 0, pval=1, gammamax=None, retvals = False, vel='driftframe', sigma=2, sumsubring=True, usemono=False, retsin=False): #neqmax is the maximum number of equatorial crossings
+
     ashape = alphavals.shape #store shapes for later
     alphavals = alphavals.flatten() #flatten since we need everything to be a vector for our code to work
     betavals = betavals.flatten()
@@ -130,12 +137,15 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
                  savedata=False, plotdata=False)
     
     #solve for crossing points and densities there
+
     tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = do_phi_and_t, model=model, neqmax=neqmax, tol=tol, pval=pval)
+
 
     print('guesses before ', guesses_shape)
     #reshape coordinates
     alphavals = np.tile(alphavals, guesses_shape[0])
     betavals = np.tile(betavals, guesses_shape[0])
+
 
     if model == 'mono' or (model == 'power' and pval == 0):
         dvals = density_mono_all(rvals, thvals, guesses_shape, psitarget, a, nu_parallel, sigma, neqmax=neqmax, gammamax=gammamax)
@@ -156,7 +166,8 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
 
     outvec = Iobs_off(a, r_o, rvals, th_o, alphavals, betavals, signpr, signptheta,
     emissivity=Emissivity('constant'), velocity=Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel, gammamax=gammamax), bfield=bf,
-    polarization=True,  efluid_nonzero=False, specind=SPECIND, th_s=thvals, density=dvals, retsin=retsin) #generate data
+    polarization=True, specind=SPECIND, th_s=thvals, density=dvals, retsin=retsin) #generate data
+
 
     iobs = np.copy(outvec[0])
     qobs = np.copy(outvec[1])
@@ -167,6 +178,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     iobs = np.real(np.nan_to_num(np.array(iobs))) #get rid of nans
     qobs = np.real(np.nan_to_num(np.array(qobs)))
     uobs = np.real(np.nan_to_num(np.array(uobs)))
+
 
     if not sumsubring:
         return iobs, qobs, uobs, neqvals, guesses_shape  #just return the raw subrings
@@ -180,3 +192,4 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     if not retsin: #return stokes + intersection data
         return ivec, qvec, uvec, evpa, np.nan_to_num(rvals), np.nan_to_num(thvals)
     return ivec, qvec, uvec, evpa, np.nan_to_num(rvals), np.nan_to_num(thvals), np.nan_to_num(outvec[3]) #return stokes+intersection+pitch angle
+

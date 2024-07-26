@@ -443,8 +443,8 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
          
         #normal vector to jet wall (necessary for path length)
         norm0_l = 0 #dpsidt
-        norm1_l = -B2*gdet/bfield.C  #dpsidr
-        norm2_l = B1*gdet/bfield.C  #dpsidtheta
+        norm1_l = -B2*gdet  #dpsidr
+        norm2_l = B1*gdet #dpsidtheta
         norm3_l = 0 #dpsidphi
 
 

@@ -2,7 +2,6 @@
 CITATION.cff
 LICENSE
 README.rst
-equatorial_v1.py
 makeims.ipynb
 setup.py
 kgeo/__init__.py

@@ -6,7 +6,7 @@ from kgeo.densityfuncs import *
 
 def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
-         polarization=False,  efluid_nonzero=False, specind=SPECIND, th_s=np.pi/2, density=1, retsin = False):
+         polarization=False, specind=SPECIND, th_s=np.pi/2, density=1, retsin = False):
 
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
@@ -80,7 +80,7 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
 
             (sinthb, kappa, pathlength, bsq) = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
                                                  kr_sign, kth_sign, u0, u1, u2, u3, 
-                                                 bfield=bfield,  efluid_nonzero=efluid_nonzero, th=th_s)
+                                                 bfield=bfield, th=th_s)
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
 
         else:
