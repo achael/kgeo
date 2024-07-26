@@ -118,7 +118,11 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
 
 def Iobs(a, r_o, th_o, mbar, alpha, beta, 
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
+<<<<<<< HEAD
          polarization=False, pathlength=False, specind=SPECIND, diskangle=DISKANGLE, th_s=np.pi/2):
+=======
+         polarization=False,  efluid_nonzero=False, specind=SPECIND, th_s=np.pi/2):
+>>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
        g is the Doppler factor
@@ -185,7 +189,11 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         # get velocity and redshift
         ###############################        
         (u0,u1,u2,u3) = velocity.u_lab(a, r_s[~zeromask],th=th_s)    
+<<<<<<< HEAD
         gg, lp = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s)   
+=======
+        gg = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s)   
+>>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
         g[~zeromask] = gg
 
         ###############################
@@ -200,7 +208,11 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         if polarization:
             (sinthb, kappa) = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
                                                  kr_sign, kth_sign, u0, u1, u2, u3, 
+<<<<<<< HEAD
                                                  bfield=bfield, th=th_s)
+=======
+                                                 bfield=bfield,  efluid_nonzero=efluid_nonzero, th=th_s)
+>>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
         else:
             sinthb = 1
@@ -286,6 +298,10 @@ def calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2)
     # Metric
     a2 = a**2
     r2 = r**2
+<<<<<<< HEAD
+=======
+#    th = np.pi/2. # equatorial
+>>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
     cth2 = np.cos(th)**2
     sth2 = np.sin(th)**2
     Delta = r2 - 2*r + a2
@@ -369,7 +385,11 @@ def calc_tetrades(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2)
     return tetrades
     
 def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, 
+<<<<<<< HEAD
                        bfield=bfield_default, th=np.pi/2):
+=======
+                       bfield=bfield_default, efluid_nonzero=False, th=np.pi/2):
+>>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
     """ calculate polarization quantities"""
 
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
@@ -384,10 +404,15 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     # Metric
     a2 = a**2
     r2 = r**2
+<<<<<<< HEAD
+=======
+#    th = np.pi/2. # equatorial
+>>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
     cth2 = np.cos(th)**2
     sth2 = np.sin(th)**2
     Delta = r2 - 2*r + a2
     Sigma = r2 + a2 * cth2
+    gdet = Sigma*np.sqrt(sth2) #metric determinant
 
     g00 = -(1 - 2*r/Sigma)
     g11 = Sigma/Delta
@@ -415,6 +440,7 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     k1_l = kr_sign*np.sqrt(R)/Delta
     k2_l = kth_sign*np.sqrt(TH)
     k3_l = lam
+<<<<<<< HEAD
 
     k0 = g00_up * k0_l + g03_up * k3_l
     k1 = g11_up * k1_l
@@ -425,12 +451,83 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     tetrades = calc_tetrades(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=th)
     ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z)) = tetrades 
                          
+=======
+
+    #fix the below so that they're valid off the equator too
+    g00_up = -(r2 + a2 + 2*r*a2*sth2/Sigma) / Delta
+    g11_up = Delta/Sigma
+    g22_up = 1./Sigma
+    g33_up = (Delta - a2*sth2)/(Sigma*Delta*sth2)
+    g03_up = -(2*a*r)/(Sigma*Delta)
+
+    k0 = g00_up * k0_l + g03_up * k3_l
+    k1 = g11_up * k1_l
+    k2 = g22_up * k2_l
+    k3 = g33_up * k3_l + g03_up * k0_l   
+    
+    # k0 = ((r2 + a2)*(r2 + a2 - a*lam)/Delta + a*(lam-a*sth2))/Sigma
+    # k1 = kr_sign*np.sqrt(R)/Sigma
+    # k2 = kth_sign*np.sqrt(TH)/Sigma
+    # k3 = (a*(r2 + a2 - a*lam)/Delta + lam/sth2 - a)/Sigma
+    
+    # covariant velocity
+    u0_l = g00*u0 + g03*u3
+    u1_l = g11*u1
+    u2_l = g22*u2 
+    u3_l = g33*u3 + g03*u0
+    
+    # define tetrads to comoving frame
+    Nr = np.sqrt(-g11*(u0_l*u0 + u3_l*u3)*(1+u2_l*u2))
+    Nth = np.sqrt(g22*(1 + u2_l*u2))
+    Nph = np.sqrt(-Delta*sth2*(u0_l*u0 + u3_l*u3))
+
+    e0_x = u1_l*u0/Nr
+    e1_x = -(u0_l*u0 + u3_l*u3)/Nr
+    e2_x = 0
+    e3_x = u1_l*u3/Nr
+
+    e0_y = u2_l*u0/Nth
+    e1_y = u2_l*u1/Nth
+    e2_y = (1+u2_l*u2)/Nth
+    e3_y = u2_l*u3/Nth
+
+    e0_z = u3_l/Nph
+    e1_z = 0
+    e2_z = 0
+    e3_z = -u0_l/Nph
+                                       
+>>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
     # B-field defined in the lab frame: transform to fluid-frame quantities
     if bfield.fieldframe=='lab':
     
         # get lab frame B^i
+<<<<<<< HEAD
         (B1, B2, B3) = bfield.bfield_lab(a, r, th=th)
          
+=======
+        (B1, B2, B3) = bfield.bfield_lab(a, r, thetas=th)
+
+        #normal vector to jet wall (necessary for path length)
+        norm0_l = 0 #dpsidt
+        norm1_l = -B2*gdet/bfield.C  #dpsidr
+        norm2_l = B1*gdet/bfield.C  #dpsidtheta
+        norm3_l = 0 #dpsidphi
+
+        # here, we get the general field from the defn b^\mu = u_\nu sF^{\nu\mu}
+        # fluid-frame electric field will in general not be 0!!
+        if efluid_nonzero:
+        
+            # ANDREW TODO nicer tensors and vectors!!
+            (sF01, sF02, sF03, sF12, sF13, sF23) = bfield.maxwell(a,r, thetas=th)
+            (sF10, sF20, sF30, sF21, sF31, sF32) = (-sF01, -sF02, -sF03, -sF12, -sF13, -sF23)
+            
+            b0 =    (0)*u0_l + (sF10)*u1_l + (sF20)*u2_l + (sF30)*u3_l             
+            b1 = (sF01)*u0_l +    (0)*u1_l + (sF21)*u2_l + (sF31)*u3_l
+            b2 = (sF02)*u0_l + (sF12)*u1_l +    (0)*u2_l + (sF32)*u3_l
+            b3 = (sF03)*u0_l + (sF13)*u1_l + (sF23)*u2_l +    (0)*u3_l
+
+                
+>>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
         # here, we assume the field is degenerate and e^\mu = u_\nu F^{\mu\nu} = 0
         # (standard GRMHD assumption)
         b0 = B1*u1_l + B2*u2_l + B3*u3_l
@@ -449,6 +546,10 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
         Bp_x = e0_x*b0_l + e1_x*b1_l  + e2_x*b2_l + e3_x*b3_l
         Bp_y = e0_y*b0_l + e1_y*b1_l  + e2_y*b2_l + e3_y*b3_l
         Bp_z = e0_z*b0_l + e1_z*b1_l  + e2_z*b2_l + e3_z*b3_l
+
+        norm_x = e0_x*norm0_l + e1_x*norm1_l  + e2_x*norm2_l + e3_x*norm3_l
+        norm_y = e0_y*norm0_l + e1_y*norm1_l  + e2_y*norm2_l + e3_y*norm3_l
+        norm_z = e0_z*norm0_l + e1_z*norm1_l  + e2_z*norm2_l + e3_z*norm3_l
     
  
     # B-field defined directly in comoving frame as in Gelles+2021
@@ -461,12 +562,24 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
         
     # comvoving frame magnitude    
     Bp_mag = np.sqrt(Bp_x**2 + Bp_y**2 + Bp_z**2)
+<<<<<<< HEAD
+=======
+    norm_mag = np.sqrt(norm_x**2+norm_y**2+norm_z**2)
+    norm_x_unit = norm_x/norm_mag
+    norm_y_unit = norm_y/norm_mag
+    norm_z_unit = norm_z/norm_mag
+>>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
     
     # wavevector in comoving frame  
     kp_x = e0_x*k0_l + e1_x*k1_l  + e2_x*k2_l + e3_x*k3_l
     kp_y = e0_y*k0_l + e1_y*k1_l  + e2_y*k2_l + e3_y*k3_l
     kp_z = e0_z*k0_l + e1_z*k1_l  + e2_z*k2_l + e3_z*k3_l  
     kp_mag = np.sqrt(kp_x**2 + kp_y**2 + kp_z**2)
+    kp_t = kp_mag #k^2=0 normalization for photon
+
+    #path length
+    kdotnorm = kp_x*norm_x_unit + kp_y*norm_y_unit + kp_z*norm_z_unit
+    pathlength = np.abs(kp_t/kdotnorm)
     
     # local polarization vector and emission angle
     f_x = (kp_y*Bp_z - kp_z*Bp_y)/kp_mag
@@ -485,6 +598,7 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     B = ((r2+a2)*(k3*f2 - k2*f3) - a*(k0*f2 - k2*f0))*np.sin(th)
     kappa = (r - 1j*a*np.cos(th))*(A - 1j*B)
 
+<<<<<<< HEAD
     return (sinthb, kappa)
 
 def calc_pathlength(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2, diskangle=DISKANGLE):
@@ -501,6 +615,9 @@ def calc_pathlength(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/
     # get the redshift g = 1/k_t     
     gg = calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=th)
     kthat = 1/gg
+=======
+    return (sinthb, kappa, pathlength, bsq)
+>>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
     
     # get the z component of local photon momentum
     # TODO this assumes that u^2 == 0!
