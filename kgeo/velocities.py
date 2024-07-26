@@ -64,11 +64,9 @@ class Velocity(object):
         else: 
             raise Exception("veltype %s not recognized in Velocity!"%self.veltype)
             
-<<<<<<< HEAD
-    def u_lab(self, a, r, th=np.pi/2):  
-=======
+
     def u_lab(self, a, r, th=np.pi/2, retqty=False):  
->>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
+
         if self.veltype=='zamo':
             ucon = u_zamo(a, r) 
         elif self.veltype=='infall':
@@ -85,11 +83,8 @@ class Velocity(object):
         elif self.veltype=='simfit':                        
             ucon = u_grmhd_fit(a,r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)    
         elif self.veltype=='driftframe':
-<<<<<<< HEAD
-            ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th)
-=======
             ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th, gammamax = self.gammamax, retqty=retqty)
->>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
+
         else: 
             raise Exception("veltype %s not recognized in Velocity.u_lab!"%self.veltype)
             
@@ -383,11 +378,6 @@ def u_general(a, r, fac_subkep=1, beta_phi=1, beta_r=1, retrograde=False):
     u3 = u0*Omega
     
     return (u0, u1, 0, u3) 
-<<<<<<< HEAD
-   
-def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2):
-=======
-
 
 #get boost parameter that conserves energy in co-rotating frame
 def getnu_cons(bf_here, r, theta, r0, theta0, Omegaf, spin, M):
@@ -403,7 +393,6 @@ def getnu_cons(bf_here, r, theta, r0, theta0, Omegaf, spin, M):
 
 #gammamax = none means that we're in pure FF, nu_parallel = 'FF' means conserve energy in Force-Free case 
 def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax=None, retbunit = False, retqty = False, eps = -1):
->>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
     """drift frame velocity for a given EM field in BL""" 
     
     #get boost from conservation of energy if requested
@@ -445,10 +434,6 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
     # metric 
     a2 = a**2
     r2 = r**2
-<<<<<<< HEAD
-=======
-#    th = np.pi/2. # TODO equatorial only
->>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
     cth2 = np.cos(th)**2
     sth2 = np.sin(th)**2
     
@@ -472,15 +457,10 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
     eta3 = 2*a*r/np.sqrt(Delta*Sigma*Xi)
     
     # e and b field
-<<<<<<< HEAD
     omega = bfield.omega_field(a,r,th=th)
     (B1,B2,B3) = bfield.bfield_lab(a,r,th=th)
     (E1,E2,E3) = bfield.efield_lab(a,r,th=th)
-=======
-    omega = bfield.omega_field(a,r,thetas=th)
-    (B1,B2,B3) = bfield.bfield_lab(a,r,thetas=th)
-    (E1,E2,E3) = bfield.efield_lab(a,r,thetas=th)
->>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
+
 
     E1 = (omega-omegaz)*Xi*np.sin(th)*B2/Sigma
     E2 = -(omega-omegaz)*Xi*np.sin(th)*B1/(Sigma*Delta)
