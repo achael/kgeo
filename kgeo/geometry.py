@@ -15,23 +15,7 @@ def lapse(r, th, a): #lapse function for Kerr metric
     pi = (r**2+a**2)**2-a**2*delta*np.sin(th)**2
     return np.sqrt(delta*sig/pi)
 
-#density as solution to continuity equation for perpendicular drift velocity
-<<<<<<< HEAD
-def densityhere(r, th, a, constA, model='para'): #constA is multiplicative factor out front (doesn't affect continuity equation)
-    bpara = Bfield("bz_para", C=1) if model == 'para' else Bfield("bz_monopole", C=1)
-    bupper = np.transpose(bpara.bfield_lab(a, r, th=th))
-    eupper = np.transpose(bpara.efield_lab(a, r, th=th))
-    
-    blower = lower_spatial_vec(bupper, r, th, a)
-    elower = lower_spatial_vec(eupper, r, th, a)
-    
-    bsq = np.sum(bupper*blower, axis=1)
-    esq = np.sum(eupper*elower, axis=1)
-    
-    alphalapse = lapse(r, th, a)
-    
-    return constA/alphalapse*np.sqrt(bsq*(bsq-esq))
-=======
+
 #constA is multiplicative factor out front (doesn't affect continuity equation)
 #"vel" is either 'driftframe' or 'MHD', and nu is the parallel boost parameter in that case
 def densityhere(r, th, a, eta, model='para', vel = 'driftframe', nu_parallel = 0, gammamax=None, pval = 0, sigma = 2): 
@@ -47,9 +31,6 @@ def densityhere(r, th, a, eta, model='para', vel = 'driftframe', nu_parallel = 0
     (u0,u1,u2,u3) = velocity.u_lab(a, r, th=th) 
     
     return np.abs(eta*bupper[:,0]/u1) #solution to continuity equation, need absolute value because eta flips sign at stagnation surface
-
->>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
-
 
 #returns images contained in order of neq
 def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax):
@@ -75,9 +56,5 @@ def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax):
     qarr.append(np.reshape(np.sum(np.reshape(qobs, guesses_shape), axis=0), ashape))
     uarr.append(np.reshape(np.sum(np.reshape(uobs, guesses_shape), axis=0), ashape))
 
-<<<<<<< HEAD
-=======
-
->>>>>>> cf42a0df8502f93c65168bfa2ae7a0d64c42b250
     return np.array(iarr), np.array(qarr), np.array(uarr)
 
