@@ -176,10 +176,6 @@ def eta_power(rvals, r0, spin, pval, psi, sigma):
         if rvals[i] == 0:
             intvals.append(0)
             continue
-        if i > 0:
-            if intvals[i-1]/normfac == 1.0: #converged to an outflow
-                intvals.append(intvals[i-1])
-                continue
         intcell = scint.quad(inthere, r0, rvals[i], epsabs=1e-13, epsrel=1e-13)[0]
         intvals.append(intcell)
 
