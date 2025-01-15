@@ -433,7 +433,6 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     tetrades = calc_tetrades(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=th)
     ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z)) = tetrades 
                          
-
     # B-field defined in the lab frame: transform to fluid-frame quantities
     if bfield.fieldframe=='lab':
     
@@ -442,11 +441,10 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
         (B1, B2, B3) = bfield.bfield_lab(a, r, th=th)
          
         #normal vector to jet wall (necessary for path length)
-        norm0_l = 0 #dpsidt
-        norm1_l = -B2*gdet  #dpsidr
-        norm2_l = B1*gdet #dpsidtheta
-        norm3_l = 0 #dpsidphi
-
+        norm0_l = 0        #dpsidt
+        norm1_l = -B2*gdet #dpsidr
+        norm2_l = B1*gdet  #dpsidtheta
+        norm3_l = 0        #dpsidphi
 
         # here, we assume the field is degenerate and e^\mu = u_\nu F^{\mu\nu} = 0
         # (standard GRMHD assumption)
@@ -470,8 +468,7 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
         norm_x = e0_x*norm0_l + e1_x*norm1_l  + e2_x*norm2_l + e3_x*norm3_l
         norm_y = e0_y*norm0_l + e1_y*norm1_l  + e2_y*norm2_l + e3_y*norm3_l
         norm_z = e0_z*norm0_l + e1_z*norm1_l  + e2_z*norm2_l + e3_z*norm3_l
-    
- 
+     
     # B-field defined directly in comoving frame as in Gelles+2021
     elif bfield.fieldframe=='comoving':
         print('comoving!')
@@ -483,6 +480,10 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     # comvoving frame magnitude    
     Bp_mag = np.sqrt(Bp_x**2 + Bp_y**2 + Bp_z**2)
 
+    #bdiff = 1-bsq/(Bp_mag**2)
+    #print("bdiff:", np.min(bdiff),np.median(bdiff),np.max(bdiff))
+    bsq = Bp_mag**2 # this is the comoving field strength, same as above 
+        
     norm_mag = np.sqrt(norm_x**2+norm_y**2+norm_z**2)
     norm_x_unit = norm_x/norm_mag
     norm_y_unit = norm_y/norm_mag

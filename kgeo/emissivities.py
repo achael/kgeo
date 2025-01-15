@@ -78,4 +78,15 @@ def emisGLM(a, r, gamma_off=GAMMAOFF, sigma=SIGMA_GLM, mu_ring=False):
         mu = 1 - np.sqrt(1-a**2)
     emis = np.exp(-0.5*(gamma_off+np.arcsinh((r-mu)/sigma))**2) / np.sqrt((r-mu)**2 + sigma**2)
     return emis
+
+
+#def emisThermal(a, r, thetab,  
+#                alpha_n=ALPHAN, n0=N0, 
+#                alpha_T=ALPHAT, T0=T0, 
+#                B0=B0):
+#    """emissivity from thermal electrons following power law distributions, following Desire+24"""
+
+
+
+
                 

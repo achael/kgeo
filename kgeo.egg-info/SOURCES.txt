@@ -2,7 +2,6 @@
 CITATION.cff
 LICENSE
 README.rst
-makeims.ipynb
 setup.py
 kgeo/__init__.py
 kgeo/bfields.py

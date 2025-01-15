@@ -1,17 +1,21 @@
 *__pycache__*
 *.pyc
 *~
+*.nb
 *.so
 *.h5
 *.fits
 *.png
 *.pdf
+*.gif
+*.mp4
 *.egg-info*
 build/*
 scripts/*.mp4
 scripts/*.pdf
 *.ipynb_checkpoints*
 
+build/*
 gsl_ellip.c
 toms_ellip_binding.py
 toms5777*
