@@ -66,7 +66,7 @@ class Velocity(object):
             
 
     def u_lab(self, a, r, th=np.pi/2, retqty=False):  
-
+        """Return lab frame contravarient velocity vector"""
         if self.veltype=='zamo':
             ucon = u_zamo(a, r) 
         elif self.veltype=='infall':
@@ -83,13 +83,78 @@ class Velocity(object):
         elif self.veltype=='simfit':                        
             ucon = u_grmhd_fit(a,r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)    
         elif self.veltype=='driftframe':
-            ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th, gammamax = self.gammamax, retqty=retqty)
+            ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th, 
+                                gammamax = self.gammamax, retqty=retqty)
 
         else: 
             raise Exception("veltype %s not recognized in Velocity.u_lab!"%self.veltype)
             
         return ucon
-                                                              
+
+    def tetrades(a, r, th=np.pi/2):
+        """Return tetrads for transformation to orthonormal frame"""
+
+        if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+        
+        (u0, u1, u2, u3) = self.u_lab(a,r,th=th
+        
+        # Metric
+        a2 = a**2
+        r2 = r**2
+        cth2 = np.cos(th)**2
+        sth2 = np.sin(th)**2
+        Delta = r2 - 2*r + a2
+        Sigma = r2 + a2 * cth2
+
+        g00 = -(1 - 2*r/Sigma)
+        g11 = Sigma/Delta
+        g22 = Sigma
+        g33 = (r2 + a2 + 2*r*a2*sth2 / Sigma) * sth2
+        g03 = -2*r*a*sth2 / Sigma
+
+        g00_up = -(r2 + a2 + 2*r*a2*sth2/Sigma) / Delta
+        g11_up = Delta/Sigma
+        g22_up = 1./Sigma
+        g33_up = (Delta - a2*sth2)/(Sigma*Delta*sth2)
+        g03_up = -(2*a*r)/(Sigma*Delta)
+
+        # covariant velocity
+        u0_l = g00*u0 + g03*u3
+        u1_l = g11*u1
+        u2_l = g22*u2 
+        u3_l = g33*u3 + g03*u0
+        
+        # define tetrads to comoving frame
+        Nr = np.sqrt(-g11*(u0_l*u0 + u3_l*u3)*(1 + u2_l*u2))
+        Nth = np.sqrt(g22*(1 + u2_l*u2))
+        Nph = np.sqrt(-Delta*sth2*(u0_l*u0 + u3_l*u3))        
+
+        e0_t = -u0
+        e1_t = -u1
+        e2_t = -u2
+        e3_t = -u3
+        
+        e0_x = u1_l*u0/Nr
+        e1_x = -(u0_l*u0 + u3_l*u3)/Nr
+        e2_x = 0
+        e3_x = u1_l*u3/Nr
+
+        e0_y = u2_l*u0/Nth
+        e1_y = u2_l*u1/Nth
+        e2_y = (1+u2_l*u2)/Nth
+        e3_y = u2_l*u3/Nth
+
+        e0_z = u3_l/Nph
+        e1_z = 0
+        e2_z = 0
+        e3_z = -u0_l/Nph
+                                           
+        # output 4 tetrades
+        tetrades = ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z))
+        
+        return tetrades
+        
+                                                                  
 def u_zamo(a, r):
     """velocity for zero angular momentum frame"""
     # checks

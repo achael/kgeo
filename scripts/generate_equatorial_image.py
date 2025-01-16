@@ -18,7 +18,7 @@ MoD = 3.77883459  # this is what was used for M/D in uas for the M87 simulations
 ra = 12.51373 
 dec = 12.39112 
 flux230 = 0.6     # total flux
-npix = 1024       # number of pixels
+npix = 512       # number of pixels
 amax = 15         # maximum alpha,beta in R
 f0 = 1            # scaling factor for n=0 flux
 f1 = 1            # scaling factor for n=1 flux
@@ -26,6 +26,7 @@ f2 = 1            # scaling factor for n>=2 flux
 nmax = 4          # maximum subring number
 rotation = 90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
 polarization = True      # make polarized image or not
+pathlength = True        # include disk pathlength factor or not
 specind = 1              # spectral index
 
 # bh and observer parameters
@@ -50,9 +51,9 @@ velocity = Velocity('kep')
 #bfield = Bfield("simple", Cr=0.87, Cvert=0, Cph=0.5)
 #bfield = Bfield("simple_rm1", Cr=0.87, Cvert=0, Cph=0.5) 
 #bfield = Bfield("const_comoving", Cr=0.5, Cvert=0, Cph=0.87) 
-#bfield = Bfield("bz_monopole",C=1)
+bfield = Bfield("bz_monopole",C=1)
 #bfield = Bfield("bz_guess",C=1)
-bfield = Bfield("simple", Cr=0, Cvert=1, Cph=0)
+#bfield = Bfield("simple", Cr=1, Cvert=0, Cph=0)
 
 ################################################################################################################
 # generate the equatorial model image arrays
@@ -60,12 +61,15 @@ psize = 2.*amax/npix
 imagedat = make_image(spin,r_o, th_o, nmax, -amax, amax, -amax, amax, psize,
                       nmax_only=False,
                       emissivity=emissivity,velocity=velocity, bfield=bfield,
-                      polarization=polarization, specind=specind)
+                      polarization=polarization, pathlength=pathlength, specind=specind)
                       
 
 
 # mask nans and add up the subrings
-(outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g, outarr_sinthb, outarr_n, outarr_np) = imagedat
+if pathlength:
+    (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g, outarr_sinthb, outarr_n, outarr_np,outarr_lp, outarr_Ie) = imagedat
+else:
+    (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g, outarr_sinthb, outarr_n, outarr_np) = imagedat
 
 nanmask = np.isnan(outarr_I)
 print("NaNs: ", np.sum(nanmask))
