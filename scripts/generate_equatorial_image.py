@@ -26,24 +26,24 @@ f0 = 1            # scaling factor for n=0 flux
 f1 = 1            # scaling factor for n=1 flux
 f2 = 1            # scaling factor for n>=2 flux
 nmax = 2          # maximum subring number
-rotation = -90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
+rotation = 0#-90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
 polarization = True      # make polarized image or not
-pathlength = False        # include disk pathlength factor or not
+pathlength = True        # include disk pathlength factor or not
 specind = 1              # spectral index
 nu_obs = 230.e9          # frequency
 
 # bh and observer parameters
-th_o = 163*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
-spin = 0.9             # black hole spin, does not work for a=0 or a=1 exactly!
+th_o = 60*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
+spin = 0.99             # black hole spin, does not work for a=0 or a=1 exactly!
 r_o = np.inf           # outer radius
 
 
 # velocity model
 #velocity = Velocity('simfit') # note simfit model will not work for all spins!
 #velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
-velocity = Velocity('subkep', retrograde=True, fac_subkep=0.7)
-#velocity = Velocity('general', retrograde=True, fac_subkep=0.7, beta_phi=1, beta_r=1)
-#velocity = Velocity('kep',retrograde=True)
+#velocity = Velocity('subkep', retrograde=True, fac_subkep=0.7)
+velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.5, beta_r=0.5)
+#velocity = Velocity('kep',retrograde=False)
 
 # bfield model
 #bfield = Bfield("simple", Cr=0.87, Cvert=0, Cph=0.5)
@@ -58,7 +58,7 @@ bfield = Bfield("bz_monopole",C=1)
 #emissivity = Emissivity("ring", r_ring=6, sigma=0.3, emiscut_in=5.5, emiscut_out=6.5)
 #emissivity = Emissivity("glm", sigma=0.5, gamma_off=-1)
 #emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
-#emissivity = Emissivity("thermal",alpha_n=0.7,alpha_T=1,alpha_B=1.5,nref=1.e6,Tref=5.e10,Bref=5,
+#emissivity = Emissivity("thermal",alpha_n=0.7,alpha_T=0.5,alpha_B=1.,nref=1.e6,Tref=5.e10,Bref=5,
 #                        use_consistent_bfield=False,bfield=bfield,velocity=velocity)
 emissivity = Emissivity("powerlaw",alpha_n=1,nref=1.e6,alpha_B=1.5,Bref=5,
                         p=3,gammamin=3,gammamax=100,
@@ -90,7 +90,7 @@ imarr0 = np.flipud(outarr_I[:,0].reshape(npix,npix))
 imarr1 = np.flipud(outarr_I[:,1].reshape(npix,npix))
 imarrRings = np.flipud(np.sum(outarr_I[:,2:],axis=1).reshape(npix,npix))
 
-imarr = f0*imarr0# + f1*imarr1 + f2*imarrRings
+imarr = f0*imarr0 + f1*imarr1 + f2*imarrRings
 if np.sum(imarr)==0:
     raise Exception("no flux in output image!")
     
@@ -110,7 +110,7 @@ if polarization:
 # make an Image, normalize and save
 psize_rad = psize*MoD*eh.RADPERUAS
 #fluxscale = flux230/np.sum(imarr)
-fluxscale = rg*(1.e23)*(psize_rad**2)  #Jy/pixel
+fluxscale = (2.22152e-30)*rg*(1.e23)*(psize_rad**2)  #Jy/pixel
 
 
 im = eh.image.Image(imarr*fluxscale, psize_rad, ra, dec, rf=nu_obs)

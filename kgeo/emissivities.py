@@ -173,11 +173,13 @@ def emisThermal(a, r, g, sinthetab, nu_obs,
     
     # thermal emissivity fitting function (Dexter A18)
     x = nuemit/nu_c
-    Ii = 2.5651*(1+1.92*x**(-1./3.) + 0.9977*x**(-2./3.))*np.exp(-1.8899*x**(1./3.))
+    x3 = x**(1./3.)
+    Ii = 2.5651*(1+1.92/x3 + 0.9977/x3/x3)*np.exp(-1.8899*x3)
     
     # units?? 
-    jnu = (2.22152e-30)*n*(nuemit/thetae**2)*Ii
-
+    #jnu = (2.22152e-30)*n*nuemit*Ii/thetae/thetae
+    jnu = n*nuemit*Ii/thetae/thetae
+    
     return jnu 
     
 
@@ -228,8 +230,9 @@ def emisPowerlaw(a, r, g, sinthetab, nu_obs,
     # units?? 
     alpha = (p-1)/2.
     nfac = gammamin**(1-p) - gammamax**(1-p)
-    jnu = (2.22152e-30)*(n/nfac)*(p-1)*nu_p*((nuemit/nu_p)**(-alpha))*(Gimin-Gimax)
-
+    #jnu = (2.22152e-30)*(n/nfac)*(p-1)*nu_p*((nuemit/nu_p)**(-alpha))*(Gimin-Gimax)
+    jnu = (n/nfac)*(p-1)*nu_p*((nuemit/nu_p)**(-alpha))*(Gimin-Gimax)
+    
     return jnu       
   
 
