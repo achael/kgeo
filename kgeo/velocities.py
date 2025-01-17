@@ -65,7 +65,7 @@ class Velocity(object):
             raise Exception("veltype %s not recognized in Velocity!"%self.veltype)
             
 
-    def u_lab(self, a, r, th=np.pi/2, retqty=False):  
+    def u_lab(self, a, r, th=np.pi/2., retqty=False):  
         """Return lab frame contravarient velocity vector"""
         if self.veltype=='zamo':
             ucon = u_zamo(a, r) 
@@ -91,13 +91,35 @@ class Velocity(object):
             
         return ucon
 
-    def tetrades(a, r, th=np.pi/2):
-        """Return tetrads for transformation to orthonormal frame"""
+    def u_lab_cov(self, a, r, th=np.pi/2.):
+        """Return lab frame covarient velocity vector"""
+        (u0, u1, u2, u3) = self.u_lab(a,r,th=th)
 
-        if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+        # Metric
+        a2 = a**2
+        r2 = r**2
+        cth2 = np.cos(th)**2
+        sth2 = np.sin(th)**2
+        Delta = r2 - 2*r + a2
+        Sigma = r2 + a2 * cth2
+
+        g00 = -(1 - 2*r/Sigma)
+        g11 = Sigma/Delta
+        g22 = Sigma
+        g33 = (r2 + a2 + 2*r*a2*sth2 / Sigma) * sth2
+        g03 = -2*r*a*sth2 / Sigma
         
-        (u0, u1, u2, u3) = self.u_lab(a,r,th=th
+        # covariant velocity
+        u0_l = g00*u0 + g03*u3
+        u1_l = g11*u1
+        u2_l = g22*u2 
+        u3_l = g33*u3 + g03*u0
         
+        return (u0_l, u1_l, u2_l, u3_l)     
+        
+    def tetrades(self, a, r, th=np.pi/2):
+        """Return tetrads for transformation to orthonormal frame"""
+                
         # Metric
         a2 = a**2
         r2 = r**2
@@ -112,18 +134,10 @@ class Velocity(object):
         g33 = (r2 + a2 + 2*r*a2*sth2 / Sigma) * sth2
         g03 = -2*r*a*sth2 / Sigma
 
-        g00_up = -(r2 + a2 + 2*r*a2*sth2/Sigma) / Delta
-        g11_up = Delta/Sigma
-        g22_up = 1./Sigma
-        g33_up = (Delta - a2*sth2)/(Sigma*Delta*sth2)
-        g03_up = -(2*a*r)/(Sigma*Delta)
-
-        # covariant velocity
-        u0_l = g00*u0 + g03*u3
-        u1_l = g11*u1
-        u2_l = g22*u2 
-        u3_l = g33*u3 + g03*u0
-        
+        # velocity components
+        (u0, u1, u2, u3) = self.u_lab(a,r,th=th)
+        (u0_l, u1_l, u2_l, u3_l) = self.u_lab_cov(a,r,th=th)
+                        
         # define tetrads to comoving frame
         Nr = np.sqrt(-g11*(u0_l*u0 + u3_l*u3)*(1 + u2_l*u2))
         Nth = np.sqrt(g22*(1 + u2_l*u2))

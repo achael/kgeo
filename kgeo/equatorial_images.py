@@ -18,6 +18,8 @@ vel_default = Velocity('zamo')
 emis_default = Emissivity('bpl')
 SPECIND = 1 # default (negative) spectral index
 DISKANGLE = 0.1 # default h/r for equatorial disk
+SINTHB = np.pi/4. # assumption for sin(thetab) if polarization==False
+OBSFREQ = 230.e9 # default observation frequency
 
 def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max, psize,
                nmax_only=False,
@@ -27,7 +29,8 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                polarization=False, 
                pathlength=False,
                specind=SPECIND,
-               diskangle=DISKANGLE):
+               diskangle=DISKANGLE,
+               nu_obs=OBSFREQ):
     """computes an image in range (alpha_min, alpha_max) x (beta_min, beta_max)
       for all orders of m up to mbar_max
       and pixel size psize"""
@@ -91,7 +94,8 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                           polarization=polarization,
                           pathlength=pathlength,
                           specind=specind,
-                          diskangle=diskangle)
+                          diskangle=diskangle,
+                          nu_obs=nu_obs)
         
             outarr_I[:,mbar] = imdat[0]
             outarr_Q[:,mbar] = imdat[1]
@@ -106,10 +110,12 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                 outarr_lp[:,mbar] = imdat[9]
                 outarr_Ie[:,mbar] = imdat[10]
                 
-                outdat = (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g, outarr_sinthb, outarr_n, outarr_np, 
+                outdat = (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g,
+                          outarr_sinthb, outarr_n, outarr_np, 
                           outarr_lp, outarr_Ie)
             else:
-                outdat = (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g, outarr_sinthb, outarr_n, outarr_np)
+                outdat = (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g,
+                          outarr_sinthb, outarr_n, outarr_np)
 
             print('image %i...%0.2f s'%(mbar, time.time()-tstart))
 
@@ -118,7 +124,8 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
 
 def Iobs(a, r_o, th_o, mbar, alpha, beta, 
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
-         polarization=False, pathlength=False, specind=SPECIND, diskangle=DISKANGLE, th_s=np.pi/2):
+         polarization=False, pathlength=False, specind=SPECIND, diskangle=DISKANGLE, nu_obs=OBSFREQ,
+         th_s=np.pi/2):
 
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
@@ -190,26 +197,31 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         g[~zeromask] = gg
 
         ###############################
-        # get emissivity in local frame
-        ###############################
-        Iemis = emissivity.jrest(a, r_s[~zeromask])
-
-        ###############################
         # get polarization quantities
         # if polarization not used, set sin(theta_b) = 1 everywhere
         ###############################
         if polarization:
             sinthb, kappa, llp1, bsq = calc_polquantities(a, r_s[~zeromask], 
-                                                         lam[~zeromask], eta[~zeromask],kr_sign, kth_sign, 
+                                                         lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, 
                                                          velocity=velocity,
                                                          bfield=bfield, th=th_s)
 
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
         else:
-            sinthb = 1
+            sinthb = SINTHB
         
         sin_thb[~zeromask] = sinthb   
-                             
+
+        ###############################
+        # get emissivity in local frame
+        ###############################
+        Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, nu_obs=nu_obs)
+    
+        # add spectral terms to emissivity if not using a physical one
+        # TODO: put this in j_rest? 
+        if not (emissivity.emistype in ['thermal','powerlaw']):
+            Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
+        
         ###############################
         # observed emission
         ###############################  
@@ -225,13 +237,13 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
             #llp2 = llp1*diskangle*r_s[~zeromask]
             #ldiff = 1-np.abs(llp2)/np.abs(llp)
             #print("ldiff:", np.min(ldiff),np.median(ldiff),np.max(ldiff))
-
-            Iobs[~zeromask] = (gg**3) * (gg**specind) * Iemis * (sinthb**(1+specind)) * np.abs(llp)
+            
+            Iobs[~zeromask] = (gg**3) * Iemis * np.abs(llp)
             Ie[~zeromask] = Iemis
             lp[~zeromask] = llp
                     
         else:       
-            Iobs[~zeromask] = (gg**2) * (gg**specind) * Iemis * (sinthb**(1+specind))       
+            Iobs[~zeromask] = (gg**2) * Iemis   
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs[~zeromask]
@@ -358,7 +370,7 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
     u3_l = g33*u3 + g03*u0
                     
     # calculate tetrades
-    tetrades = calc_tetrades(a, r, u0, u1, u2, u3, th=th)
+    tetrades = velocity.tetrades(a, r, th=th)
     ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z)) = tetrades 
                          
     # B-field defined in the lab frame: transform to fluid-frame quantities
@@ -373,13 +385,16 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
         norm2_l = B1*gdet  #dpsidtheta
         norm3_l = 0        #dpsidphi
 
+        # fluid frame bfield
         # here, we assume the field is degenerate and e^\mu = u_\nu F^{\mu\nu} = 0
         # (standard GRMHD assumption)
+        (b0, b1, b2, b3) = bfield.bfield_fluid(a,r,velocity,th=th)
         b0 = B1*u1_l + B2*u2_l + B3*u3_l
         b1 = (B1 + b0*u1)/u0
         b2 = (B2 + b0*u2)/u0
         b3 = (B3 + b0*u3)/u0     
 
+        # covarient
         b0_l = g00*b0 + g03*b3
         b1_l = g11*b1
         b2_l = g22*b2
@@ -494,7 +509,7 @@ def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3
         
     # get path length 
     diskheight = diskangle*r
-    lp = diskheight * (kthat / kzhat)
+    lp = diskheight * (kthat / kyhat)
          
     return lp
       

@@ -80,7 +80,8 @@ class Bfield(object):
     def bfield_lab(self, a, r, th=np.pi/2):
 
         """lab frame b field starF^i0"""
-         
+        if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+             
         if self.fieldframe!='lab':
             raise Exception("Bfield.bfield_lab only supported for Bfield.fieldtype==lab")
                    
@@ -107,7 +108,8 @@ class Bfield(object):
                                 
     def bfield_comoving(self, a, r):
         """fluid frame B-field"""
-        
+        if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+           
         if self.fieldframe!='comoving':
             raise Exception("Bfield.bfield_comoving only supported for Bfield.fieldtype==comoving")
         if self.fieldtype=='const_comoving':                   
@@ -122,6 +124,8 @@ class Bfield(object):
     # TODO ANDREW FIX THESE WITH BETTER DATA STRUCTURES
     def omega_field(self, a, r, th=np.pi/2):
         """fieldline angular speed"""    
+        if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+    
         if self.fieldtype=='bz_monopole':
             (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C,secondorder_only=self.secondorder_only)
         elif self.fieldtype=='bz_guess':
@@ -139,7 +143,8 @@ class Bfield(object):
     def efield_lab(self, a, r, th=np.pi/2):
         """lab frame electric field F^{0i} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
-
+        if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+    
         if self.fieldtype=='bz_monopole' and self.secondorder_only:
             e_components = Efield_BZmonopole(a,r,th, self.C)
         elif self.fieldtype in ['bz_monopole','bz_guess','bz_para','power']:
@@ -163,8 +168,6 @@ class Bfield(object):
             E2 = -(omega-omegaz)*Pi*np.sin(th)*B1/(Sigma*Delta)
             E3 = np.zeros_like(E2) if hasattr(E2, '__len__') else 0
             e_components = (E1, E2, E3)                               
-#            (F01, F02, F03, F12, F13, F23) = self.faraday(a,r)
-#            e_components = (F01, F02, F03)
         else: 
             raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")                        
             
@@ -174,6 +177,8 @@ class Bfield(object):
         """Maxwell tensor starF^{\mu\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
 
+        if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+    
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)  
@@ -200,7 +205,8 @@ class Bfield(object):
     def faraday(self, a, r, th=np.pi/2):
         """Faraday tensor F^{\mu\nu} in BL coordinates. 
            below defn is for stationary, axisymmetric fields"""
-
+        if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+    
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)  
@@ -250,8 +256,73 @@ class Bfield(object):
             raise Exception("self.faraday currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")                        
             
         return F_out
-         
-                        
+    
+    def bfield_fluid(self, a, r, velocity, th=np.pi/2.):
+        """returns b^\mu in frame u^\mu, making ideal MHD assumption, e^\mu=0"""     
+        if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+    
+        # Metric
+        a2 = a**2
+        r2 = r**2
+        cth2 = np.cos(th)**2
+        sth2 = np.sin(th)**2
+        Delta = r2 - 2*r + a2
+        Sigma = r2 + a2 * cth2
+
+        g00 = -(1 - 2*r/Sigma)
+        g11 = Sigma/Delta
+        g22 = Sigma
+        g33 = (r2 + a2 + 2*r*a2*sth2 / Sigma) * sth2
+        g03 = -2*r*a*sth2 / Sigma
+        
+        # bfield components 
+        (B1,B2,B3) = self.bfield_lab(a,r,th=th)
+        
+        # velocity components
+        (u0, u1, u2, u3) = velocity.u_lab(a,r,th=th)
+        (u0_l, u1_l, u2_l, u3_l) = velocity.u_lab_cov(a,r,th=th)
+        
+        # here, we assume the field is degenerate and e^\mu = u_\nu F^{\mu\nu} = 0
+        # (standard GRMHD assumption)
+        b0 = B1*u1_l + B2*u2_l + B3*u3_l
+        b1 = (B1 + b0*u1)/u0
+        b2 = (B2 + b0*u2)/u0
+        b3 = (B3 + b0*u3)/u0     
+        
+        return (b0, b1, b2, b3)
+
+    def bsq(self, a, r, velocity, th=np.pi/2.):
+        """returns b^2 in frame u^\mu, making ideal MHD assumption, e^\mu=0"""     
+        if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+              
+        # Metric
+        a2 = a**2
+        r2 = r**2
+        cth2 = np.cos(th)**2
+        sth2 = np.sin(th)**2
+        Delta = r2 - 2*r + a2
+        Sigma = r2 + a2 * cth2
+
+        g00 = -(1 - 2*r/Sigma)
+        g11 = Sigma/Delta
+        g22 = Sigma
+        g33 = (r2 + a2 + 2*r*a2*sth2 / Sigma) * sth2
+        g03 = -2*r*a*sth2 / Sigma
+        
+        # contravarient components
+        (b0, b1, b2, b3) = self.bfield_fluid(a,r,velocity,th=th)
+        
+        # covarient components
+        b0_l = g00*b0 + g03*b3
+        b1_l = g11*b1
+        b2_l = g22*b2
+        b3_l = g33*b3 + g03*b0
+            
+        # field strength squared
+        bsq = b0*b0_l + b1*b1_l + b2*b2_l + b3*b3_l
+        
+        return bsq
+                                           
 def Bfield_simple(a, r, coeffs):
     """magnetic field vector in the lab frame in equatorial plane,
        simple configurations"""
