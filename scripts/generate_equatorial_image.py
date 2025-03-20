@@ -9,7 +9,7 @@ from kgeo.emissivities import Emissivity
 
 # file label
 label='test'
-save_image = False
+save_image = True
 display_image = True
 
 # source and image parameters
@@ -34,7 +34,7 @@ nu_obs = 230.e9          # frequency
 
 # bh and observer parameters
 th_o = 163*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
-spin = 0.5             # black hole spin, does not work for a=0 or a=1 exactly!
+spin = 0.9             # black hole spin, does not work for a=0 or a=1 exactly!
 r_o = np.inf           # outer radius
                  
 # bfield model
@@ -48,21 +48,21 @@ bfield = Bfield("bz_monopole",C=1)
 # velocity model
 #velocity = Velocity('simfit') # note simfit model will not work for all spins!
 #velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
-#velocity = Velocity('subkep', retrograde=True, fac_subkep=0.7)
+velocity = Velocity('subkep', retrograde=False, fac_subkep=0.7)
 #velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.5, beta_r=0.5)
 #velocity = Velocity('kep',retrograde=False)
-velocity = Velocity('driftframe', bfield=bfield, nu_parallel=0)  
+#velocity = Velocity('driftframe', bfield=bfield, nu_parallel=0)  
 
 # emissivity model
 #emissivity = Emissivity("ring", r_ring=4, sigma=0.3, emiscut_in=3.5, emiscut_out=4.5)
 #emissivity = Emissivity("ring", r_ring=6, sigma=0.3, emiscut_in=5.5, emiscut_out=6.5)
 #emissivity = Emissivity("glm", sigma=0.5, gamma_off=-1)
-#emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
+emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
 #emissivity = Emissivity("thermal",alpha_n=1.5,alpha_T=1,alpha_B=1.,nref=1.e4,Tref=5.e11,Bref=5,
 #                        use_consistent_bfield=True,bfield=bfield,velocity=velocity)
-emissivity = Emissivity("powerlaw",alpha_n=1.5,nref=1.e6,alpha_B=1.,Bref=5,
-                        p=2.5,gammamin=1,gammamax=10000000,
-                        use_consistent_bfield=True,bfield=bfield,velocity=velocity)
+#emissivity = Emissivity("powerlaw",alpha_n=1.5,nref=1.e6,alpha_B=1.,Bref=5,
+#                        p=2.5,gammamin=1,gammamax=10000000,
+#                        use_consistent_bfield=True,bfield=bfield,velocity=velocity)
                         
 ################################################################################################################
 # generate the equatorial model image arrays

@@ -42,7 +42,7 @@ class Bfield(object):
 
         self.fieldtype = fieldtype
 
-        if self.fieldtype in ['rad','vert','tor','simple','simple_rm1','bz_monopole','bz_guess','bz_para','power']:
+        if self.fieldtype in ['rad','vert','tor','simple','simple_rm1','monopoleA','bz_monopole','bz_guess','bz_para','power']:
             self.fieldframe = 'lab'
         elif self.fieldtype in ['const_comoving']:
             self.fieldframe = 'comoving'
@@ -57,6 +57,9 @@ class Bfield(object):
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
             self.secondorder_only = self.kwargs.get('secondorder_only', False)
             self.C = self.kwargs.get('C', 1)
+        elif self.fieldtype in ['monopoleA']:
+            self.omegafac = self.kwargs.get('omegafac',0.5)
+            self.C = self.kwargs.get('C',1)
         elif self.fieldtype == 'power':
             self.secondorder_only = self.kwargs.get('secondorder_only', False)
             self.C = self.kwargs.get('C', 1)
@@ -91,6 +94,9 @@ class Bfield(object):
             b_components = Bfield_simple_rm1(a, r, (self.Cr, self.Cvert, self.Cph))
         elif self.fieldtype=='bz_monopole':
             (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C, secondorder_only=self.secondorder_only)  
+            b_components = (B1,B2,B3)
+        elif self.fieldtype=='monpoleA':
+            (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)
             b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_para':
             (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)  
@@ -128,15 +134,17 @@ class Bfield(object):
     
         if self.fieldtype=='bz_monopole':
             (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C,secondorder_only=self.secondorder_only)
+        elif self.fieldtype=='monopoleA'"
+            (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)        
         elif self.fieldtype=='bz_guess':
             (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
         elif self.fieldtype=='bz_para':
             (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C) 
         elif self.fieldtype=='power':
-             (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono) 
+            (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono) 
 
         else: 
-            raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")       
+            raise Exception("self.omega_field not implemented for fieldtype %s'!"%self.fieldtype)       
         return omega
         
 
@@ -147,9 +155,11 @@ class Bfield(object):
     
         if self.fieldtype=='bz_monopole' and self.secondorder_only:
             e_components = Efield_BZmonopole(a,r,th, self.C)
-        elif self.fieldtype in ['bz_monopole','bz_guess','bz_para','power']:
+        elif self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C,secondorder_only=self.secondorder_only)
+            elif self.fieldtype=='monopoleA'"
+                (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)        
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
@@ -169,7 +179,7 @@ class Bfield(object):
             E3 = np.zeros_like(E2) if hasattr(E2, '__len__') else 0
             e_components = (E1, E2, E3)                               
         else: 
-            raise Exception("self.efield_lab currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")                        
+            raise Exception("self.efield_lab not implemented for fieldtype %s'!"%self.fieldtype)       
             
         return e_components
 
@@ -179,9 +189,11 @@ class Bfield(object):
 
         if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
     
-        if self.fieldtype in ['bz_monopole','bz_guess','bz_para','power']:
+        if self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)  
+            elif self.fieldtype=='monopoleA'"
+                (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)        
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
@@ -198,7 +210,7 @@ class Bfield(object):
             sF_out = (sF01, sF02, sF03, sF12, sF13, sF23)
             
         else: 
-            raise Exception("self.maxwell currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")                        
+            raise Exception("self.maxwell not implemented for fieldtype %s'!"%self.fieldtype)       
             
         return sF_out
          
@@ -207,9 +219,11 @@ class Bfield(object):
            below defn is for stationary, axisymmetric fields"""
         if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
     
-        if self.fieldtype in ['bz_monopole','bz_guess','bz_para','power']:
+        if self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)  
+            elif self.fieldtype=='monopoleA'"
+                (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)        
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)   
             elif self.fieldtype=='bz_para':
@@ -253,7 +267,7 @@ class Bfield(object):
             F_out = (F01, F02, F03, F12, F13, F23)
             
         else: 
-            raise Exception("self.faraday currently only works for self.fieldtype='bz_monopole' or 'bz_guess'!")                        
+            raise Exception("self.faraday not implemented for fieldtype %s'!"%self.fieldtype)       
             
         return F_out
     
@@ -371,7 +385,25 @@ def Bfield_simple_rm1(a, r, coeffs):
     Bph = ator*(1./gdet) 
    
     return (Br, Bth, Bph)  
-       
+
+def Bfield_monopoleA(a, r, th, C=1, omegafac=0.5):
+    """Simplified monopole enforcing Znajek condition at horizon
+       will not have physical drift velocity at all radii"""
+
+    rh = 1 + np.sqrt(1-a**2)  # horizon radius
+    areah = 8*np.pi*rh        # horizon area
+    omegah = a/(2*rh)         # horizon angular speed
+    phih = C*areah/(rh**2)    # horizon flux
+            
+    omegaf = omegafac*omegah  # fieldline angular speed
+
+    I = 0.5*phih*(omegaf-omegah)*np.sin(th)**2 # current
+    B1 = (phih/areah)*((r/rh)**(-2))
+    B2 = 0
+    B3 = I / (2*np.pi*Delta*(np.sin(th)**2))
+    
+    return(B1,B2,B3,omegaf)
+                 
 def Bfield_BZmagic(a, r, th, C=1):
     """Guess ratio for Bphi/Br from split monopole
        C is overall sign of monopole"""
@@ -380,10 +412,8 @@ def Bfield_BZmagic(a, r, th, C=1):
         raise Exception("|a| should be a float in range [0,1)")
 
 
-   # th = np.pi/2. # TODO equatorial plane only
     a2 = a**2
     r2 = r**2
-#    th = np.pi/2. # equatorial
     sth = np.sin(th)
     cth = np.cos(th)
     cth2 = cth**2
@@ -422,7 +452,6 @@ def Bfield_BZmonopole(a, r, th, C=1, secondorder_only=False):
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
 
-#    th = np.pi/2. # TODO equatorial plane only
     a2 = a**2
     r2 = r**2
     sth = np.sin(th)

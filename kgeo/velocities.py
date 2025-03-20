@@ -575,11 +575,9 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
     if retbunit: #returns gammaperp and raised unit vector along B (useful for FF computations)
         return (alpha, v3, 1/vpar_max, B3/np.sqrt(Bsq))
     
-    
     vsq = g11*v1*v1 + g22*v2*v2 + g33*v3*v3
     gamma = 1./np.sqrt(1-vsq)
     
-
     if gammamax: #approximate MHD gamma by summing gamma_FF and gamma_max in series
         pval0 = 2.0
         gammamax = gammamax*np.ones_like(gamma)
