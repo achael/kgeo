@@ -536,13 +536,12 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
     eta3 = 2*a*r/np.sqrt(Delta*Sigma*Xi)
     
     # e and b field
-    omega = bfield.omega_field(a,r,th=th)
+    omegaf = bfield.omega_field(a,r,th=th)
     (B1,B2,B3) = bfield.bfield_lab(a,r,th=th)
-    (E1,E2,E3) = bfield.efield_lab(a,r,th=th)
+    #(E1,E2,E3) = bfield.efield_lab(a,r,th=th) #unnecessary
 
-
-    E1 = (omega-omegaz)*Xi*np.sin(th)*B2/Sigma
-    E2 = -(omega-omegaz)*Xi*np.sin(th)*B1/(Sigma*Delta)
+    E1 = (omegaf-omegaz)*Xi*np.sin(th)*B2/Sigma
+    E2 = -(omegaf-omegaz)*Xi*np.sin(th)*B1/(Sigma*Delta)
     E3 = 0            
                 
     Bsq = g11*B1*B1 + g22*B2*B2 + g33*B3*B3
@@ -582,26 +581,26 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
     
 
     if gammamax: #approximate MHD gamma by summing gamma_FF and gamma_max in series
-            pval0 = 2.0
-            gammamax = gammamax*np.ones_like(gamma)
-            gammaeff = (1/gammamax**pval0+1/gamma**pval0)**(-1/pval0)
-            #argdiv = np.argmin(np.abs(np.nan_to_num(gammaeff, nan=np.inf)))
-            if eps >= 0:
-                gammaeff0 = (1+eps)*gammaeff#gammaeff*gamma[argdiv]/gammaeff[argdiv] #ensure gamma>1 always
+        pval0 = 2.0
+        gammamax = gammamax*np.ones_like(gamma)
+        gammaeff = (1/gammamax**pval0+1/gamma**pval0)**(-1/pval0)
+        #argdiv = np.argmin(np.abs(np.nan_to_num(gammaeff, nan=np.inf)))
+        if eps >= 0:
+            gammaeff0 = (1+eps)*gammaeff#gammaeff*gamma[argdiv]/gammaeff[argdiv] #ensure gamma>1 always
 
-            else:
-                argdiv = np.argmin(np.abs(np.nan_to_num(gammaeff, nan=np.inf)))
-                gammaeff0 = gammaeff*gamma[argdiv]/gammaeff[argdiv] #ensure gamma>1 always
-            
-            vsqeff = 1-1/gammaeff0**2 #convert 
-            v1new  = v1*np.sqrt(vsqeff/vsq)
-            v2new = v2*np.sqrt(vsqeff/vsq)
-            v3new = v3*np.sqrt(vsqeff/vsq)
+        else:
+            argdiv = np.argmin(np.abs(np.nan_to_num(gammaeff, nan=np.inf)))
+            gammaeff0 = gammaeff*gamma[argdiv]/gammaeff[argdiv] #ensure gamma>1 always
+        
+        vsqeff = 1-1/gammaeff0**2 #convert 
+        v1new  = v1*np.sqrt(vsqeff/vsq)
+        v2new = v2*np.sqrt(vsqeff/vsq)
+        v3new = v3*np.sqrt(vsqeff/vsq)
 
-            v1 = v1new
-            v2 = v2new
-            v3 = v3new
-            gamma = np.real(gammaeff0)
+        v1 = v1new
+        v2 = v2new
+        v3 = v3new
+        gamma = np.real(gammaeff0)
     
     u0 = gamma/alpha
     u1 = gamma*(v1 + eta1)

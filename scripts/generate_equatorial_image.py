@@ -16,7 +16,7 @@ display_image = True
 source = 'M87'
 MBH = 6.5e9       # solar masses
 rg = 147700*MBH   # cm
-MoD = 3.77883459  # this is what was used for M/D in uas for the M87 simulations
+MoD = 3.82 #3.77883459  # this is what was used for M/D in uas for the M87 simulations
 ra = 12.51373 
 dec = 12.39112 
 flux230 = 0.6     # total flux
@@ -28,41 +28,41 @@ f2 = 1            # scaling factor for n>=2 flux
 nmax = 2          # maximum subring number
 rotation = 0#-90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
 polarization = True      # make polarized image or not
-pathlength = True        # include disk pathlength factor or not
+pathlength = False        # include disk pathlength factor or not
 specind = 1              # spectral index
 nu_obs = 230.e9          # frequency
 
 # bh and observer parameters
-th_o = 60*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
-spin = 0.99             # black hole spin, does not work for a=0 or a=1 exactly!
+th_o = 163*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
+spin = 0.5             # black hole spin, does not work for a=0 or a=1 exactly!
 r_o = np.inf           # outer radius
-
-
-# velocity model
-#velocity = Velocity('simfit') # note simfit model will not work for all spins!
-#velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
-#velocity = Velocity('subkep', retrograde=True, fac_subkep=0.7)
-velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.5, beta_r=0.5)
-#velocity = Velocity('kep',retrograde=False)
-
+                 
 # bfield model
 #bfield = Bfield("simple", Cr=0.87, Cvert=0, Cph=0.5)
 #bfield = Bfield("simple_rm1", Cr=0.87, Cvert=0, Cph=0.5) 
 #bfield = Bfield("const_comoving", Cr=0.5, Cvert=0, Cph=0.87) 
 bfield = Bfield("bz_monopole",C=1)
 #bfield = Bfield("bz_guess",C=1)
-#bfield = Bfield("simple", Cr=1, Cvert=0, Cph=0.5)
+#bfield = Bfield("simple", Cr=0, Cvert=1, Cph=0)
+
+# velocity model
+#velocity = Velocity('simfit') # note simfit model will not work for all spins!
+#velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
+#velocity = Velocity('subkep', retrograde=True, fac_subkep=0.7)
+#velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.5, beta_r=0.5)
+#velocity = Velocity('kep',retrograde=False)
+velocity = Velocity('driftframe', bfield=bfield, nu_parallel=0)  
 
 # emissivity model
 #emissivity = Emissivity("ring", r_ring=4, sigma=0.3, emiscut_in=3.5, emiscut_out=4.5)
 #emissivity = Emissivity("ring", r_ring=6, sigma=0.3, emiscut_in=5.5, emiscut_out=6.5)
 #emissivity = Emissivity("glm", sigma=0.5, gamma_off=-1)
 #emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
-#emissivity = Emissivity("thermal",alpha_n=0.7,alpha_T=0.5,alpha_B=1.,nref=1.e6,Tref=5.e10,Bref=5,
-#                        use_consistent_bfield=False,bfield=bfield,velocity=velocity)
-emissivity = Emissivity("powerlaw",alpha_n=1,nref=1.e6,alpha_B=1.5,Bref=5,
-                        p=3,gammamin=3,gammamax=100,
-                        use_consistent_bfield=False,bfield=bfield,velocity=velocity)
+#emissivity = Emissivity("thermal",alpha_n=1.5,alpha_T=1,alpha_B=1.,nref=1.e4,Tref=5.e11,Bref=5,
+#                        use_consistent_bfield=True,bfield=bfield,velocity=velocity)
+emissivity = Emissivity("powerlaw",alpha_n=1.5,nref=1.e6,alpha_B=1.,Bref=5,
+                        p=2.5,gammamin=1,gammamax=10000000,
+                        use_consistent_bfield=True,bfield=bfield,velocity=velocity)
                         
 ################################################################################################################
 # generate the equatorial model image arrays
@@ -109,9 +109,13 @@ if polarization:
     
 # make an Image, normalize and save
 psize_rad = psize*MoD*eh.RADPERUAS
-#fluxscale = flux230/np.sum(imarr)
-fluxscale = (2.22152e-30)*rg*(1.e23)*(psize_rad**2)  #Jy/pixel
 
+if emissivity.emistype in ['thermal','powerlaw']:
+    fluxscale = (2.22152e-30)*rg*(1.e23)*(psize_rad**2)  #Jy/pixel
+    fluxscale2 = flux230/np.sum(imarr)
+    print("DENSITY SCALE NEEDED = %.2e cm^-3"%(fluxscale2/fluxscale * emissivity.nref))
+else:
+    fluxscale = flux230/np.sum(imarr)
 
 im = eh.image.Image(imarr*fluxscale, psize_rad, ra, dec, rf=nu_obs)
 #im.imvec[im.imvec==0]=+1.e-60
@@ -141,7 +145,7 @@ if save_image:  imnp.save_fits('./m87_model_%s_np.fits'%label)
 
 if polarization:
     # make a image of the n=0 sin^theta term and save
-    stharr = np.flipud(outarr_sinthb[:,0].reshape(npix,npix))   # sin(theta)
+    stharr = np.flipud(outarr_sinthb[:,1].reshape(npix,npix))   # sin(theta)
     imsth = eh.image.Image(stharr, psize_rad, ra, dec)
     #imsth = eh.image.Image(stharr**2/np.max(stharr**2), psize_rad, ra, dec)
     imsth.source = source

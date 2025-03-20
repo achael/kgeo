@@ -20,6 +20,7 @@ kgeo/kerr_raytracing_utils.py
 kgeo/off_eq.py
 kgeo/scipy_ellip_binding.py
 kgeo/solver.py
+kgeo/synchpl_gxfit.csv
 kgeo/velocities.py
 kgeo.egg-info/PKG-INFO
 kgeo.egg-info/SOURCES.txt

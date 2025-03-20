@@ -238,7 +238,8 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
             #ldiff = 1-np.abs(llp2)/np.abs(llp)
             #print("ldiff:", np.min(ldiff),np.median(ldiff),np.max(ldiff))
             
-            Iobs[~zeromask] = (gg**3) * Iemis * np.abs(llp)
+            Iemis *= np.abs(llp)
+            Iobs[~zeromask] = (gg**3) * Iemis
             Ie[~zeromask] = Iemis
             lp[~zeromask] = llp
                     
@@ -479,7 +480,8 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
 
     return (sinthb, kappa, pathlength, bsq)
 
-def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2, diskangle=DISKANGLE):
+def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
+                               th=np.pi/2, diskangle=DISKANGLE):
     """ calculate rest frame path length through equatorial disk (Narayan+2021 eq 13)"""
 
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()

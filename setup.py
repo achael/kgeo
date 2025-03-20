@@ -34,7 +34,7 @@ if __name__ == "__main__":
             'Programming Language :: Python :: 3.8',
           ],
           include_package_data=True,
-          package_data={'': ['*.dat']},
+          package_data={'': ['*.dat','*.csv']},
 
          )
 

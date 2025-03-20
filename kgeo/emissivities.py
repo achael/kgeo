@@ -7,6 +7,7 @@ import time
 from mpmath import polylog
 from scipy.interpolate import UnivariateSpline, RegularGridInterpolator
 import os
+import pkg_resources
 
 # kgeo path TODO
 KGEOPATH = '/home/achael/RelElectrons/kgeo/kgeo'
@@ -236,8 +237,10 @@ def emisPowerlaw(a, r, g, sinthetab, nu_obs,
     return jnu       
   
 
-# power law emissivity function
-synchpldat = np.loadtxt(KGEOPATH+'/synchpl_gxfit.csv',dtype=float,delimiter=',')
+# power law emissivity function from presaved data
+datafile = pkg_resources.resource_stream(__name__, 'synchpl_gxfit.csv')
+synchpldat = np.loadtxt(datafile, dtype=float,delimiter=',')
+#synchpldat = np.loadtxt(KGEOPATH+'/synchpl_gxfit.csv',dtype=float,delimiter=',')
 pvals = np.unique(synchpldat[:,0])
 logxvals = np.unique(synchpldat[:,1])
 gxvals = synchpldat[:,2].reshape((len(pvals), len(logxvals)))
