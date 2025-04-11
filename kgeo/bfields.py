@@ -95,7 +95,7 @@ class Bfield(object):
         elif self.fieldtype=='bz_monopole':
             (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C, secondorder_only=self.secondorder_only)  
             b_components = (B1,B2,B3)
-        elif self.fieldtype=='monpoleA':
+        elif self.fieldtype=='monopoleA':
             (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)
             b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_para':
@@ -134,7 +134,7 @@ class Bfield(object):
     
         if self.fieldtype=='bz_monopole':
             (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C,secondorder_only=self.secondorder_only)
-        elif self.fieldtype=='monopoleA'"
+        elif self.fieldtype=='monopoleA':
             (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)        
         elif self.fieldtype=='bz_guess':
             (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
@@ -158,7 +158,7 @@ class Bfield(object):
         elif self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C,secondorder_only=self.secondorder_only)
-            elif self.fieldtype=='monopoleA'"
+            elif self.fieldtype=='monopoleA':
                 (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)        
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
@@ -192,7 +192,7 @@ class Bfield(object):
         if self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)  
-            elif self.fieldtype=='monopoleA'"
+            elif self.fieldtype=='monopoleA':
                 (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)        
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)
@@ -222,7 +222,7 @@ class Bfield(object):
         if self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)  
-            elif self.fieldtype=='monopoleA'"
+            elif self.fieldtype=='monopoleA':
                 (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)        
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)   
@@ -391,17 +391,22 @@ def Bfield_monopoleA(a, r, th, C=1, omegafac=0.5):
        will not have physical drift velocity at all radii"""
 
     rh = 1 + np.sqrt(1-a**2)  # horizon radius
-    areah = 8*np.pi*rh        # horizon area
     omegah = a/(2*rh)         # horizon angular speed
-    phih = C*areah/(rh**2)    # horizon flux
-            
-    omegaf = omegafac*omegah  # fieldline angular speed
+    phih = 4*np.pi*C    # horizon flux
 
-    I = 0.5*phih*(omegaf-omegah)*np.sin(th)**2 # current
-    B1 = (phih/areah)*((r/rh)**(-2))
+    a2 = a**2
+    r2 = r**2
+    cth = np.cos(th)
+    cth2 = cth**2
+    Delta = r2 - 2*r + a2
+    Sigma = r2 + a2*cth2
+    omegaf = omegafac*omegah  # fieldline angular speed
+    
+    I = phih*(np.sin(th)**2)*rh*(omegaf-omegah)/(rh**2 + a**2*np.cos(th)**2) # current
+    B1 = (phih/(4*np.pi))/Sigma
     B2 = 0
     B3 = I / (2*np.pi*Delta*(np.sin(th)**2))
-    
+        
     return(B1,B2,B3,omegaf)
                  
 def Bfield_BZmagic(a, r, th, C=1):
