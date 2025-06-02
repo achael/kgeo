@@ -407,11 +407,11 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
         
         #stagnation surface for paraboloid
         elif bfield.fieldtype == 'bz_para':
-            psihere = psiBZpara(r[ind], th[ind], a) #compute psi of the fieldline chosen
+            psihere = psiBZpara(r[ind], th[ind], a, shift=bfield.shift) #compute psi of the fieldline chosen
             try:
-                r0, theta0 = r0min_para(psihere, omega, a, 1.0)
+                r0, theta0 = r0min_para(psihere, omega, a, 1.0, shift=bfield.shift)
             except:
-                r0, theta0 = r0min_para(.999999*psihere, omega, a, 1.0)
+                r0, theta0 = r0min_para(.999999*psihere, omega, a, 1.0, shift=bfield.shift)
         
         elif bfield.fieldtype == 'power':
             psihere = psiBZpower(r[ind], th[ind], bfield.pval) #compute psi of the fieldline chosen
@@ -530,6 +530,11 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
     u3 = gamma*(v3 + eta3)
     
     if retqty:
-        return (gamma, g11*v1, g22*v2, g33*v3)
+        Bdotv = g11*v1*B1 + g22*v2*B2 + g33*v3*B3
+        v1perp = v1 - B1*Bdotv/Bsq #subtract off vpar to get vperp
+        v2perp = v2 - B2*Bdotv/Bsq
+        v3perp = v3 - B3*Bdotv/Bsq
+        vperpsq = g11*v1perp*v1perp + g22*v2perp*v2perp + g33*v3perp*v3perp
+        return (np.sqrt(vperpsq), v1perp, v2perp, v3perp) #returns magnitude of vperp
     
     return (u0, u1, u2, u3)

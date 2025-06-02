@@ -305,7 +305,6 @@ def calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2)
     g = 1 / (1*u0 - lam*u3 - np.sign(kth_sign)*u2*np.sqrt(TH) - np.sign(kr_sign)*u1*np.sqrt(R)/Delta)
     
     return g
-
 def calc_tetrades(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2):
     """ calculate tetrads for transformation to orthonormal frame"""
 
@@ -521,7 +520,7 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     B = ((r2+a2)*(k3*f2 - k2*f3) - a*(k0*f2 - k2*f0))*np.sin(th)
     kappa = (r - 1j*a*np.cos(th))*(A - 1j*B)
 
-    return (sinthb, kappa, pathlength, bsq)
+    return (sinthb, kappa, pathlength, bsq, np.abs(kdotnorm))
 
 def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2, diskangle=DISKANGLE):
     """ calculate rest frame path length through equatorial disk (Narayan+2021 eq 13)"""

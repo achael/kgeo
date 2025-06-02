@@ -125,7 +125,7 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
 #get stokes parameters for a grid with off-equatorial emission in BZ model
 def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, eta=1, outgeo=None, tol=1e-8, emit='jet',
               nu_parallel = 0, pval=1, gammamax=None, retvals = False, vel='driftframe', sigma=2, sumsubring=True, usemono=False, retsin=False, 
-              sigmaplasma=1, pathcor='R', specind = 1, anis = None): #neqmax is the maximum number of equatorial crossings
+              sigmaplasma=1, pathcor='R', specind = 1, anis = None, shift = 0): #neqmax is the maximum number of equatorial crossings
     ashape = alphavals.shape #store shapes for later
     alphavals = alphavals.flatten() #flatten since we need everything to be a vector for our code to work
     betavals = betavals.flatten()
@@ -139,7 +139,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
                  savedata=False, plotdata=False)
     
     #solve for crossing points and densities there
-    tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = do_phi_and_t, model=model, neqmax=neqmax, tol=tol, pval=pval)
+    tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = do_phi_and_t, model=model, neqmax=neqmax, tol=tol, pval=pval, shift=shift)
 
     print('guesses before ', guesses_shape)
     #reshape coordinates
@@ -148,7 +148,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
 
     #initialize arrays
     if model == 'para':
-        bf = Bfield('bz_para')
+        bf = Bfield('bz_para', shift=shift)
     elif model == 'mono':
         bf = Bfield('bz_monopole') #initialize bfield
     elif model == 'power':
@@ -160,7 +160,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
         dvals = np.exp(-rvals/3) #cuts off after photon ring
 
     elif emit == 'sigma':
-        dvals = densityconstsigma(rvals, thvals, a, nu_parallel, sigmaplasma, model, gammamax=gammamax, pval = pval, usemono=usemono)
+        dvals = densityconstsigma(rvals, thvals, a, nu_parallel, sigmaplasma, model, gammamax=gammamax, pval = pval, usemono=usemono, shift=shift, velmodel=vel)
     
     elif emit == 'poynting':
         dvals = densitypoynting(rvals, thvals, a, bf, gammamax=gammamax, nu_parallel = nu_parallel)
@@ -175,7 +175,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     
 
     outvec = Iobs_off(a, r_o, rvals, th_o, alphavals, betavals, signpr, signptheta,
-    emissivity=Emissivity('constant'), velocity=Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel, gammamax=gammamax), bfield=bf,
+    emissivity=Emissivity('constant'), velocity=Velocity(vel, bfield=bf, nu_parallel = nu_parallel, gammamax=gammamax), bfield=bf,
     polarization=True,  specind=specind, th_s=thvals, density=dvals, retsin=retsin, emit=emit, pathcor=pathcor, anis = anis) #generate data
 
     iobs = np.copy(outvec[0])

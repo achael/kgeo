@@ -57,6 +57,7 @@ class Bfield(object):
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
             self.secondorder_only = self.kwargs.get('secondorder_only', False)
             self.C = self.kwargs.get('C', 1)
+            self.shift = self.kwargs.get('shift', 0)
         elif self.fieldtype == 'power':
             self.secondorder_only = self.kwargs.get('secondorder_only', False)
             self.C = self.kwargs.get('C', 1)
@@ -92,7 +93,7 @@ class Bfield(object):
             (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C, secondorder_only=self.secondorder_only)  
             b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_para':
-            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)  
+            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)  
             b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_guess':
             (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
@@ -127,7 +128,7 @@ class Bfield(object):
         elif self.fieldtype=='bz_guess':
             (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
         elif self.fieldtype=='bz_para':
-            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C) 
+            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C, shift=self.shift) 
         elif self.fieldtype=='power':
              (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono) 
 
@@ -148,7 +149,7 @@ class Bfield(object):
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
-                (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)
+                (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)
             elif self.fieldtype=='power':
                 (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
             a2 = a**2
@@ -158,7 +159,7 @@ class Bfield(object):
             Delta = r2 - 2*r + a2
             Sigma = r2 + a2 * cth2  
             Pi = (r2+a2)**2 - a2*Delta*sth2
-            omegaz=2*a*r/Pi;
+            omegaz=2*a*r/Pi
             E1 = (omega-omegaz)*Pi*np.sin(th)*B2/Sigma
             E2 = -(omega-omegaz)*Pi*np.sin(th)*B1/(Sigma*Delta)
             E3 = np.zeros_like(E2) if hasattr(E2, '__len__') else 0
@@ -180,7 +181,7 @@ class Bfield(object):
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
-                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C)
+                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)
             elif self.fieldtype=='power':
                 (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
             sF01 = -B1
@@ -207,7 +208,7 @@ class Bfield(object):
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)   
             elif self.fieldtype=='bz_para':
-                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C)  
+                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)  
             elif self.fieldtype=='power' :
                 (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
 
@@ -407,13 +408,30 @@ def Efield_BZmonopole(a, r, th, C=1):
                 
     return(0, Eth, 0)   
 
-def omega_BZpara(th, psi, a):
+def omega_BZpara(th, psi, a, shift=0):
     rp = 1+np.sqrt(1-a**2) #outer radius
-    abscth = np.abs(np.cos(th))
-    wfunc = sp.lambertw(-psi/rp+np.log(4), k=0)
-    xfunc = np.exp(wfunc)
-    yfunc = 1+psi/(1+wfunc)/(xfunc*(2-xfunc))
-    return a/4/yfunc
+    cth = np.cos(th)
+    abscth = np.abs(cth)
+    OmegaH = a/(2*rp) #horizon angular velocity
+    
+    wfunc = sp.lambertw((-psi/rp+2*shift/rp+np.log(4))*np.exp(shift/rp), k=0)
+    xfunc = np.exp(-shift/rp+wfunc)
+    # num = OmegaH*rp*(rp-shift+rp*wfunc)*(2-xfunc)*xfunc
+    # denom = rp*(xfunc*(2-xfunc)*(rp-shift+rp*wfunc)+rp*psi)+a**2*psi*(xfunc-1)**2
+    
+    num = OmegaH*rp**2*(1+wfunc)*xfunc*(2-xfunc)
+    denom = rp**2*(xfunc*(2-xfunc)*(1+wfunc)+psi) + a**2*psi*(1-xfunc)**2
+    
+    return np.real(num/denom)
+    # if shift != 0: #applying paraboloidal shift
+    #     sth = np.sin(th)
+    #     dpsidtheta = np.sign(cth) * sth * (rp+rp*np.log(1+abscth))
+    #     return OmegaH*sth*dpsidtheta/(rp*psi+sth*dpsidtheta) #an equivalent formulation of the Znajek condition that doesn't rely on 
+    
+    # wfunc = sp.lambertw(-psi/rp+np.log(4), k=0)
+    # xfunc = np.exp(wfunc)
+    # yfunc = 1+psi/(1+wfunc)/(xfunc*(2-xfunc))
+    # return a/4/yfunc
 
 
 def omega_BZpower(th, psi, a, p, usemono=False):
@@ -425,7 +443,7 @@ def omega_BZpower(th, psi, a, p, usemono=False):
     return a/(4+denomfac) #equal to a/(4(1+sec^2(theta/2))) via trig identities
 
 
-def Bfield_BZpara(a, r, th, C=1):
+def Bfield_BZpara(a, r, th, C=1, shift=0):
     """perturbative BZ paraboloid solution.
        C is overall sign"""
 
@@ -446,21 +464,21 @@ def Bfield_BZpara(a, r, th, C=1):
     gdet = sth*Sigma
     
     #vector potential
-    psi = r*(1-abscth)+rp*(1+abscth)*(1-np.log(1+abscth))-2*rp*(1-np.log(2))
-    dpsidtheta = np.sign(cth) * sth * (r+rp*np.log(1+abscth))
+    psi = (r+shift)*(1-abscth)+rp*(1+abscth)*(1-np.log(1+abscth))-2*rp*(1-np.log(2))
+    dpsidtheta = np.sign(cth) * sth * (r+shift+rp*np.log(1+abscth))
     dpsidr = 1-abscth
 
-    argvals = -psi/rp + np.log(4) #valid solution up until this equals zero
+    argvals = (shift+rp*np.log(4))-psi #-psi/rp + np.log(4) #valid solution up until this equals zero
 
     if not hasattr(psi, '__len__'): #allows for psi to be an array or a scalar
         if argvals >= 0:
 
-            OmegaBZ = omega_BZpara(th, psi, a)
+            OmegaBZ = omega_BZpara(th, psi, a, shift=shift)
         else:
             OmegaBZ = 0
 
     else:
-        OmegaBZ = C*omega_BZpara(th, psi, a)*((argvals>=-1/np.e).astype('int'))
+        OmegaBZ = C*omega_BZpara(th, psi, a, shift=shift)*((argvals>=0).astype('int')) #((argvals>=-1/np.e).astype('int'))
     
     #current
     I = -4*np.pi*psi*OmegaBZ * np.sign(cth)

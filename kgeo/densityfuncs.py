@@ -114,17 +114,17 @@ def eta_para(thetavals, theta0, spin, psi, sigma):
 
 
 #density for BZ paraboloid
-def density_para_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel, sigma, neqmax=2, gammamax=None):
+def density_para_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel, sigma, neqmax=2, gammamax=None, shift=0):
     #properties of fieldline
     rp = 1+np.sqrt(1-spin**2)
 
     #initialize
-    bfield = Bfield("bz_para", C=1)
+    bfield = Bfield("bz_para", C=1, shift=shift)
     rnew = np.reshape(rvals, guesses_shape)
     thnew = np.arccos(np.abs(np.cos(np.reshape(thvals, guesses_shape)))) #only works for above equator, but we can employ reflection symmetry
     rhovals = []
     indstart = np.where(np.nan_to_num(rnew)[0]!=0)[0][0]
-    omega = bfield.omega_field(spin,rnew[0][indstart],th=thnew[0][indstart])
+    omega = bfield.omega_field(spin,rnew[0][indstart],th=thnew[0][indstart], shift=bfield.shift)
 
     #stagnation surface
     r0, theta0 = r0min_para(psiBZpara(rnew[0][indstart], thnew[0][indstart], spin), omega, spin, 1.0)
@@ -224,11 +224,11 @@ def density_power_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel
 
 
 #compute density assuming that sigma=b^2/rho=sigmaplasma=const
-def densityconstsigma(rvals, thvals, a, nu_parallel, sigmaplasma, model, gammamax=None, pval = 1.0, usemono=False):
+def densityconstsigma(rvals, thvals, a, nu_parallel, sigmaplasma, model, gammamax=None, pval = 1.0, usemono=False, shift=0, velmodel='driftframe'):
     if model == 'mono':
         bfield = Bfield("bz_monopole", C=1)
     elif model == 'para':
-        bfield = Bfield("bz_para", C=1)
+        bfield = Bfield("bz_para", C=1, shift=shift)
     elif model == 'power':
         bfield = Bfield("power", p=pval, usemono=usemono)
     (B1, B2, B3) = bfield.bfield_lab(a, rvals, th=thvals)
@@ -250,7 +250,7 @@ def densityconstsigma(rvals, thvals, a, nu_parallel, sigmaplasma, model, gammama
 
 
     #compute velocity
-    vel = Velocity('driftframe', bfield = bfield, nu_parallel = nu_parallel, gammamax = gammamax)
+    vel = Velocity(velmodel, bfield = bfield, nu_parallel = nu_parallel, gammamax = gammamax)
     (u0,u1,u2,u3) = vel.u_lab(a, rvals, th=thvals)
     u0_l = g00*u0 + g03*u3
     u1_l = g11*u1

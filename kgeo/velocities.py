@@ -407,11 +407,11 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
         
         #stagnation surface for paraboloid
         elif bfield.fieldtype == 'bz_para':
-            psihere = psiBZpara(r[ind], th[ind], a) #compute psi of the fieldline chosen
+            psihere = psiBZpara(r[ind], th[ind], a, shift=bfield.shift) #compute psi of the fieldline chosen
             try:
-                r0, theta0 = r0min_para(psihere, omega, a, 1.0)
+                r0, theta0 = r0min_para(psihere, omega, a, 1.0, shift=bfield.shift)
             except:
-                r0, theta0 = r0min_para(.999999*psihere, omega, a, 1.0)
+                r0, theta0 = r0min_para(.999999*psihere, omega, a, 1.0, shift=bfield.shift)
         
         elif bfield.fieldtype == 'power':
             psihere = psiBZpower(r[ind], th[ind], bfield.pval) #compute psi of the fieldline chosen

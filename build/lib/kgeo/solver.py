@@ -28,10 +28,10 @@ import scipy
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 
 #psi for parabolic BZ soln
-def psi_BZ_para(r, theta, a): #theta in radians
+def psi_BZ_para(r, theta, a, shift=0): #theta in radians
     abscth = np.abs(np.cos(theta))
     rp = 1+np.sqrt(1-a**2)
-    return r*(1-abscth)+rp*(1+abscth)*(1-np.log(1+abscth))-2*rp*(1-np.log(2))
+    return (r+shift)*(1-abscth)+rp*(1+abscth)*(1-np.log(1+abscth))-2*rp*(1-np.log(2))
 
 
 # "" for monopole
@@ -42,9 +42,9 @@ def psi_BZ_mono(theta):
 def psi_power(r,theta,pval):
     return r**pval*(1-np.abs(np.cos(theta)))
 
-def psifunc(r, theta, a, model='para', pval=1): #defines psi
+def psifunc(r, theta, a, model='para', pval=1, shift=0): #defines psi
     if model == 'para':
-        return psi_BZ_para(r, theta, a) 
+        return psi_BZ_para(r, theta, a, shift=shift) 
     elif model=='mono':
         return psi_BZ_mono(theta)
     elif model == 'power':
@@ -110,21 +110,23 @@ def makegoodarray(arr): #converts guess array into correct dimensions
     return np.transpose(np.copy(result))
 
 
-def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_t=True, neqmax=1, model='para',pval=1): #returns guesses for the psi of the first equatorial crossing
+def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_t=True, neqmax=1, model='para',pval=1,shift=0): #returns guesses for the psi of the first equatorial crossing
     tauguesses = []
     
     taumaxes = get_maxtau_forwardjet(a, rout, inc, alphas, betas, neqmax=neqmax)
-    psifromgeo = psifunc(outgeo.r_s, outgeo.th_s, a, model=model,pval=pval) - psitarget
+    psifromgeo = psifunc(outgeo.r_s, outgeo.th_s, a, model=model, pval=pval, shift=shift) - psitarget
     
     for i in range(len(alphas)):
         impactparam = np.sqrt(alphas[i]**2+betas[i]**2)
-        if np.abs(np.sin(inc)) < .1 and impactparam > 100: #can use flat-space face-on raytracing for guess
+        if np.abs(np.sin(inc)) < .1 and impactparam > 100: #100: #can use flat-space face-on raytracing for guess
             if model == 'power' and pval > 0:
                 rparam = (impactparam**2/(2*psitarget))**(1/(2-pval)) #large r approximations
                 tauguesses.append(np.array([1/rparam, 2/impactparam-1/rparam]))
                 continue
             elif model == 'para':
                 rparam = (impactparam**2+psitarget**2)/(2*psitarget)
+                if rparam >= shift:
+                    rparam -= shift
                 tauguesses.append(np.array([1/rparam, 2/impactparam-1/rparam]))
                 continue
             else:
@@ -150,10 +152,9 @@ def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_
 
 
 #find crossing using newton's method
-
-def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, tol=1e-8,pval=1): 
+def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, tol=1e-8, pval=1, shift=0, retphi = False): 
     #guesses  
-    guesses = getguesses(outgeo, a, r_o, th_o, alpha, beta, psitarget, ngeo, do_phi_and_t=do_phi_and_t, neqmax=neqmax, model=model, pval=pval)
+    guesses = getguesses(outgeo, a, r_o, th_o, alpha, beta, psitarget, ngeo, do_phi_and_t=do_phi_and_t, neqmax=neqmax, model=model, pval=pval, shift=shift)
     guesses_shape = guesses.shape
     print(guesses_shape)
 
@@ -193,7 +194,7 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
         (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(minotimes, (1, len(minotimes))),
                                         do_phi_and_t=True)
        
-        arrhere = psifunc(r_s[0], th_s[0], a, model=model,pval=pval) - psitarget
+        arrhere = psifunc(r_s[0], th_s[0], a, model=model, pval=pval, shift=shift) - psitarget
         arrhere[guesses == -1] = 0 #no intersections
 
         return arrhere
@@ -220,9 +221,13 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
     signptheta = np.sign(th_s-th_s_further)[0]
     r_s = np.copy(r_s[0])
     th_s = np.copy(th_s[0])
+    ph_s = np.copy(I_ph[0] + lam*G_ph[0])
 
     neqvals = getneq(a, outqty, u_minus, u_plus, th_s, th_o, signptheta, betatile)
 
     outqty[guesses == -1] = r_s[guesses==-1] = th_s[guesses==-1] = signpr[guesses==-1] = signptheta[guesses==-1] = 0 #no crossing
+    
+    if retphi:
+        return outqty, r_s, th_s, ph_s, signpr, signptheta, neqvals, guesses_shape
         
     return outqty, r_s, th_s, signpr, signptheta, neqvals, guesses_shape
