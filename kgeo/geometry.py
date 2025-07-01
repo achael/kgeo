@@ -1,6 +1,8 @@
 #establishes geometry of the accretion flow in the drift-frame model (with no parallel boost)
-
-from kgeo.solver import *
+import numpy as np
+#from kgeo.solver import *
+from kgeo.bfields import Bfield
+from kgeo.velocities import Velocity
 
 def lower_spatial_vec(vec, r, th, a): #lowers a contravariant four-vector with zero timelike component
     sig = r**2+a**2*np.cos(th)**2

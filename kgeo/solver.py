@@ -1,28 +1,11 @@
 #solves where null geodesics cross fieldlines of fixed psi
 
-import sys
-import numpy as np
-from kgeo.equatorial_images import Iobs
-from kgeo.equatorial_lensing import rho_of_req, critical_curve
-import ehtim as eh
-import matplotlib.pyplot as plt
-from kgeo.bfields import Bfield
-import kgeo.bfields as kb
-from kgeo.velocities import Velocity
-from kgeo.emissivities import Emissivity
-from scipy.interpolate import interp1d
 import numpy as np
 import scipy.special as sp
-import mpmath
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from tqdm import tqdm
-import time
-from kgeo.kerr_raytracing_utils import *
-from kgeo.equatorial_images import *
-from kgeo.kerr_raytracing_ana import *
-import h5py
-import scipy
+import scipy.optimize as opt
+from kgeo.kerr_raytracing_utils import radial_roots,mino_total,uplus_uminus, my_sign, angular_turning
+from kgeo.kerr_raytracing_utils import MINSPIN, EP
+from kgeo.kerr_raytracing_ana import th_integrate,r_integrate
 
 
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
@@ -196,7 +179,7 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, model='para', n
 
     perturb = 1e-5
     print('before solve')
-    outqty = scipy.optimize.newton(get_coord_intersect, guesses, maxiter=500, tol=tol)
+    outqty = opt.newton(get_coord_intersect, guesses, maxiter=500, tol=tol)
     print('after solve')
 
     #integration in theta
