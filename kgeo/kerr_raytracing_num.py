@@ -3,14 +3,12 @@
 # 19b: https://arxiv.org/pdf/1910.12873.pdf
 
 import numpy as np
-import scipy.special as sp
-import mpmath
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from tqdm import tqdm
 import time
-from kgeo.kerr_raytracing_utils import *
-import h5py
+from kgeo.kerr_raytracing_utils import Geodesics
+from kgeo.kerr_raytracing_utils import my_sign,angular_turning,radial_roots,mino_total
+from kgeo.kerr_raytracing_utils import MINSPIN, EP
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
 
@@ -31,6 +29,7 @@ def raytrace_num(a=SPIN,
                  observer_coords = [0,ROUT,INC,0],
                  image_coords = [alpha_default, beta_default],
                  ngeo=NGEO,
+                 do_phi_and_t=True,
                  savedata=False, plotdata=False):
 
     tstart = time.time()
