@@ -27,21 +27,21 @@ import scipy
 
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 
-#psi for parabolic BZ soln
+#psi for parabolic BZ solution
 def psi_BZ_para(r, theta, a): #theta in radians
     abscth = np.abs(np.cos(theta))
     rp = 1+np.sqrt(1-a**2)
     return r*(1-abscth)+rp*(1+abscth)*(1-np.log(1+abscth))-2*rp*(1-np.log(2))
 
-
-# "" for monopole
+#psi for monopole BZ solution
 def psi_BZ_mono(theta):
     return 1-np.abs(np.cos(theta))
 
-
+#psi for power law jet approximation
 def psi_power(r,theta,pval):
     return r**pval*(1-np.abs(np.cos(theta)))
 
+#general psi
 def psifunc(r, theta, a, model='para', pval=1): #defines psi
     if model == 'para':
         return psi_BZ_para(r, theta, a) 
@@ -52,8 +52,8 @@ def psifunc(r, theta, a, model='para', pval=1): #defines psi
     else:
         return 0
 
-    
-def getneq(a, tau, u_minus, u_plus, th_s, th_o, signptheta, betas): #counts number of equatorial crossings on way from source to observer
+#counts number of equatorial crossings on way from source to observer
+def getneq(a, tau, u_minus, u_plus, th_s, th_o, signptheta, betas): 
     #combine equations 81 and 82 of GL Lensing
     uratio = u_plus/u_minus
     xFarg = np.cos(th_o)/np.sqrt(u_plus)
@@ -67,7 +67,6 @@ def getneq(a, tau, u_minus, u_plus, th_s, th_o, signptheta, betas): #counts numb
     mbarval = mval - np.heaviside(betas, 0)
 
     return np.ceil(np.nan_to_num(mbarval)) #should always be an integer
-
 
 #restrict solutions with tau<taumax
 def get_maxtau_forwardjet(a, r_o, th_o, alpha, beta, neqmax=1): #maximum minotime before first mth crossing
@@ -101,20 +100,20 @@ def get_maxtau_forwardjet(a, r_o, th_o, alpha, beta, neqmax=1): #maximum minotim
     taumax[eta<=0] = tau_tot2[eta<=0]
     return np.min(np.array([taumax, tau_tot2]),axis=0) #max tau is either total or mth equatorial crossing
 
-
-def makegoodarray(arr): #converts guess array into correct dimensions
+#converts guess array into correct dimensions
+def makegoodarray(arr): 
     max_length = max(len(a) for a in arr)
     result = -np.ones((len(arr), max_length))
     for i, a in enumerate(arr):
         result[i, :len(a)] = a
     return np.transpose(np.copy(result))
 
-
-def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_t=True, neqmax=1, model='para',pval=1): #returns guesses for the psi of the first equatorial crossing
+#returns guesses for the psi of the first equatorial crossing
+def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, neqmax=1, model='para', pval=1): 
     tauguesses = []
     
     taumaxes = get_maxtau_forwardjet(a, rout, inc, alphas, betas, neqmax=neqmax)
-    psifromgeo = psifunc(outgeo.r_s, outgeo.th_s, a, model=model,pval=pval) - psitarget
+    psifromgeo = psifunc(outgeo.r_s, outgeo.th_s, a, model=model, pval=pval) - psitarget
     
     for i in range(len(alphas)):
         impactparam = np.sqrt(alphas[i]**2+betas[i]**2)
@@ -143,17 +142,17 @@ def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_
             continue
 
         #mininds += 1 #necessary since we cut off the endpoints earlier
-        tauguesses.append(np.array([(outgeo.mino_times[indfinal, i]+outgeo.mino_times[indfinal+1, i])/2 for indfinal in mininds])) #averages two points which the zero lives between
+        #average two points which the zero lives between
+        tauguesses.append(np.array([(outgeo.mino_times[indfinal, i]+outgeo.mino_times[indfinal+1, i])/2 for indfinal in mininds])) 
     
     return makegoodarray(tauguesses)
 
 
 
 #find crossing using newton's method
-
-def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, tol=1e-8,pval=1): 
+def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, model='para', neqmax=1, tol=1e-8,pval=1): 
     #guesses  
-    guesses = getguesses(outgeo, a, r_o, th_o, alpha, beta, psitarget, ngeo, do_phi_and_t=do_phi_and_t, neqmax=neqmax, model=model, pval=pval)
+    guesses = getguesses(outgeo, a, r_o, th_o, alpha, beta, psitarget, ngeo, neqmax=neqmax, model=model, pval=pval)
     guesses_shape = guesses.shape
     print(guesses_shape)
 
@@ -180,20 +179,17 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
     (r1, r2, r3, r4, rclass) = radial_roots(a, lam, eta)
     tau_tot = mino_total(a, r_o, eta, r1, r2, r3, r4)
     taumax = tau_tot * MAXTAUFRAC
-
-
-
-        
+      
     def get_coord_intersect(minotimes):
         #integration in theta
         (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(minotimes, (1, len(minotimes))),
-                                        do_phi_and_t=True)
+                                         do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need G_ph, G_t here?
 
         #integration in r
         (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(minotimes, (1, len(minotimes))),
-                                        do_phi_and_t=True)
+                                              do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
        
-        arrhere = psifunc(r_s[0], th_s[0], a, model=model,pval=pval) - psitarget
+        arrhere = psifunc(r_s[0], th_s[0], a, model=model, pval=pval) - psitarget
         arrhere[guesses == -1] = 0 #no intersections
 
         return arrhere
@@ -205,15 +201,15 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
 
     #integration in theta
     (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(outqty, (1, len(outqty))),
-                                 do_phi_and_t=True)
+                                 do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need G_ph, G_t here?
     (th_s_further, G_ph_further, G_t_further) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(outqty*(1+perturb), (1, len(outqty))),
-                                do_phi_and_t=True)
+                                do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need G_ph, G_t here?
 
     #integration in r
     (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(outqty, (1, len(outqty))),
-                                  do_phi_and_t=True)
+                                  do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
     (r_s_further, I_ph_further, I_t_further, I_sig_further) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(outqty*(1+perturb), (1, len(outqty))),
-                                  do_phi_and_t=True)
+                                  do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
     
     
     signpr = np.sign(r_s-r_s_further)[0]

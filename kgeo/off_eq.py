@@ -37,9 +37,6 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
 
-    # emission radius & Mino time
-   # r_s, Ir, Imax, Nmax = r_equatorial(a, r_o, th_o, mbar, alpha, beta)
-
     # output arrays
     g = np.zeros(alpha.shape)
     sin_thb = np.zeros(alpha.shape)
@@ -51,12 +48,6 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
     zeromask = np.abs(alpha)<0
         
     if np.any(~zeromask):
-
-        ###############################
-        # get momentum signs
-        ###############################        
-        # kr_sign = np.ones_like(alpha[~zeromask])#radial_momentum_sign(a, th_o, alpha[~zeromask], beta[~zeromask], Ir[~zeromask], Imax[~zeromask])
-        # kth_sign = -1#theta_momentum_sign(th_o, mbar)
 
         ###############################
         # get velocity and redshift
@@ -117,29 +108,64 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
     return Iobs_2, Qobs_2, Uobs_2, sinthb    
 
 
-#returns images contained in order of neq
+
 
 
 #get stokes parameters for a grid with off-equatorial emission in BZ model
+#returns images contained in order of neq
+def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, 
+              do_phi_and_t = True, neqmax=1, outgeo=None, tol=1e-8, 
+              model='para', pval=1,   
+              nu_parallel = 0,  gammamax=None, retvals = False,
+              sigma=2, sumsubring=True, usemono=False, retsin=False): #neqmax is the maximum number of equatorial crossings
 
-def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, eta=1, outgeo=None, tol=1e-8, 
-              nu_parallel = 0, pval=1, gammamax=None, retvals = False, vel='driftframe', sigma=2, sumsubring=True, usemono=False, retsin=False): #neqmax is the maximum number of equatorial crossings
+    """Get stokes parameters for a grid with off-equatorial emission in BZ jet model
+       
+       Args:
+           psitarget (float): Psi of field line to be imaged in jet model
+           alphavals (numpy.array): array of image pixel alpha values 
+           betavals (numpy.array): array of image pixel beta values 
+           r_o (float): camera radius (should be large)
+           th_o (float): camera inclination in radian range (0,pi/2) or (pi/2,pi)
+           a (float): bh spin in range [0,1)
+           ngeo (int): number of points sampled along geodesic
+           
+           do_phi_and_t (bool): raytrace in phi_and_t or not (must be true??)
+           neqmax (int): maximal number of geodesic equatorial (?) crossings
+           outgeo (Geodesics): precomputed geodesics
+           tol (float): tolerance for Newton solve of crossing points
+           
+           model (str): define BZ jet model: 'mono', 'para', or 'power'
+           pval (float): index of variable width 'power' jet model
 
-    ashape = alphavals.shape #store shapes for later
-    alphavals = alphavals.flatten() #flatten since we need everything to be a vector for our code to work
+           nu_parallel (float): fractional allowable parallel velocity in range [-1,1]       
+           gammamax (float): cutoff lorentz factor in jet model
+           
+           sigma (float): constant sigma for determining density/emissivity
+           
+           retvals (bool): whether or not to return data beyond stokes params
+           sumsubring (bool): whether or not to sum all crossing data in final return
+           usemono (bool): if True, fix Omega_field to monopole rate
+           retsin (bool): if True, return sin(theta_B)
+            
+       Returns:
+
+    """
+    ashape = alphavals.shape # store shapes for later
+    alphavals = alphavals.flatten() # flatten since we need everything to be a vector for our code to work
     betavals = betavals.flatten()
 
     if outgeo == None:
-            outgeo = raytrace_ana(a=a,
-                 observer_coords = [0,r_o,th_o,0],
-                 image_coords = [alphavals, betavals], #assumes 1D arrays of alpha and beta
-                 ngeo=ngeo,
-                 do_phi_and_t=do_phi_and_t,
-                 savedata=False, plotdata=False)
-    
-    #solve for crossing points and densities there
+        outgeo = raytrace_ana(a=a,
+                              observer_coords = [0,r_o,th_o,0],
+                              image_coords = [alphavals, betavals], #assumes 1D arrays of alpha and beta
+                              ngeo=ngeo,
+                              do_phi_and_t=do_phi_and_t,
+                              savedata=False, plotdata=False)
 
-    tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = do_phi_and_t, model=model, neqmax=neqmax, tol=tol, pval=pval)
+    #solve for crossing points and densities there
+    tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, r_o, th_o, a, ngeo, 
+                                                                              model=model, neqmax=neqmax, tol=tol, pval=pval)
 
 
     print('guesses before ', guesses_shape)
@@ -165,9 +191,12 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     else:
         bf = 0
 
+    #generate intensity data
     outvec = Iobs_off(a, r_o, rvals, th_o, alphavals, betavals, signpr, signptheta,
-    emissivity=Emissivity('constant'), velocity=Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel, gammamax=gammamax), bfield=bf,
-    polarization=True, specind=SPECIND, th_s=thvals, density=dvals, retsin=retsin) #generate data
+                      emissivity=Emissivity('constant'), 
+                      velocity=Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel, gammamax=gammamax), 
+                      bfield=bf,
+                      polarization=True, specind=SPECIND, th_s=thvals, density=dvals, retsin=retsin) 
 
 
     iobs = np.copy(outvec[0])
@@ -180,10 +209,11 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     qobs = np.real(np.nan_to_num(np.array(qobs)))
     uobs = np.real(np.nan_to_num(np.array(uobs)))
 
-
     if not sumsubring:
-        return iobs, qobs, uobs, neqvals, guesses_shape  #just return the raw subrings
-
+        #return iobs, qobs, uobs, neqvals, guesses_shape  #just return the raw subrings
+        
+        return iobs, qobs, uobs, neqvals, np.nan_to_num(rvals), np.nan_to_num(thvals), guesses_shape  #just return the raw subrings #AC edited
+        
     #call sorter here
     ivec, qvec, uvec = sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax)
     evpa = np.nan_to_num(0.5*np.arctan2(uvec, qvec))

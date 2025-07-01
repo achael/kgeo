@@ -144,7 +144,7 @@ def density_para_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel,
         #density
         eta = eta_para(thdirect, theta0, spin, psitarget, sigma)
         rho = eta*bupper[0]/u1
-#        indstart = np.where(thdirect != 0)[0][0]
+        #indstart = np.where(thdirect != 0)[0][0]
         #rho = rho/rho[indstart] #normalize to be 1 at the origin
         rhovals.append(rho)
 
