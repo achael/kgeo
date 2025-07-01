@@ -1,8 +1,16 @@
-from kgeo.equatorial_images import *
-from kgeo.geometry import *
-from kgeo.solver import *
-from kgeo.image import *
-from kgeo.densityfuncs import *
+import numpy as np
+from kgeo.bfields import Bfield
+from kgeo.velocities import Velocity
+from kgeo.emissivities import Emissivity
+from kgeo.equatorial_images import calc_redshift, calc_polquantities, calc_evpa
+from kgeo.kerr_raytracing_ana import raytrace_ana
+from kgeo.densityfuncs import density_mono_all, density_para_all,density_power_all
+from kgeo.solver import findroot
+from kgeo.geometry import sort_image
+bfield_default = Bfield('rad')
+vel_default = Velocity('zamo')
+emis_default = Emissivity('bpl')
+SPECIND = 1 # default (negative) spectral index
 
 def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
@@ -94,7 +102,7 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
             Uobs[~zeromask] = sin2chi*Iobs_here[~zeromask]
 
     else:
-        print("masked all pixels in Iobs! m=%i"%mbar)
+        print("masked all pixels in Iobs_off!")
 
     Iobs_2 = np.copy(Iobs_here)
     Qobs_2 = np.copy(Qobs)
