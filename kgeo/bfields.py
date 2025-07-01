@@ -1,14 +1,8 @@
 import numpy as np
 import scipy.special as sp
-from tqdm import tqdm
-from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
-from kgeo.equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
-import time
 from mpmath import polylog
 from scipy.interpolate import UnivariateSpline
-import os
 import pkg_resources
-
 
 def f(r):
     """BZ monopole f(r) function"""
