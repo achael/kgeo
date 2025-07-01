@@ -38,7 +38,7 @@ def test_velocity_usq():
             gcov = _gcov_bl(bhspin, radius)
             for veltype in _allowed_velocity_models:
                 # ignore certain "special case" models in this "randomized" test
-                if veltype in ['fromfile']:
+                if veltype in ['fromfile', 'fromdict']:
                     continue
                 if veltype == 'simfit':   # TODO, it appears that this model is broken?
                     continue
