@@ -12,13 +12,11 @@
 
 import numpy as np
 import scipy.special as sp
-import mpmath
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from tqdm import tqdm
 import time
-from kgeo.kerr_raytracing_utils import *
-import h5py
+from kgeo.kerr_raytracing_utils import Geodesics
+from kgeo.kerr_raytracing_utils import my_sign,angular_turning,radial_roots,mino_total
+from kgeo.kerr_raytracing_utils import MINSPIN, EP
 
 SPIN = 0.94
 INC = 20*np.pi/180.
