@@ -78,7 +78,7 @@ class Velocity(object):
             ucon = u_gelles(a, r, beta=self.gelles_beta, chi=self.gelles_chi)
         elif self.veltype == 'simfit':
             ucon = u_grmhd_fit(a, r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)
-        elif self.veltype in ['fromfile', 'fromcache']:
+        elif self.veltype in ['fromfile', 'fromdict']:
             ucon = u_from_u123(a, r, self.cached_data)
         elif self.veltype == 'driftframe':
             ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th,
