@@ -781,7 +781,7 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         n_turning[:, vortmask] = nturn_v
     
     if not alltau:
-        n_turning = n_equatorial[0]
+        n_turning = n_turning[0]
             
     return n_turning
     
