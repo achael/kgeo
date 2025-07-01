@@ -63,9 +63,13 @@ class Velocity(object):
             self.p2 = self.kwargs.get('p2', P2)
             self.dd = self.kwargs.get('dd', DD)
 
+        elif self.veltype=='fromfile':
+            self.filename = self.kwargs.get('file', None)
+            self.cached_data = load_cache_from_file(self.filename)
+
         elif self.veltype=='driftframe':
             self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
-            self.nu_parallel = self.kwargs.get('nu_parallel',0)
+            self.nu_parallel = self.kwargs.get('nu_parallel', 0)
             self.gammamax = self.kwargs.get('gammamax', None)
 
         else:
@@ -88,6 +92,8 @@ class Velocity(object):
             ucon = u_gelles(a, r, beta=self.gelles_beta, chi=self.gelles_chi)
         elif self.veltype=='simfit':
             ucon = u_grmhd_fit(a,r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)
+        elif self.veltype=='fromfile':
+            ucon = u_from_u123(a, r, self.cached_data)
         elif self.veltype=='driftframe':
             ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th,
                                 gammamax = self.gammamax, retqty=retqty)
@@ -99,7 +105,7 @@ class Velocity(object):
 
     def u_lab_cov(self, a, r, th=np.pi/2.):
         """Return lab frame covarient velocity vector"""
-        (u0, u1, u2, u3) = self.u_lab(a,r,th=th)
+        (u0, u1, u2, u3) = self.u_lab(a, r, th=th)
 
         # Metric
         a2 = a**2
@@ -141,8 +147,8 @@ class Velocity(object):
         g03 = -2*r*a*sth2 / Sigma
 
         # velocity components
-        (u0, u1, u2, u3) = self.u_lab(a,r,th=th)
-        (u0_l, u1_l, u2_l, u3_l) = self.u_lab_cov(a,r,th=th)
+        (u0, u1, u2, u3) = self.u_lab(a, r, th=th)
+        (u0_l, u1_l, u2_l, u3_l) = self.u_lab_cov(a, r, th=th)
 
         # define tetrads to comoving frame
         Nr = np.sqrt(-g11*(u0_l*u0 + u3_l*u3)*(1 + u2_l*u2))
@@ -170,7 +176,10 @@ class Velocity(object):
         e3_z = -u0_l/Nph
 
         # output 4 tetrades
-        tetrades = ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z))
+        tetrades = ((e0_t, e1_t, e2_t, e3_t),
+                    (e0_x, e1_x, e2_x, e3_x),
+                    (e0_y, e1_y, e2_y, e3_y),
+                    (e0_z, e1_z, e2_z, e3_z))
 
         return tetrades
 
@@ -183,7 +192,7 @@ def u_zamo(a, r):
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
     # Metric
-    th = np.pi/2. # TODO equatorial only
+    th = np.pi/2.  # TODO equatorial only
     Delta = r**2 - 2*r + a**2
     Sigma = r**2 + a**2 * np.cos(th)**2
     g00 = -(1-2*r/Sigma)
@@ -266,8 +275,8 @@ def u_kep(a, r, retrograde=False):
         Delta = (rr**2 - 2*rr + a**2)
 
         # isco conserved quantities
-        ell_i = s*asign*(ri**2  + a**2 - s*2*spin*np.sqrt(ri))/(ri**1.5 - 2*np.sqrt(ri) + s*spin)
-        gam_i = np.sqrt(1 - 2./(3.*ri)) # nice expression only for isco, prograde or retrograde
+        ell_i = s*asign*(ri**2 + a**2 - s*2*spin*np.sqrt(ri))/(ri**1.5 - 2*np.sqrt(ri) + s*spin)
+        gam_i = np.sqrt(1 - 2./(3.*ri))  # nice expression only for isco, prograde or retrograde
 
         # contravarient vel
         H = (2*rr - a*ell_i)/Delta
@@ -283,11 +292,12 @@ def u_kep(a, r, retrograde=False):
 def u_subkep(a, r, fac_subkep=1, retrograde=False):
     """(sub) keplerian velocty and infalling inside isco"""
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+    if not (isinstance(a,float) and (0 <= np.abs(a) < 1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (0<=fac_subkep<=1):
+    if not (0 <= fac_subkep <= 1):
         raise Exception("fac_subkep should be in the range [0,1]")
-    if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+    if not isinstance(r, np.ndarray):
+        r = np.array([r]).flatten()
 
     if retrograde:
         s = -1
@@ -299,7 +309,6 @@ def u_subkep(a, r, fac_subkep=1, retrograde=False):
     z2 = np.sqrt(3*a**2 + z1**2)
     ri = 3 + z2 - s*np.sqrt((3-z1)*(3+z1+2*z2))
     #print("r_isco:", ri)
-
 
     u0 = np.zeros(r.shape)
     u1 = np.zeros(r.shape)
@@ -341,7 +350,7 @@ def u_subkep(a, r, fac_subkep=1, retrograde=False):
         Delta_i = (ri**2 - 2*ri + a**2)
         Xi_i = (ri**2 + a**2)**2 - Delta_i*a**2
 
-        ell_i = asign*s * (ri**2  + spin**2 - s*2*spin*np.sqrt(ri))/(ri**1.5 - 2*np.sqrt(ri) + s*spin)
+        ell_i = asign*s * (ri**2 + spin**2 - s*2*spin*np.sqrt(ri))/(ri**1.5 - 2*np.sqrt(ri) + s*spin)
         ell_i *= fac_subkep
         gam_i = np.sqrt(Delta_i/(Xi_i/ri**2 - 4*a*ell_i/ri - (1-2/ri)*ell_i**2))
 
@@ -361,9 +370,10 @@ def u_subkep(a, r, fac_subkep=1, retrograde=False):
 def u_gelles(a, r, beta=0.3, chi=-150*(np.pi/180.)):
     """velocity prescription from Gelles+2021, Eq A4"""
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+    if not isinstance(r, np.ndarray):
+        r = np.array([r]).flatten()
 
     # Metric
     a2 = a**2
@@ -393,7 +403,7 @@ def u_grmhd_fit(a, r, ell_isco=ELLISCO, vr_isco=VRISCO, p1=P1, p2=P2, dd=DD):
        might not work for all spins
     """
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
         raise Exception("|a| should be a float in range [0,1)")
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
@@ -406,7 +416,7 @@ def u_grmhd_fit(a, r, ell_isco=ELLISCO, vr_isco=VRISCO, p1=P1, p2=P2, dd=DD):
     # Metric
     a2 = a**2
     r2 = r**2
-    th = np.pi/2. # TODO equatorial only
+    th = np.pi/2.  # TODO equatorial only
     cth2 = np.cos(th)**2
     sth2 = np.sin(th)**2
     Delta = r2 - 2*r + a2
@@ -420,7 +430,7 @@ def u_grmhd_fit(a, r, ell_isco=ELLISCO, vr_isco=VRISCO, p1=P1, p2=P2, dd=DD):
 
     # Fitting function should work down to the horizon
     # u_phi/u_t fitting function
-    ell = ell_isco*(r/r_isco)**.5 # defined positive
+    ell = ell_isco*(r/r_isco)**.5  # defined positive
     vr = -vr_isco*((r/r_isco)**(-p1)) * (0.5*(1+(r/r_isco)**(1/dd)))**((p1-p2)*dd)
     gam = np.sqrt(-1./(g00_up + g11_up*vr*vr + g33_up*ell*ell - 2*g03_up*ell))
 
@@ -440,27 +450,27 @@ def u_grmhd_fit(a, r, ell_isco=ELLISCO, vr_isco=VRISCO, p1=P1, p2=P2, dd=DD):
 def u_general(a, r, fac_subkep=1, beta_phi=1, beta_r=1, retrograde=False):
     """general velocity model from AART paper, keplerian by default"""
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if not (0<=fac_subkep<=1):
+    if not (0 <= fac_subkep <= 1):
         raise Exception("fac_subkep should be in the range [0,1]")
-    if not (0<=beta_phi<=1):
+    if not (0 <= beta_phi <= 1):
         raise Exception("beta_phi should be in the range [0,1]")
-    if not (0<=beta_r<=1):
+    if not (0 <= beta_r <= 1):
         raise Exception("beta_r should be in the range [0,1]")
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
     Delta = r**2 + a**2 - 2*r
 
     (u0_infall, u1_infall, _, u3_infall) = u_infall(a,r)
-    Omega_infall = u3_infall/u0_infall # 2ar/Xi
+    Omega_infall = u3_infall/u0_infall  # 2ar/Xi
     (u0_subkep, u1_subkep, _, u3_subkep) = u_subkep(a,r,retrograde=retrograde,fac_subkep=fac_subkep)
     Omega_subkep = u3_subkep/u0_subkep
 
     u1 = u1_subkep + (1-beta_r)*(u1_infall - u1_subkep)
     Omega = Omega_subkep + (1-beta_phi)*(Omega_infall - Omega_subkep)
 
-    u0  = np.sqrt(1 + (r**2) * (u1**2) / Delta) #???
+    u0 = np.sqrt(1 + (r**2) * (u1**2) / Delta)  #???
     u0 /= np.sqrt(1 - (r**2 + a**2)*Omega**2 - (2/r)*(1 - a*Omega)**2)
 
     u3 = u0*Omega
@@ -468,34 +478,34 @@ def u_general(a, r, fac_subkep=1, beta_phi=1, beta_r=1, retrograde=False):
     return (u0, u1, 0, u3)
 
 
-#get boost parameter that conserves energy in co-rotating frame
+# get boost parameter that conserves energy in co-rotating frame
 def getnu_cons(bf_here, r, theta, r0, theta0, Omegaf, spin, M):
-    Aconst = getEco(r0, theta0, Omegaf, spin, M) #E-L*Omegaf
-    ghere = metric(r, spin, theta, M) #metric (as a matrix)
+    Aconst = getEco(r0, theta0, Omegaf, spin, M)  #E-L*Omegaf
+    ghere = metric(r, spin, theta, M)  #metric (as a matrix)
     (alpha, vphiupper, gammap, Bhatphi) = u_driftframe(spin, r, bfield=bf_here, nu_parallel=0, th=theta, retbunit=True) #get quantities from nu=0 case
-    ffunc = gammap*(alpha-(ghere[:,0,3]+ghere[:,3,3]*Omegaf)*vphiupper) #random function (useful for xi computation)
-    bred = Bhatphi*(ghere[:,0,3]+ghere[:,3,3]*Omegaf) #reduced Bphiunit (useful for xi computation)
+    ffunc = gammap*(alpha-(ghere[:,0,3]+ghere[:,3,3]*Omegaf)*vphiupper)  #random function (useful for xi computation)
+    bred = Bhatphi*(ghere[:,0,3]+ghere[:,3,3]*Omegaf)  #reduced Bphiunit (useful for xi computation)
     nunum = ffunc*bred+np.sign(np.cos(theta))*np.sign(r-r0)*Aconst*np.sqrt(Aconst**2-ffunc**2+bred**2)
     nudenom = Aconst**2+bred**2
     nutot = nunum/nudenom
     return np.real(nutot)
 
 
-#gammamax = none means that we're in pure FF, nu_parallel = 'FF' means conserve energy in Force-Free case
+# gammamax = none means that we're in pure FF, nu_parallel = 'FF' means conserve energy in Force-Free case
 def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax=None, retbunit = False, retqty = False, eps = -1):
     """drift frame velocity for a given EM field in BL"""
 
-    #get boost from conservation of energy if requested
+    # get boost from conservation of energy if requested
     if nu_parallel == 'FF':
-        ind = np.where(np.nan_to_num(r) != 0)[0][0] #important for indirect images, which are filled with zeros when there's no crossing
-        omega = bfield.omega_field(a,r[ind],th=th[ind]) #single fieldline so single omega
+        ind = np.where(np.nan_to_num(r) != 0)[0][0]  #important for indirect images, which are filled with zeros when there's no crossing
+        omega = bfield.omega_field(a,r[ind],th=th[ind])  #single fieldline so single omega
 
-        #stagnation surface for monopole
+        # stagnation surface for monopole
         if bfield.fieldtype == 'bz_monopole' or (bfield.fieldtype == 'power' and bfield.pval == 0):
             theta0 = th[ind]
             r0 = r0min_mono(theta0, omega, a, 1.0) #1.0 is just the mass scale
 
-        #stagnation surface for paraboloid
+        # stagnation surface for paraboloid
         elif bfield.fieldtype == 'bz_para':
             psihere = psiBZpara(r[ind], th[ind], a) #compute psi of the fieldline chosen
             try:
@@ -510,14 +520,14 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
             except:
                 r0, theta0 = r0min_power(.999999*psihere, omega, a, bfield.pval, 1.0, usemono=bfield.usemono)
 
-        #get the parallel boost
+        # get the parallel boost
         nu_parallel = getnu_cons(bfield, r, th, r0, theta0, omega, a, 1.0)
 
     # checks
-    nu_parallel = nu_parallel*np.ones_like(r) #make sure that nu_parallel is an appropriately sized
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+    nu_parallel = nu_parallel*np.ones_like(r)  #make sure that nu_parallel is an appropriately sized
+    if not (isinstance(a,float) and (0 <= np.abs(a) < 1)):
         raise Exception("|a| should be a float in range [0,1)")
-    if np.any(np.logical_or(nu_parallel>1 , nu_parallel<-1)):
+    if np.any(np.logical_or(nu_parallel > 1, nu_parallel < -1)):
         raise Exception("nu_parallel should be in the range (-1,1)")
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
@@ -541,15 +551,15 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
 
     # lapse and shift
     alpha2 = Delta*Sigma/Xi
-    alpha= np.sqrt(alpha2) #lapse
+    alpha = np.sqrt(alpha2)  # lapse
     eta1 = 0
     eta2 = 0
     eta3 = 2*a*r/np.sqrt(Delta*Sigma*Xi)
 
     # e and b field
-    omegaf = bfield.omega_field(a,r,th=th)
-    (B1,B2,B3) = bfield.bfield_lab(a,r,th=th)
-    #(E1,E2,E3) = bfield.efield_lab(a,r,th=th) #unnecessary
+    omegaf = bfield.omega_field(a, r, th=th)
+    B1, B2, B3 = bfield.bfield_lab(a, r, th=th)
+    # (E1,E2,E3) = bfield.efield_lab(a,r,th=th) #unnecessary
 
     E1 = (omegaf-omegaz)*Xi*np.sin(th)*B2/Sigma
     E2 = -(omegaf-omegaz)*Xi*np.sin(th)*B1/(Sigma*Delta)
@@ -582,13 +592,13 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
     v2 = vperp2 + vpar2
     v3 = vperp3 + vpar3
 
-    if retbunit: #returns gammaperp and raised unit vector along B (useful for FF computations)
+    if retbunit:  #returns gammaperp and raised unit vector along B (useful for FF computations)
         return (alpha, v3, 1/vpar_max, B3/np.sqrt(Bsq))
 
     vsq = g11*v1*v1 + g22*v2*v2 + g33*v3*v3
     gamma = 1./np.sqrt(1-vsq)
 
-    if gammamax: #approximate MHD gamma by summing gamma_FF and gamma_max in series
+    if gammamax:  #approximate MHD gamma by summing gamma_FF and gamma_max in series
         pval0 = 2.0
         gammamax = gammamax*np.ones_like(gamma)
         gammaeff = (1/gammamax**pval0+1/gamma**pval0)**(-1/pval0)
@@ -598,10 +608,10 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
 
         else:
             argdiv = np.argmin(np.abs(np.nan_to_num(gammaeff, nan=np.inf)))
-            gammaeff0 = gammaeff*gamma[argdiv]/gammaeff[argdiv] #ensure gamma>1 always
+            gammaeff0 = gammaeff*gamma[argdiv]/gammaeff[argdiv]  #ensure gamma>1 always
 
-        vsqeff = 1-1/gammaeff0**2 #convert
-        v1new  = v1*np.sqrt(vsqeff/vsq)
+        vsqeff = 1-1/gammaeff0**2  # convert
+        v1new = v1*np.sqrt(vsqeff/vsq)
         v2new = v2*np.sqrt(vsqeff/vsq)
         v3new = v3*np.sqrt(vsqeff/vsq)
 
@@ -617,5 +627,80 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
 
     if retqty:
         return (gamma, g11*v1, g22*v2, g33*v3)
+
+    return (u0, u1, u2, u3)
+
+
+def load_cache_from_file(filename):
+    """
+    Load U123 primitive velocity data from file into cache.
+    """
+    # load header from file
+    with open(filename, 'r') as f:
+        header = f.readline().strip()
+        if header[0] != '#':
+            header = None
+            raise Exception("file %s does not have a header!" % filename)
+        else:
+            header = [x.strip() for x in header[1:].split(',')]
+
+    # load data from file
+    data = np.loadtxt(filename, delimiter=',', skiprows=1)
+    n_samples, _ = data.shape
+    radii = data[:, header.index('r')]
+
+    U1 = np.zeros_like(radii)
+    U2 = np.zeros_like(radii)
+    U3 = np.zeros_like(radii)
+
+    if 'U1' in header:
+        U1 = data[:, header.index('U1')]
+    if 'U2' in header:
+        U2 = data[:, header.index('U2')]
+    if 'U3' in header:
+        U3 = data[:, header.index('U3')]
+
+    return dict(radii=radii, U1=U1, U2=U2, U3=U3)
+
+
+def u_from_u123(a, r, ru123_cache):
+    """
+    Four-velocity as linearly interpolated from input file. By
+    convention, one file is for a single spin, which means that
+    this function will fail *silently* for other cases.
+    """
+    # TODO add check for spin?
+
+    # cast input to numpy array
+    if not isinstance(r, np.ndarray):
+        r = np.array([r]).flatten()
+
+    # get primitives
+    u1 = np.interp(r, ru123_cache['radii'], ru123_cache['U1'])
+    u2 = np.interp(r, ru123_cache['radii'], ru123_cache['U2'])
+    u3 = np.interp(r, ru123_cache['radii'], ru123_cache['U3'])
+
+    # metric (gcov)
+    r2 = r*r
+    a2 = a*a
+    th = np.pi/2.  # TODO equatorial only
+    Delta = r2 - 2*r + a2
+    Sigma = r2 + a2 * np.cos(th)**2
+    g00 = -(1-2*r/Sigma)
+    g11 = Sigma/Delta
+    g22 = Sigma
+    g33 = (r2 + a2 + 2*r*(a*np.sin(th))**2 / Sigma) * np.sin(th)**2
+    g03 = -2*r*a*np.sin(th)**2 / Sigma
+    # inverse metric (gcon)
+    gcon00 = - (r2 + a2 + 2*r*a2 / Sigma * np.sin(th)**2) / Delta
+    gcon03 = -2*r*a / Sigma / Delta
+
+    alpha = 1. / np.sqrt(-gcon00)
+    gamma = np.sqrt(1. + g11*u1*u1 + g22*u2*u2 + g33*u3*u3)
+
+    u0 = gamma / alpha
+    u1 = u1
+    u2 = u2
+    u3 = u3 - gamma * alpha * gcon03
 
     return (u0, u1, u2, u3)
