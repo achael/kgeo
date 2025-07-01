@@ -42,7 +42,9 @@ class Bfield(object):
 
         self.fieldtype = fieldtype
 
-        if self.fieldtype in ['rad','vert','tor','simple','simple_rm1','monopoleA','bz_monopole','bz_guess','bz_para','power']:
+        if self.fieldtype in ['rad', 'vert', 'tor', 'simple', 'simple_rm1',
+                              'monopoleA', 'bz_monopole', 'bz_guess',
+                              'bz_para', 'power', 'fromfile']:
             self.fieldframe = 'lab'
         elif self.fieldtype in ['const_comoving']:
             self.fieldframe = 'comoving'
@@ -77,6 +79,9 @@ class Bfield(object):
             self.Cr = 0
             self.Cvert = 0
             self.Cph = 1
+        elif self.fieldtype == 'fromfile':
+            self.filename = self.kwargs.get('file', None)
+            self.cached_data = load_cache_from_file(self.filename)
         else:
             self.Cr = self.kwargs.get('Cr',0)
             self.Cvert = self.kwargs.get('Cvert',0)
@@ -113,6 +118,9 @@ class Bfield(object):
         elif self.fieldtype == 'power':
             (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
             b_components = (B1,B2,B3)
+        elif self.fieldtype=='fromfile':
+            B1, B2, B3 = Bfield_from_cache(a, r, self.cached_data)
+            b_components = B1, B2, B3
         else:
             raise Exception("fieldtype %s not recognized in Bfield.bfield_lab!"%self.fieldtype)
 
@@ -626,3 +634,63 @@ def Bfield_power(a, r, th, p, C=1, usemono=False):
     Bph = I / (2*np.pi*Delta*sth2)
 
     return (Br, Bth, Bph, OmegaBZ)
+
+
+def load_cache_from_file(filename):
+    """
+    Load Br,Btheta,Bphi primitive (lab frame) magnetic field components from file
+    """
+    # load header from file
+    with open(filename, 'r') as f:
+        header = f.readline().strip()
+        if header[0] != '#':
+            header = None
+            raise Exception("file %s does not have a header!" % filename)
+        else:
+            header = [x.strip() for x in header[1:].split(',')]
+
+    # load header from file
+    with open(filename, 'r') as f:
+        header = f.readline().strip()
+        if header[0] != '#':
+            header = None
+            raise Exception("file %s does not have a header!" % filename)
+        else:
+            header = [x.strip() for x in header[1:].split(',')]
+
+    # load data from file
+    data = np.loadtxt(filename, delimiter=',', skiprows=1)
+    n_samples, _ = data.shape
+    radii = data[:, header.index('r')]
+
+    Br = np.zeros_like(radii)
+    Bth = np.zeros_like(radii)
+    Bph = np.zeros_like(radii)
+
+    if 'Br' in header:
+        Br = data[:, header.index('Br')]
+    if 'Btheta' in header:
+        Bth = data[:, header.index('Btheta')]
+    if 'Bphi' in header:
+        Bph = data[:, header.index('Bphi')]
+
+    return dict(radii=radii, Br=Br, Bth=Bth, Bph=Bph)
+
+
+def Bfield_from_cache(a, r, rb123_cache):
+    """
+    Four-velocity as linearly interpolated from input file. By
+    convention, one file is for a single spin, which means that
+    this function will fail *silently* for other cases.
+    """
+    # TODO add check for spin?
+
+    # cast input to numpy array
+    if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+
+    # get values from cache
+    Br = np.interp(r, rb123_cache['radii'], rb123_cache['Br'])
+    Bth = np.interp(r, rb123_cache['radii'], rb123_cache['Bth'])
+    Bph = np.interp(r, rb123_cache['radii'], rb123_cache['Bph'])
+
+    return (Br, Bth, Bph)
