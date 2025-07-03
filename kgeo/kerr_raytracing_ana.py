@@ -46,7 +46,7 @@ else:
 def raytrace_ana(a=SPIN,
                  observer_coords = [0,ROUT,INC,0],
                  image_coords = [alpha_default, beta_default],
-                 ngeo=NGEO,
+                 ngeo=NGEO, maxtaufrac=MAXTAUFRAC,
                  do_phi_and_t=True,
                  savedata=False, plotdata=True):
 
@@ -100,8 +100,8 @@ def raytrace_ana(a=SPIN,
     # define steps equally spaced in Mino time tau
     # rays have equal numbers of steps -- step size dtau depends on the ray
     # mino time is positive back from screen in GL19b conventions
-    dtau = MAXTAUFRAC*tau_tot / (ngeo - 1)
-    tausteps = np.linspace(0, MAXTAUFRAC*tau_tot, ngeo)
+    dtau = maxtaufrac*tau_tot / (ngeo - 1)
+    tausteps = np.linspace(0, maxtaufrac*tau_tot, ngeo)
     
     #pol_orbits = n_poloidal_orbits(a, th_o, alpha, beta, tausteps)
         
