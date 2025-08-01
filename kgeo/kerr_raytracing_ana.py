@@ -212,10 +212,11 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             if np.any(~maskk):
                 Gt_o[~maskk] = 2*up*pref* (sp.ellipeinc(elliparg,k) - F)[~maskk]/(2*k[~maskk]) # GL 19a, 31
                                                 
-        # compute the amplitude Phi_tau
+        # compute the amplitude Phi_tau, GL 19a, 45
         snarg = np.sqrt(-a2um)*(-tausteps[:,mask] + s*Gth_o)
         snarg = snarg.astype(float)
 
+        # initialize zeros
         sinPhi_tau = np.zeros(snarg.shape)
         Phi_tau = np.zeros(snarg.shape)
 
@@ -237,7 +238,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             #am(sqrt(1-m)x | k) = pi/2 - am(K(m) - x | m for m <=1
             Phi_tau[~jmask] = 0.5*np.pi-sp.ellipj(sp.ellipk(m) - snarg[~jmask]/np.sqrt(1-m), m)[3]
 
-        # solution for theta_o GL19a 49
+        # solution for theta_o, GL19a 49
         th_s[:,mask] = (np.arccos(-s*np.sqrt(up)*sinPhi_tau)).astype(float)
 
         if do_phi_and_t:
