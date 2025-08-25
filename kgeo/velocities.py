@@ -16,7 +16,7 @@ BFIELD_DEFAULT = Bfield('bz_para')
 # used in testing
 _allowed_velocity_models = [
     'zamo', 'infall', 'kep', 'cunningham', 'subkep', 'cunningham_subkep',
-    'general', 'gelles', 'simfit', 'fromfile', 'driftframe'
+    'general', 'gelles', 'simfit', 'fromfile', 'fromdict', 'driftframe'
 ]
 
 
@@ -28,68 +28,61 @@ class Velocity(object):
         self.veltype = veltype
         self.kwargs = kwargs
 
-        if self.veltype=='zamo' or self.veltype=='infall':
+        if self.veltype in ['zamo', 'infall']:
             pass
-
-        elif self.veltype=='kep' or self.veltype=='cunningham':
+        elif self.veltype in ['kep', 'cunningham']:
             self.retrograde = self.kwargs.get('retrograde', False)
-
-        elif self.veltype=='subkep' or self.veltype=='cunningham_subkep':
+        elif self.veltype in ['subkep', 'cunningham_subkep']:
             self.retrograde = self.kwargs.get('retrograde', False)
             self.fac_subkep = self.kwargs.get('fac_subkep', 1)
-
-        elif self.veltype=='general':
+        elif self.veltype == 'general':
             self.retrograde = self.kwargs.get('retrograde', False)
             self.fac_subkep = self.kwargs.get('fac_subkep', 1)
             self.beta_phi = self.kwargs.get('beta_phi', 1)
             self.beta_r = self.kwargs.get('beta_r',1)
-
-        elif self.veltype=='gelles':
+        elif self.veltype == 'gelles':
             self.gelles_beta = self.kwargs.get('gelles_beta', BETA)
             self.gelles_chi = self.kwargs.get('gelles_chi', CHI)
-
-        elif self.veltype=='simfit':
+        elif self.veltype == 'simfit':
             self.ell_isco = self.kwargs.get('ell_isco', ELLISCO)
             self.vr_isco = self.kwargs.get('vr_isco', VRISCO)
             self.p1 = self.kwargs.get('p1', P1)
             self.p2 = self.kwargs.get('p2', P2)
             self.dd = self.kwargs.get('dd', DD)
-
-        elif self.veltype=='fromfile':
+        elif self.veltype == 'fromfile':
             self.filename = self.kwargs.get('file', None)
             self.cached_data = load_cache_from_file(self.filename)
-
-        elif self.veltype=='driftframe':
+        elif self.veltype == 'fromdict':
+            self.cached_data = self.kwargs.get('data', None)
+        elif self.veltype == 'driftframe':
             self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
             self.nu_parallel = self.kwargs.get('nu_parallel', 0)
             self.gammamax = self.kwargs.get('gammamax', None)
-
         else:
             raise Exception("veltype %s not recognized in Velocity!"%self.veltype)
 
     def u_lab(self, a, r, th=np.pi/2., retqty=False):
         """Return lab frame contravarient velocity vector"""
-        if self.veltype=='zamo':
+        if self.veltype == 'zamo':
             ucon = u_zamo(a, r)
-        elif self.veltype=='infall':
+        elif self.veltype == 'infall':
             ucon = u_infall(a, r)
-        elif self.veltype=='kep' or self.veltype=='cunningham':
+        elif self.veltype in ['kep', 'cunningham']:
             ucon = u_kep(a, r, retrograde=self.retrograde)
-        elif self.veltype=='subkep' or self.veltype=='cunningham_subkep':
+        elif self.veltype in ['subkep', 'cunningham_subkep']:
             ucon = u_subkep(a, r, retrograde=self.retrograde, fac_subkep=self.fac_subkep)
-        elif self.veltype=='general':
+        elif self.veltype == 'general':
             ucon = u_general(a, r, retrograde=self.retrograde, fac_subkep=self.fac_subkep,
                              beta_phi=self.beta_phi, beta_r=self.beta_r)
-        elif self.veltype=='gelles':
+        elif self.veltype == 'gelles':
             ucon = u_gelles(a, r, beta=self.gelles_beta, chi=self.gelles_chi)
-        elif self.veltype=='simfit':
-            ucon = u_grmhd_fit(a,r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)
-        elif self.veltype=='fromfile':
+        elif self.veltype == 'simfit':
+            ucon = u_grmhd_fit(a, r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)
+        elif self.veltype in ['fromfile', 'fromdict']:
             ucon = u_from_u123(a, r, self.cached_data)
-        elif self.veltype=='driftframe':
+        elif self.veltype == 'driftframe':
             ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th,
-                                gammamax = self.gammamax, retqty=retqty)
-
+                                gammamax=self.gammamax, retqty=retqty)
         else:
             raise Exception("veltype %s not recognized in Velocity.u_lab!"%self.veltype)
 
