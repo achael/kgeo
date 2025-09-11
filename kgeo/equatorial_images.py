@@ -218,8 +218,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
     
         # add spectral terms to emissivity if not using a physical one
         # TODO: put this in j_rest? 
-        if not (emissivity.emistype in ['thermal','powerlaw']):
-            Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
+        Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
         
         ###############################
         # observed emission

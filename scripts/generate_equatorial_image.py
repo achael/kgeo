@@ -58,12 +58,7 @@ velocity = Velocity('subkep', retrograde=False, fac_subkep=0.7)
 #emissivity = Emissivity("ring", r_ring=6, sigma=0.3, emiscut_in=5.5, emiscut_out=6.5)
 #emissivity = Emissivity("glm", sigma=0.5, gamma_off=-1)
 emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
-#emissivity = Emissivity("thermal",alpha_n=1.5,alpha_T=1,alpha_B=1.,nref=1.e4,Tref=5.e11,Bref=5,
-#                        use_consistent_bfield=True,bfield=bfield,velocity=velocity)
-#emissivity = Emissivity("powerlaw",alpha_n=1.5,nref=1.e6,alpha_B=1.,Bref=5,
-#                        p=2.5,gammamin=1,gammamax=10000000,
-#                        use_consistent_bfield=True,bfield=bfield,velocity=velocity)
-                        
+
 ################################################################################################################
 # generate the equatorial model image arrays
 psize = 2.*amax/npix
@@ -109,13 +104,7 @@ if polarization:
     
 # make an Image, normalize and save
 psize_rad = psize*MoD*eh.RADPERUAS
-
-if emissivity.emistype in ['thermal','powerlaw']:
-    fluxscale = (2.22152e-30)*rg*(1.e23)*(psize_rad**2)  #Jy/pixel
-    fluxscale2 = flux230/np.sum(imarr)
-    print("DENSITY SCALE NEEDED = %.2e cm^-3"%(fluxscale2/fluxscale * emissivity.nref))
-else:
-    fluxscale = flux230/np.sum(imarr)
+fluxscale = flux230/np.sum(imarr)
 
 im = eh.image.Image(imarr*fluxscale, psize_rad, ra, dec, rf=nu_obs)
 #im.imvec[im.imvec==0]=+1.e-60
