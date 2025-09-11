@@ -9,7 +9,7 @@ from kgeo.emissivities import Emissivity
 
 # file label
 label='test'
-save_image = True
+save_image = False
 display_image = True
 
 # source and image parameters
@@ -60,6 +60,8 @@ velocity = Velocity('subkep', retrograde=False, fac_subkep=0.7)
 emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
 
 ################################################################################################################
+plt.close('all')
+
 # generate the equatorial model image arrays
 psize = 2.*amax/npix
 imagedat = make_image(spin,r_o, th_o, nmax, -amax, amax, -amax, amax, psize,
@@ -117,33 +119,53 @@ if save_image: im.save_fits('./m87_model_%s.fits'%label)
 
 # display image
 if display_image:
+    im.rotate(rotation).display(
+                 cbar_unit=['Tb'],has_cbar=False,label_type='scale',has_title=False,
+                 plotp=polarization,pcut=.001,scale_ticks=True,nvec=20)
     im.blur_circ(10*eh.RADPERUAS,10*eh.RADPERUAS).rotate(rotation).display(
                  cbar_unit=['Tb'],has_cbar=False,label_type='scale',has_title=False,
                  plotp=polarization,pcut=.001,scale_ticks=True,nvec=20)
 
 # make a image of the subring number and save
 narr = np.flipud(outarr_n.reshape(npix,npix))   # number of equatorial crossings
+narr[narr==-2]=-1 # mask out vortical geodesics
 imn = eh.image.Image(narr, psize_rad, ra, dec)
 imn.source = source
 if save_image: imn.save_fits('./m87_model_%s_n.fits'%label)
-
+if display_image: 
+    imn.display(label_type='scale',cfun='jet',has_cbar=False,interp=None)
+    plt.title('Nmax_equatorial')
+    plt.colorbar(label='')
+    
 nparr = np.flipud(outarr_np.reshape(npix,npix)) # fractional number of poloidal orbits
 imnp = eh.image.Image(nparr, psize_rad, ra, dec)
 imnp.source = source
 if save_image:  imnp.save_fits('./m87_model_%s_np.fits'%label)
-
+if display_image: 
+    imnp.display(label_type='jet',cfun='jet',has_cbar=False)
+    plt.title('N_poloidal')
+    plt.colorbar(label='')
+    
 if polarization:
     # make a image of the n=0 sin^theta term and save
-    stharr = np.flipud(outarr_sinthb[:,1].reshape(npix,npix))   # sin(theta)
+    stharr = np.flipud(outarr_sinthb[:,0].reshape(npix,npix))   # sin(theta)
     imsth = eh.image.Image(stharr, psize_rad, ra, dec)
     #imsth = eh.image.Image(stharr**2/np.max(stharr**2), psize_rad, ra, dec)
     imsth.source = source
     if save_image:  imsth.save_fits('./m87_model_%s_sinthb.fits'%label)
+    if display_image: 
+        imsth.rotate(rotation).display(label_type='scale',cfun='Spectral',has_cbar=False)
+        plt.title('sin thetab, n=0')
+        plt.colorbar(label='')
     
     # make a image of the n=0 doppler factor and save
     garr = np.flipud(outarr_g[:,0].reshape(npix,npix))   # number of equatorial crossings
     img = eh.image.Image(garr**3/np.max(garr**3), psize_rad, ra, dec)
     img.source = source
     if save_image:  img.save_fits('./m87_model_%s_g3.fits'%label)
-
+    if display_image: 
+        img.rotate(rotation).display(label_type='scale',cfun='inferno',has_cbar=False)
+        plt.title('g^3, n=0')
+        plt.colorbar(label='')
+    
 
