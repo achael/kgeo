@@ -21,6 +21,8 @@ SIGMA_GLM = 0.5
 R_RING = 4.5
 SIGMA_RING = 0.3
 
+OBSFREQ = 230.e9
+
 class Emissivity(object):
     """ object for rest frame emissivity as a function of r, only in equatorial plane for now (theta=np.pi/2) """
 
