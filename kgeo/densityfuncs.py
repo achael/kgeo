@@ -124,7 +124,7 @@ def density_para_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel,
     thnew = np.arccos(np.abs(np.cos(np.reshape(thvals, guesses_shape)))) #only works for above equator, but we can employ reflection symmetry
     rhovals = []
     indstart = np.where(np.nan_to_num(rnew)[0]!=0)[0][0]
-    omega = bfield.omega_field(spin,rnew[0][indstart],th=thnew[0][indstart], shift=bfield.shift)
+    omega = bfield.omega_field(spin,rnew[0][indstart],th=thnew[0][indstart])
 
     #stagnation surface
     r0, theta0 = r0min_para(psiBZpara(rnew[0][indstart], thnew[0][indstart], spin), omega, spin, 1.0)

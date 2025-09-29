@@ -405,7 +405,7 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
     """drift frame velocity for a given EM field in BL""" 
     
     #get boost from conservation of energy if requested
-    if nu_parallel == 'FF':
+    if nu_parallel is 'FF':
         ind = np.where(np.nan_to_num(r) != 0)[0][0] #important for indirect images, which are filled with zeros when there's no crossing
         omega = bfield.omega_field(a,r[ind],th=th[ind]) #single fieldline so single omega
 
