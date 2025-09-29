@@ -60,6 +60,10 @@ class Velocity(object):
             self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
             self.nu_parallel = self.kwargs.get('nu_parallel',0)
             self.gammamax = self.kwargs.get('gammamax', None)
+            
+        elif self.veltype=='MHD':
+            self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
+            self.gammamax = self.kwargs.get('gammamax', 100.0)
                            
         else: 
             raise Exception("veltype %s not recognized in Velocity!"%self.veltype)
@@ -84,6 +88,8 @@ class Velocity(object):
             ucon = u_grmhd_fit(a,r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)    
         elif self.veltype=='driftframe':
             ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th, gammamax = self.gammamax, retqty=retqty)
+        elif self.veltype=='MHD':
+            ucon = u_MHD(a, r, bfield=self.bfield, th=th, gammamax = self.gammamax)
 
         else: 
             raise Exception("veltype %s not recognized in Velocity.u_lab!"%self.veltype)
@@ -391,8 +397,11 @@ def getnu_cons(bf_here, r, theta, r0, theta0, Omegaf, spin, M):
     nutot = nunum/nudenom
     return np.real(nutot)
 
+# #full GRMHD solution to wind equation
+# def u_MHD(a, r, bfield=BFIELD_DEFAULT, th=np.pi/2, gammamax = 10.0):
+
 #gammamax = none means that we're in pure FF, nu_parallel = 'FF' means conserve energy in Force-Free case 
-def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax=None, retbunit = False, retqty = False, eps = -1):
+def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax=None, retbunit = False, retqty = False, eps = -1.0):
     """drift frame velocity for a given EM field in BL""" 
     
     #get boost from conservation of energy if requested
@@ -508,12 +517,15 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
             gammaeff = (1/gammamax**pval0+1/gamma**pval0)**(-1/pval0)
             #argdiv = np.argmin(np.abs(np.nan_to_num(gammaeff, nan=np.inf)))
             if eps >= 0:
-                gammaeff0 = (1+eps)*gammaeff#gammaeff*gamma[argdiv]/gammaeff[argdiv] #ensure gamma>1 always
+                gammaeff0 = (1+eps)*gammaeff #gammaeff*gamma[argdiv]/gammaeff[argdiv] #ensure gamma>1 always
 
             else:
                 argdiv = np.argmin(np.abs(np.nan_to_num(gammaeff, nan=np.inf)))
+                print('gammafac', gamma[argdiv]/gammaeff[argdiv])
                 gammaeff0 = gammaeff*gamma[argdiv]/gammaeff[argdiv] #ensure gamma>1 always
             
+            gammaeff0[gammaeff0<1] = 1.0
+            print('hiii')
             vsqeff = 1-1/gammaeff0**2 #convert 
             v1new  = v1*np.sqrt(vsqeff/vsq)
             v2new = v2*np.sqrt(vsqeff/vsq)
@@ -538,3 +550,119 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
         return (np.sqrt(vperpsq), v1perp, v2perp, v3perp) #returns magnitude of vperp
     
     return (u0, u1, u2, u3)
+
+#now MHD helper functions
+def getL(E, sigma, r0, theta, Omegaf, spin, M): #gets L as a function of launch point r0
+    if spin==0 and M==0:
+        L = (E-np.sqrt(1-r0**2*np.sin(theta)**2*Omegaf**2))/Omegaf
+        return L
+    g = metric(r0, spin, theta, M)
+    ginv = invmetric(r0, spin, theta, M)
+    
+    gtt = g[0][0]
+    gtphi = g[0][3]
+    ginvtt = ginv[0][0]
+    ginvtphi = ginv[0][3]
+    gphiphi = g[3][3]
+    ginvphiphi = ginv[3][3]
+    gtphifac = gtphi+gphiphi*Omegaf
+    gttfac = gtt+gtphi*Omegaf
+    
+    coef0 = (gtt+Omegaf*(2*gtphi+gphiphi*Omegaf))**2
+    coef1 = ginvphiphi*gtphifac**2+2*ginvtphi*gtphifac*gttfac+ginvtt*gttfac**2
+    efac2 = -coef0/coef1 #(E-L*Omegaf)^2
+    
+    if efac2<0:
+        print('Requested launch point is outside of light cylinder!')
+        return 0
+    
+    L = (E-np.sqrt(efac2))/Omegaf
+    return L
+
+#solve for conserved quantities as function of more physical parameters
+def allcons(gammamax, r0, Omegaf, spin, M, pval, theta0=np.pi/2, useexact = False): #returns quantities for minimum-energy trans-fast wind launched from equator at r0 (in units of M)
+    R0 = r0*Omegaf*M
+    upmax = np.sqrt(gammamax**2-1) 
+    sigmahere = upmax**3/(np.sin(theta0)**2) if pval == 0 else upmax**3/2/psiBZpower(R0,theta0,pval)
+    Ehere = gammamax**3
+    Lhere = getL(Ehere, sigmahere, r0, theta0, Omegaf, spin, M)
+    return sigmahere, Ehere, Lhere
+
+#solves the quartic equation for the alfven point
+def alfven(theta, Omegaf, spin, M, L, E): 
+    if spin==0 and M==0:
+        return np.sqrt(L/E/Omegaf)/np.sin(theta) # in units of 1/Omegaf, the 1/sin(theta) switches from cylindrical to spherical
+    coef0 = spin**2*Omegaf*np.cos(theta)**2*(L-spin**2*E*Omegaf*np.sin(theta)**2)
+    coef1 = -M/2*Omegaf*(-E*spin+2*L+spin*E*np.cos(2*theta))*(2-spin*Omegaf+spin*Omegaf*np.cos(2*theta))
+    coef2 = Omegaf/2*(2*L-spin**2*E*Omegaf*(3+np.cos(2*theta))*np.sin(theta)**2)
+    coef3 = 0.0
+    coef4 = -E*Omegaf**2*np.sin(theta)**2
+    poly = np.polynomial.polynomial.Polynomial([coef0, coef1, coef2, coef3, coef4])
+    rroots = poly.roots()
+    return rroots[3] #the correct root
+
+#get coefficients of quartic wind equation for u^r
+def wind_quartic(E, L, sigma, r, theta, Omegaf, spin, M, p): #r, spin, and Omegaf in units of M
+    g = metric(r, spin, theta, M)
+    ginv = invmetric(r, spin, theta, M)
+    
+    gtt = g[0][0]
+    gtphi = g[0][3]
+    ginvtt = ginv[0][0]
+    ginvtphi = ginv[0][3]
+    grr = g[1][1]
+    gthetatheta = g[2][2]
+    gphiphi = g[3][3]
+    ginvphiphi = ginv[3][3]
+
+    alpha = gthetatheta/(r**p*Omegaf**(p-2)*sigma) #4pi*eta/B^r
+    brat = p/r*(1-np.cos(theta))/np.sin(theta) #btheta/bphi
+    beta = ginvtphi*gtt+ginvphiphi*gphiphi*Omegaf
+    gamma = gtt+2*gtphi*Omegaf+gphiphi*Omegaf**2
+    delta=E-L*Omegaf
+    epsilon = gtphi+Omegaf*gphiphi
+    zeta = gtt+Omegaf*gtphi
+    gfunc = (grr+gthetatheta*brat**2)
+    gfunc2 = (gtt+Omegaf*(epsilon+gtphi))
+
+    coef4 = alpha**2*gfunc
+    coef3 = 2*alpha*gfunc*gfunc2
+
+    coef2 = gfunc*gfunc2**2+alpha**2*(1+ginvtt*E**2-2*E*L*ginvtphi+ginvphiphi*L**2)
+    coef1 = 2*alpha*(gtt+E**2*(ginvtphi*epsilon+ginvtt*zeta)-E*L*(ginvphiphi*epsilon+ginvtt*Omegaf*zeta+ginvtphi*gamma)+Omegaf*(gphiphi*Omegaf+L**2*beta+gtphi*(2+L**2*(ginvphiphi+ginvtphi*Omegaf))))
+    coef0 = ginvphiphi*epsilon**2*delta**2+2*ginvtphi*epsilon*zeta*delta**2+ginvtt*zeta**2*delta**2+gfunc2**2
+    
+    return np.polynomial.polynomial.Polynomial([coef0, coef1, coef2, coef3, coef4])
+
+#solve quartic wind equation for ur
+def ursolve(E, L, sigma, r, theta, Omegaf, spin, M, phere, rA = None):
+    if rA == None:
+        rA = alfven(theta, Omegaf, spin, M, L, E) #Alfven point
+    poly = wind_quartic(E, L, sigma, r, theta, Omegaf, spin, M, phere)
+    root = poly.roots()[1] if r<rA else poly.roots()[2]
+    if np.imag(root) > 1e-10:
+        return 0
+    return np.real(root)
+
+#get all components of GRMHD four-velocity
+def umuMHD(E, L, sigma, r, theta, Omegaf, spin, M, phere, rA = None):
+    ur = ursolve(E, L, sigma, r, theta, Omegaf, spin, M, phere, rA = rA)
+    eta = np.sign(ur)
+    g = metric(r, spin, theta, M) #metric (as a matrix)
+    ginv = invmetric(r, spin, theta, M) #inverse metric (as a matrix)
+    bthetarat = -phere/r*(1-np.cos(theta))/np.sin(theta)
+    utheta = -ur*bthetarat
+    xifdotxif = g[0][0]+2*g[0][3]*Omegaf+g[3][3]*Omegaf**2
+    num = g[0][0]*L+g[3][3]*Omegaf*E+g[0][3]*(E+Omegaf*L)
+    Br = sigma*Omegaf**(pval-2)*r**pval/g[2][2]
+    Mp2 = ur/Br
+    denom = xifdotxif+Mp2
+    Bbar = -num/denom
+    ulowert = -(E+Omegaf*Bbar/eta)
+    ulowerphi = L+Bbar/eta
+    ut = ginv[0][0]*ulowert+ginv[0][3]*ulowerphi 
+    uphi = ginv[3][3]*ulowerphi+ginv[0][3]*ulowert 
+    normhere = (ulowert*ut+ulowerphi*uphi+ur**2*g[1][1]+utheta**2*g[2][2])
+    if np.abs(normhere+1)>1e-8:
+        print('problem!', normhere)
+    return (ut, ur, utheta, uphi)

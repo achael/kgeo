@@ -74,11 +74,12 @@ def rfromR_para(R, psi0, a, shift=0):
 def rfromR_power(R, psi0, p):
     def minfunc(Z):
         return psiBZpower(np.sqrt(R**2+Z**2),np.arctan(R/Z),p)-psi0
-    Zguess = 4.0
+    Zguess = 1.0
     try:
         Zout = opt.newton(minfunc, Zguess)
     except: #failing because close to the equator, so guess 0
-        Zout = opt.newton(minfunc, 0)
+        Zguess = (R**2/(2*psi0))**(1/(2-p))
+        Zout = opt.newton(minfunc, 0, tol=1e-6)
     return np.sqrt(Zout**2+R**2)
 
 #N', where N is the normalization factor for co-moving four-velocity and prime is diff. along fieldline
