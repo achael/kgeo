@@ -1,12 +1,7 @@
 import numpy as np
 import scipy.special as sp
-from tqdm import tqdm
-from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
-from kgeo.equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
-import time
 from mpmath import polylog
 from scipy.interpolate import UnivariateSpline
-import os
 import pkg_resources
 
 
@@ -57,7 +52,7 @@ class Bfield(object):
         if self.fieldtype in ['bz_monopole','bz_guess','bz_para']:
             self.secondorder_only = self.kwargs.get('secondorder_only', False)
             self.C = self.kwargs.get('C', 1)
-            self.shift = self.kwargs.get('shift', 0)
+            self.shift = self.kwargs.get('shift', 0) #shifted argument of paraboloid remains a solution but makes fieldlines shallower (Lupsasca)
         elif self.fieldtype == 'power':
             self.secondorder_only = self.kwargs.get('secondorder_only', False)
             self.C = self.kwargs.get('C', 1)
@@ -527,5 +522,24 @@ def Bfield_power(a, r, th, p, C=1, usemono=False):
     Bph = I / (2*np.pi*Delta*sth2) 
 
     return(Br, Bth, Bph, OmegaBZ)
+
+def Bfield_from_cache(a, r, rb123_cache):
+    """
+    Four-velocity as linearly interpolated from input file. By
+    convention, one file is for a single spin, which means that
+    this function will fail *silently* for other cases.
+    """
+    # TODO add check for spin?
+
+    # cast input to numpy array
+    if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
+
+    # get values from cache
+    Br = np.interp(r, rb123_cache['radii'], rb123_cache['Br'])
+    Bth = np.interp(r, rb123_cache['radii'], rb123_cache['Bth'])
+    Bph = np.interp(r, rb123_cache['radii'], rb123_cache['Bph'])
+
+    return (Br, Bth, Bph)
+
 
 
