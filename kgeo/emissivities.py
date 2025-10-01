@@ -21,12 +21,19 @@ SIGMA_GLM = 0.5
 R_RING = 4.5
 SIGMA_RING = 0.3
 
+# Thermal model parameters
+e  = 4.80320425e-10  # statcoul
+me = 9.10938356e-28  # g
+c  = 2.99792458e10   # cm/s
+kB = 1.380649e-16    # erg/K
+h  = 6.62607015e-27  # erg*s
+
 OBSFREQ = 230.e9
 
 class Emissivity(object):
     """ object for rest frame emissivity as a function of r, only in equatorial plane for now (theta=np.pi/2) """
-
     def __init__(self, emistype="bpl", **kwargs):
+        print("Emissivity emistype =", repr(emistype))
 
         self.emistype = emistype
         self.kwargs = kwargs
@@ -34,8 +41,16 @@ class Emissivity(object):
         self.emiscut_in = self.kwargs.get('emiscut_in', 0)
         self.emiscut_out = self.kwargs.get('emiscut_out', 1.e10)
 
-        if self.emistype=='constant':
-            pass
+        # thermal model object variables added
+        if self.emistype=='thermal':
+            self.Rb = float(self.kwargs.get('Rb', 5.0)) # 
+            self.ne0 = float(self.kwargs['ne0']) #
+            self.Te0 = float(self.kwargs['Te0']) #
+            self.B0 = float(self.kwargs['B0'])
+            self.alpha_n = float(self.kwargs.get('alpha_n', 0.7))
+            self.alpha_T = float(self.kwargs.get('alpha_T', 1.0))
+            self.alpha_B = float(self.kwargs.get('alpha_B', 1.5))
+
         elif self.emistype=='bpl':
             self.p1 = self.kwargs.get('p1', P1E_230)
             self.p2 = self.kwargs.get('p2', P2E_230)
@@ -47,21 +62,40 @@ class Emissivity(object):
             self.mu_ring = False
             self.gamma_off = self.kwargs.get('gamma_off', GAMMAOFF)
             self.sigma = self.kwargs.get('sigma', SIGMA_GLM)
+        elif self.emistype == 'constant':
+            pass
         else:
-            raise Exception("emistype %s not recognized in Emissivity!"%self.veltype)
+            raise Exception("emistype %s not recognized in Emissivity!"%self.emistype)
+        
+    # power law function to defineg thermal variables
+    def profiles_plaw(self, r):
+        x = np.asarray(r, dtype=float)/self.Rb
+        ne = self.ne0 * np.power(x, -self.alpha_n)
+        Te = self.Te0 * np.power(x, -self.alpha_T)
+        B  = self.B0  * np.power(x, -self.alpha_B)
+        return ne, Te, B
 
     def jrest(self, a, r, g=None, sinthetab=None, nu_obs=OBSFREQ):
         if self.emistype=='constant':
             j = np.ones(r.shape)
+
+        # Thermal model j calculation added
+        elif self.emistype=='thermal':
+            if g is None or sinthetab is None:
+                raise ValueError("thermal emissivity requires g and sinthetab")
+            nu_em = np.asarray(nu_obs) / np.asarray(g)
+            ne, Te, B = self.profiles_plaw(r)
+            sinb = np.clip(np.asarray(sinthetab), 0.0, 1.0)
+            j = j_nu_thermal(ne, B, Te, nu_em, sinb)
 
         elif self.emistype=='bpl':
             j = emisBPL(a, r, p1=self.p1, p2=self.p2)
 
         elif self.emistype=='glm' or self.emistype=='ring':
             j = emisGLM(a, r, gamma_off=self.gamma_off, sigma=self.sigma, mu_ring=self.mu_ring)
-            
+
         else:
-            raise Exception("emistype %s not recognized in Emissivity.emis!"%self.veltype)
+            raise Exception("emistype %s not recognized in Emissivity.emis!"%self.emistype)
 
         return j
 
@@ -85,3 +119,18 @@ def emisGLM(a, r, gamma_off=GAMMAOFF, sigma=SIGMA_GLM, mu_ring=False):
     emis = np.exp(-0.5*(gamma_off+np.arcsinh((r-mu)/sigma))**2) / np.sqrt((r-mu)**2 + sigma**2)
     return emis
 
+# Thermal model function definitions
+def II_fit(x):
+    x = np.maximum(x, 1e-40)
+    return 2.5651 * (1.0 + 1.92*x**(-1.0/3.0) + 0.9977*x**(-2.0/3.0)) * np.exp(-1.8899 * x**(1.0/3.0))
+
+# critical freqneucy (in fluid frame)
+def nu_c_fcn(B, Theta_e, sin_thetaB):
+    return (3.0/(4.0*np.pi)) * (e*B*Theta_e**2)/(me*c) * np.maximum(sin_thetaB, 0.0)
+
+# Emissivity j_nu (fluid frame, per unit volume, freq, steradians)
+def j_nu_thermal(ne, B, Te, nu, sin_thetaB):
+    Theta_e = kB*Te/(me*c*c)
+    nu_c = nu_c_fcn(B, Theta_e, sin_thetaB)
+    x = nu/np.maximum(nu_c, 1e-40)
+    return (ne * e**2 * nu**2)/(np.sqrt(3) * c * np.maximum(Theta_e, 1e-40)**2) * II_fit(x)
