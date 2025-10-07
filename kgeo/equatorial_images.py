@@ -200,10 +200,13 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         # if polarization not used, set sin(theta_b) = 1 everywhere
         ###############################
         if polarization:
-            sinthb, kappa, llp1, bsq = calc_polquantities(a, r_s[~zeromask], 
-                                                         lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, 
-                                                         velocity=velocity,
-                                                         bfield=bfield, th=th_s)
+            # TODO: we are currently overwriting pathlength from calc_polquantities in disk images
+            # TODO: pathlength from calc_polquantities is directly used in jet model!
+            # TODO: reconcile these  
+            sinthb, kappa, llp1, bsq, kdotnorm = calc_polquantities(a, r_s[~zeromask], 
+                                                                    lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, 
+                                                                    velocity=velocity,
+                                                                    bfield=bfield, th=th_s, pathcor='R')
 
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
         else:

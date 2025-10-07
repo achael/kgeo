@@ -1,8 +1,5 @@
 import numpy as np
-<<<<<<< HEAD
-=======
 import ehtim as eh
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
 import scipy.special as sp
 import scipy.integrate as scint
 
@@ -13,31 +10,15 @@ from kgeo.equatorial_images import calc_redshift, calc_polquantities, calc_evpa
 from kgeo.kerr_raytracing_ana import raytrace_ana
 
 from kgeo.off_equatorial_lensing import findroot
-<<<<<<< HEAD
-from kgeo.geometry import sort_image
-
-import numpy as np
-=======
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
 
 from kgeo.bfields import *
 from kgeo.velocities import *
 
-<<<<<<< HEAD
 
-=======
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
 bfield_default = Bfield('rad')
 vel_default = Velocity('zamo')
 emis_default = Emissivity('bpl')
 SPECIND = 1 # default (negative) spectral index
-
-<<<<<<< HEAD
-def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
-         emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
-         polarization=False, specind=SPECIND, th_s=np.pi/2, density=1, retsin = False):
-
-=======
 source = 'M87'
 MoD = 3.77883459  # this is what was used for M/D in uas for the M87 simulations
 ra = 12.51373 
@@ -50,7 +31,7 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
          polarization=False, specind=SPECIND, th_s=np.pi/2, density=1, 
          retsin = False, emit='jet', pathcor='R', anis=None):
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
+
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
        g is the Doppler factor
@@ -91,10 +72,6 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
     zeromask = np.abs(alpha)<0
         
     if np.any(~zeromask):
-<<<<<<< HEAD
-
-=======
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
         ###############################
         # get velocity and redshift
         ###############################        
@@ -114,34 +91,17 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
         ###############################
 
         if polarization:
-<<<<<<< HEAD
-
-            (sinthb, kappa, pathlength, bsq) = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
-                                                 kr_sign, kth_sign, 
-                                                 velocity=velocity, 
-                                                 bfield=bfield, th=th_s)
-=======
             (sinthb, kappa, pathlength, bsq, cosjet) = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
-                                                 kr_sign, kth_sign, u0, u1, u2, u3, 
-                                                 bfield=bfield, th=th_s, pathcor=pathcor)
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
+                                                                          kr_sign, kth_sign, 
+                                                                          velocity=velocity, 
+                                                                          bfield=bfield, th=th_s, pathcor=pathcor)
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
 
         else:
             sinthb = 1
         
         sin_thb[~zeromask] = sinthb  
-<<<<<<< HEAD
-        Iemis *= bsq**((1+specind)/2) #for spectral index of 1, we add on factor of B^2 
 
-                             
-        ###############################
-        # observed emission
-        ###############################         
-
-        Iobs_here[~zeromask] = (gg**3) * (gg**specind) * pathlength * Iemis * (sinthb**(1+specind))       
-
-=======
         if emit != 'disk':
             Iemis *= bsq**((1+specind)/2) #for spectral index of 1 and the non-disk emissivity profile, we add on factor of B^2 
                              
@@ -155,21 +115,15 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
         if anis != None:
             print('anisotropy! ',anis)
         Iobs_here[~zeromask] = (gg**3) * (gg**specind) * pathlength * Iemis * (sinthb**(1+specind)) * etafac      
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs_here[~zeromask]
             Uobs[~zeromask] = sin2chi*Iobs_here[~zeromask]
 
-<<<<<<< HEAD
-    else:
-        print("masked all pixels in Iobs_off!")
-=======
-    
-       
+
     else:
         print("masked all pixels in Iobs! m=%i"%mbar)
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
+
 
     Iobs_2 = np.copy(Iobs_here)
     Qobs_2 = np.copy(Qobs)
@@ -177,25 +131,6 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
 
     Iobs_2[r_s<=rh] = Qobs_2[r_s<=rh] = Uobs_2[r_s<=rh] = 0 #zero out emission coming from within the horizon
 
-<<<<<<< HEAD
-
-    if not retsin:
-        return Iobs_2, Qobs_2, Uobs_2
-    return Iobs_2, Qobs_2, Uobs_2, sinthb    
-
-
-
-
-
-#get stokes parameters for a grid with off-equatorial emission in BZ model
-#returns images contained in order of neq
-def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, 
-              do_phi_and_t = True, neqmax=1, outgeo=None, tol=1e-8, 
-              model='para', pval=1,   
-              nu_parallel = 0,  gammamax=None, retvals = False,
-              sigma=2, sumsubring=True, usemono=False, retsin=False): #neqmax is the maximum number of equatorial crossings
-
-=======
     if not retsin:
         return Iobs_2, Qobs_2, Uobs_2
     return Iobs_2, Qobs_2, Uobs_2, np.sqrt(bsq)*sinthb
@@ -203,11 +138,13 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo,
 
 
 #get stokes parameters for a grid with off-equatorial emission in BZ model
-def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, eta=1, outgeo=None, tol=1e-8, emit='jet',
-              nu_parallel = 0, pval=1, gammamax=None, retvals = False, vel='driftframe', sigma=2, sumsubring=True, usemono=False, retsin=False, 
+def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, 
+              do_phi_and_t = True, model='para', neqmax=1, eta=1, outgeo=None, tol=1e-8, emit='jet',
+              nu_parallel = 0, pval=1, gammamax=None, retvals = False, 
+              vel='driftframe', sigma=2, sumsubring=True, usemono=False, retsin=False, 
               sigmaplasma=1, pathcor='R', specind = 1, anis = None, shift = 0): #neqmax is the maximum number of equatorial crossings
     
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
+
     """Get stokes parameters for a grid with off-equatorial emission in BZ jet model
        
        Args:
@@ -240,24 +177,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
        Returns:
 
     """
-<<<<<<< HEAD
-    ashape = alphavals.shape # store shapes for later
-    alphavals = alphavals.flatten() # flatten since we need everything to be a vector for our code to work
-    betavals = betavals.flatten()
 
-    if outgeo == None:
-        outgeo = raytrace_ana(a=a,
-                              observer_coords = [0,r_o,th_o,0],
-                              image_coords = [alphavals, betavals], #assumes 1D arrays of alpha and beta
-                              ngeo=ngeo,
-                              do_phi_and_t=do_phi_and_t,
-                              savedata=False, plotdata=False)
-
-    #solve for crossing points and densities there
-    tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, r_o, th_o, a, ngeo, 
-                                                                              model=model, neqmax=neqmax, tol=tol, pval=pval)
-
-=======
     ashape = alphavals.shape #store shapes for later
     alphavals = alphavals.flatten() #flatten since we need everything to be a vector for our code to work
     betavals = betavals.flatten()
@@ -272,30 +192,16 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     
     #solve for crossing points and densities there
     tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = do_phi_and_t, model=model, neqmax=neqmax, tol=tol, pval=pval, shift=shift)
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
 
     print('guesses before ', guesses_shape)
     #reshape coordinates
     alphavals = np.tile(alphavals, guesses_shape[0])
     betavals = np.tile(betavals, guesses_shape[0])
 
-<<<<<<< HEAD
 
-    if model == 'mono' or (model == 'power' and pval == 0):
-        dvals = density_mono_all(rvals, thvals, guesses_shape, psitarget, a, nu_parallel, sigma, neqmax=neqmax, gammamax=gammamax)
-    elif model == 'para':
-        dvals = density_para_all(rvals, thvals, guesses_shape, psitarget, a, nu_parallel, sigma, neqmax=neqmax, gammamax=gammamax)
-    elif (model == 'power' and pval > 0):
-        dvals = density_power_all(rvals, thvals, guesses_shape, psitarget, a, nu_parallel, sigma, neqmax=neqmax, gammamax=gammamax, pval = pval, usemono=usemono)
-    
-    #initialize arrays
-    if model == 'para':
-        bf = Bfield('bz_para')
-=======
     #initialize arrays
     if model == 'para':
         bf = Bfield('bz_para', shift=shift)
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
     elif model == 'mono':
         bf = Bfield('bz_monopole') #initialize bfield
     elif model == 'power':
@@ -303,15 +209,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     else:
         bf = 0
 
-<<<<<<< HEAD
-    #generate intensity data
-    outvec = Iobs_off(a, r_o, rvals, th_o, alphavals, betavals, signpr, signptheta,
-                      emissivity=Emissivity('constant'), 
-                      velocity=Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel, gammamax=gammamax), 
-                      bfield=bf,
-                      polarization=True, specind=SPECIND, th_s=thvals, density=dvals, retsin=retsin) 
 
-=======
     if emit == 'disk':
         dvals = np.exp(-rvals/3) #cuts off after photon ring
 
@@ -333,7 +231,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     outvec = Iobs_off(a, r_o, rvals, th_o, alphavals, betavals, signpr, signptheta,
     emissivity=Emissivity('constant'), velocity=Velocity(vel, bfield=bf, nu_parallel = nu_parallel, gammamax=gammamax), bfield=bf,
     polarization=True,  specind=specind, th_s=thvals, density=dvals, retsin=retsin, emit=emit, pathcor=pathcor, anis = anis) #generate data
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
+
 
     iobs = np.copy(outvec[0])
     qobs = np.copy(outvec[1])
@@ -346,15 +244,8 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
     uobs = np.real(np.nan_to_num(np.array(uobs)))
 
     if not sumsubring:
-<<<<<<< HEAD
-        #return iobs, qobs, uobs, neqvals, guesses_shape  #just return the raw subrings
-        
-        return iobs, qobs, uobs, neqvals, np.nan_to_num(rvals), np.nan_to_num(thvals), guesses_shape  #just return the raw subrings #AC edited
-        
-=======
         return iobs, qobs, uobs, neqvals, guesses_shape  #just return the raw subrings
 
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
     #call sorter here
     ivec, qvec, uvec = sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax)
     evpa = np.nan_to_num(0.5*np.arctan2(uvec, qvec))
@@ -363,13 +254,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t =
         return ivec, qvec, uvec, evpa
     if not retsin: #return stokes + intersection data
         return ivec, qvec, uvec, evpa, np.nan_to_num(rvals), np.nan_to_num(thvals)
-<<<<<<< HEAD
-    return ivec, qvec, uvec, evpa, np.nan_to_num(rvals), np.nan_to_num(thvals), np.nan_to_num(outvec[3]) #return stokes+intersection+pitch angle
-
-=======
     return ivec, qvec, uvec, evpa, np.nan_to_num(rvals), np.nan_to_num(thvals), np.nan_to_num(outvec[3])#, np.nan_to_num(outvec[4]), np.nan_to_num(outvec[5]), np.nan_to_num(outvec[6]), np.nan_to_num(outvec[7]), np.nan_to_num(outvec[8]) #return stokes+intersection+pitch angle
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
-
 
 #returns images contained in order of neq
 def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax):
@@ -397,10 +282,7 @@ def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax):
 
     return np.array(iarr), np.array(qarr), np.array(uarr)
 
-<<<<<<< HEAD
-=======
 
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
 ###########################################################
 # computes density as solution to continuity equation with a Gaussian source of width (in r) sigma
 # previously in densityfuncs.py
@@ -618,8 +500,6 @@ def density_power_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel
     return np.nan_to_num(np.array(rhovals).flatten(), nan=0.0)
 
 
-<<<<<<< HEAD
-=======
 
 #compute density assuming that sigma=b^2/rho=sigmaplasma=const
 def densityconstsigma(rvals, thvals, a, nu_parallel, sigmaplasma, model, gammamax=None, pval = 1.0, usemono=False, shift=0, velmodel='driftframe'):
@@ -727,7 +607,3 @@ def makeim(ivals, qvals, uvals, agrid, saveim=None):
 
 
 
-
-
-
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
