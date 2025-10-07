@@ -1,54 +1,48 @@
 #solves where null geodesics cross fieldlines of fixed psi
 
+import sys
+import numpy as np
+from kgeo.equatorial_images import Iobs
+from kgeo.equatorial_lensing import rho_of_req, critical_curve
+import ehtim as eh
+import matplotlib.pyplot as plt
+from kgeo.bfields import Bfield
+import kgeo.bfields as kb
+from kgeo.velocities import Velocity
+from kgeo.emissivities import Emissivity
+from scipy.interpolate import interp1d
 import numpy as np
 import scipy.special as sp
-import scipy.optimize as opt
-from kgeo.kerr_raytracing_utils import radial_roots,mino_total,uplus_uminus, my_sign, angular_turning
-from kgeo.kerr_raytracing_utils import MINSPIN, EP
-from kgeo.kerr_raytracing_ana import th_integrate,r_integrate
+import mpmath
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from tqdm import tqdm
+import time
+from kgeo.kerr_raytracing_utils import *
+from kgeo.equatorial_images import *
+from kgeo.kerr_raytracing_ana import *
+import h5py
+import scipy
 
 
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 
-<<<<<<< HEAD
-<<<<<<<< HEAD:kgeo/off_equatorial_lensing.py
-#psi for parabolic BZ solution
-def psi_BZ_para(r, theta, a): #theta in radians
-========
 #psi for parabolic BZ soln
 def psi_BZ_para(r, theta, a, shift=0): #theta in radians
->>>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2:kgeo/#solver.py#
-=======
-#psi for parabolic BZ soln
-def psi_BZ_para(r, theta, a, shift=0): #theta in radians
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
     abscth = np.abs(np.cos(theta))
     rp = 1+np.sqrt(1-a**2)
     return (r+shift)*(1-abscth)+rp*(1+abscth)*(1-np.log(1+abscth))-2*rp*(1-np.log(2))
 
-<<<<<<< HEAD
-=======
 
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
-#psi for monopole BZ solution
+# "" for monopole
 def psi_BZ_mono(theta):
     return 1-np.abs(np.cos(theta))
 
-#psi for power law jet approximation
+
 def psi_power(r,theta,pval):
     return r**pval*(1-np.abs(np.cos(theta)))
 
-<<<<<<< HEAD
-<<<<<<<< HEAD:kgeo/off_equatorial_lensing.py
-#general psi
-def psifunc(r, theta, a, model='para', pval=1): #defines psi
-========
 def psifunc(r, theta, a, model='para', pval=1, shift=0): #defines psi
->>>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2:kgeo/#solver.py#
-=======
-#general psi
-def psifunc(r, theta, a, model='para', pval=1, shift=0): #defines psi
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
     if model == 'para':
         return psi_BZ_para(r, theta, a, shift=shift) 
     elif model=='mono':
@@ -58,13 +52,8 @@ def psifunc(r, theta, a, model='para', pval=1, shift=0): #defines psi
     else:
         return 0
 
-<<<<<<< HEAD
-#counts number of equatorial crossings on way from source to observer
-def getneq(a, tau, u_minus, u_plus, th_s, th_o, signptheta, betas): 
-=======
-#counts number of equatorial crossings on way from source to observer 
+    
 def getneq(a, tau, u_minus, u_plus, th_s, th_o, signptheta, betas): #counts number of equatorial crossings on way from source to observer
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
     #combine equations 81 and 82 of GL Lensing
     uratio = u_plus/u_minus
     xFarg = np.cos(th_o)/np.sqrt(u_plus)
@@ -79,10 +68,7 @@ def getneq(a, tau, u_minus, u_plus, th_s, th_o, signptheta, betas): #counts numb
 
     return np.ceil(np.nan_to_num(mbarval)) #should always be an integer
 
-<<<<<<< HEAD
-=======
 
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
 #restrict solutions with tau<taumax
 def get_maxtau_forwardjet(a, r_o, th_o, alpha, beta, neqmax=1): #maximum minotime before first mth crossing
     lam = -alpha*np.sin(th_o)
@@ -115,36 +101,20 @@ def get_maxtau_forwardjet(a, r_o, th_o, alpha, beta, neqmax=1): #maximum minotim
     taumax[eta<=0] = tau_tot2[eta<=0]
     return np.min(np.array([taumax, tau_tot2]),axis=0) #max tau is either total or mth equatorial crossing
 
-#converts guess array into correct dimensions
-def makegoodarray(arr): 
+
+def makegoodarray(arr): #converts guess array into correct dimensions
     max_length = max(len(a) for a in arr)
     result = -np.ones((len(arr), max_length))
     for i, a in enumerate(arr):
         result[i, :len(a)] = a
     return np.transpose(np.copy(result))
 
-<<<<<<< HEAD
-<<<<<<<< HEAD:kgeo/off_equatorial_lensing.py
-#returns guesses for the psi of the first equatorial crossing
-def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, neqmax=1, model='para', pval=1): 
-    tauguesses = []
-    
-    taumaxes = get_maxtau_forwardjet(a, rout, inc, alphas, betas, neqmax=neqmax)
-    psifromgeo = psifunc(outgeo.r_s, outgeo.th_s, a, model=model, pval=pval) - psitarget
-========
 
-=======
-# returns guesses for the psi of the first equatorial crossing
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
 def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_t=True, neqmax=1, model='para',pval=1,shift=0): #returns guesses for the psi of the first equatorial crossing
     tauguesses = []
     
     taumaxes = get_maxtau_forwardjet(a, rout, inc, alphas, betas, neqmax=neqmax)
     psifromgeo = psifunc(outgeo.r_s, outgeo.th_s, a, model=model, pval=pval, shift=shift) - psitarget
-<<<<<<< HEAD
->>>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2:kgeo/#solver.py#
-=======
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
     
     for i in range(len(alphas)):
         impactparam = np.sqrt(alphas[i]**2+betas[i]**2)
@@ -175,33 +145,16 @@ def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_
             continue
 
         #mininds += 1 #necessary since we cut off the endpoints earlier
-<<<<<<< HEAD
-        #average two points which the zero lives between
-        tauguesses.append(np.array([(outgeo.mino_times[indfinal, i]+outgeo.mino_times[indfinal+1, i])/2 for indfinal in mininds])) 
-=======
         tauguesses.append(np.array([(outgeo.mino_times[indfinal, i]+outgeo.mino_times[indfinal+1, i])/2 for indfinal in mininds])) #averages two points which the zero lives between
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
     
     return makegoodarray(tauguesses)
 
 
 
 #find crossing using newton's method
-<<<<<<< HEAD
-<<<<<<<< HEAD:kgeo/off_equatorial_lensing.py
-def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, model='para', neqmax=1, tol=1e-8,pval=1): 
-    #guesses  
-    guesses = getguesses(outgeo, a, r_o, th_o, alpha, beta, psitarget, ngeo, neqmax=neqmax, model=model, pval=pval)
-========
 def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, tol=1e-8, pval=1, shift=0, retphi = False): 
     #guesses  
     guesses = getguesses(outgeo, a, r_o, th_o, alpha, beta, psitarget, ngeo, do_phi_and_t=do_phi_and_t, neqmax=neqmax, model=model, pval=pval, shift=shift)
->>>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2:kgeo/#solver.py#
-=======
-def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, tol=1e-8, pval=1, shift=0, retphi = False): 
-    #guesses  
-    guesses = getguesses(outgeo, a, r_o, th_o, alpha, beta, psitarget, ngeo, do_phi_and_t=do_phi_and_t, neqmax=neqmax, model=model, pval=pval, shift=shift)
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
     guesses_shape = guesses.shape
     print(guesses_shape)
 
@@ -228,25 +181,10 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
     (r1, r2, r3, r4, rclass) = radial_roots(a, lam, eta)
     tau_tot = mino_total(a, r_o, eta, r1, r2, r3, r4)
     taumax = tau_tot * MAXTAUFRAC
-<<<<<<< HEAD
-      
-    def get_coord_intersect(minotimes):
-        #integration in theta
-        (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(minotimes, (1, len(minotimes))),
-                                         do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need G_ph, G_t here?
 
-        #integration in r
-        (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(minotimes, (1, len(minotimes))),
-                                              do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
-       
-<<<<<<<< HEAD:kgeo/off_equatorial_lensing.py
-        arrhere = psifunc(r_s[0], th_s[0], a, model=model, pval=pval) - psitarget
-========
-        arrhere = psifunc(r_s[0], th_s[0], a, model=model, pval=pval, shift=shift) - psitarget
->>>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2:kgeo/#solver.py#
-=======
 
-    #function to minimize   
+
+        
     def get_coord_intersect(minotimes):
         #integration in theta
         (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(minotimes, (1, len(minotimes))),
@@ -257,29 +195,17 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
                                         do_phi_and_t=True)
        
         arrhere = psifunc(r_s[0], th_s[0], a, model=model, pval=pval, shift=shift) - psitarget
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
         arrhere[guesses == -1] = 0 #no intersections
 
         return arrhere
 
     perturb = 1e-5
     print('before solve')
-    outqty = opt.newton(get_coord_intersect, guesses, maxiter=500, tol=tol)
+    outqty = scipy.optimize.newton(get_coord_intersect, guesses, maxiter=500, tol=tol)
     print('after solve')
 
     #integration in theta
     (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(outqty, (1, len(outqty))),
-<<<<<<< HEAD
-                                 do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need G_ph, G_t here?
-    (th_s_further, G_ph_further, G_t_further) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(outqty*(1+perturb), (1, len(outqty))),
-                                do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need G_ph, G_t here?
-
-    #integration in r
-    (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(outqty, (1, len(outqty))),
-                                  do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
-    (r_s_further, I_ph_further, I_t_further, I_sig_further) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(outqty*(1+perturb), (1, len(outqty))),
-                                  do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
-=======
                                  do_phi_and_t=True)
     (th_s_further, G_ph_further, G_t_further) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(outqty*(1+perturb), (1, len(outqty))),
                                 do_phi_and_t=True)
@@ -289,7 +215,6 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
                                   do_phi_and_t=True)
     (r_s_further, I_ph_further, I_t_further, I_sig_further) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(outqty*(1+perturb), (1, len(outqty))),
                                   do_phi_and_t=True)
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
     
     
     signpr = np.sign(r_s-r_s_further)[0]
