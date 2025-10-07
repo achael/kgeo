@@ -324,83 +324,10 @@ def calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2)
     g = 1 / (1*u0 - lam*u3 - np.sign(kth_sign)*u2*np.sqrt(TH) - np.sign(kr_sign)*u1*np.sqrt(R)/Delta)
     
     return g
-<<<<<<< HEAD
 
 def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
                        velocity=vel_default,
-                       bfield=bfield_default, th=np.pi/2):
-=======
-def calc_tetrades(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2):
-    """ calculate tetrads for transformation to orthonormal frame"""
-
-    if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
-    if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
-    if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
-    if not isinstance(kr_sign, np.ndarray): kr_sign = np.array([kr_sign]).flatten()
-        
-    if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
-        raise Exception("g_grmhd_fit input arrays are different lengths!")
-    
-            
-    # Metric
-    a2 = a**2
-    r2 = r**2
-    cth2 = np.cos(th)**2
-    sth2 = np.sin(th)**2
-    Delta = r2 - 2*r + a2
-    Sigma = r2 + a2 * cth2
-
-    g00 = -(1 - 2*r/Sigma)
-    g11 = Sigma/Delta
-    g22 = Sigma
-    g33 = (r2 + a2 + 2*r*a2*sth2 / Sigma) * sth2
-    g03 = -2*r*a*sth2 / Sigma
-
-    g00_up = -(r2 + a2 + 2*r*a2*sth2/Sigma) / Delta
-    g11_up = Delta/Sigma
-    g22_up = 1./Sigma
-    g33_up = (Delta - a2*sth2)/(Sigma*Delta*sth2)
-    g03_up = -(2*a*r)/(Sigma*Delta)
-
-    # covariant velocity
-    u0_l = g00*u0 + g03*u3
-    u1_l = g11*u1
-    u2_l = g22*u2 
-    u3_l = g33*u3 + g03*u0
-    
-    # define tetrads to comoving frame
-    Nr = np.sqrt(-g11*(u0_l*u0 + u3_l*u3)*(1 + u2_l*u2))
-    Nth = np.sqrt(g22*(1 + u2_l*u2))
-    Nph = np.sqrt(-Delta*sth2*(u0_l*u0 + u3_l*u3))        
-
-    e0_t = -u0
-    e1_t = -u1
-    e2_t = -u2
-    e3_t = -u3
-    
-    e0_x = u1_l*u0/Nr
-    e1_x = -(u0_l*u0 + u3_l*u3)/Nr
-    e2_x = 0
-    e3_x = u1_l*u3/Nr
-
-    e0_y = u2_l*u0/Nth
-    e1_y = u2_l*u1/Nth
-    e2_y = (1+u2_l*u2)/Nth
-    e3_y = u2_l*u3/Nth
-
-    e0_z = u3_l/Nph
-    e1_z = 0
-    e2_z = 0
-    e3_z = -u0_l/Nph
-                                       
-    # output tetrades
-    tetrades = ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z))
-    
-    return tetrades
-    
-def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, 
                        bfield=bfield_default, th=np.pi/2, pathcor='R'):
->>>>>>> ce97cad5c036040fa801b8ee7ec0c84cf58120e2
 
     """ calculate polarization quantities"""
 
