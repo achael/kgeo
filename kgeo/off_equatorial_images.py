@@ -1,4 +1,5 @@
 import numpy as np
+import ehtim as eh
 import scipy.special as sp
 import scipy.integrate as scint
 
@@ -9,9 +10,6 @@ from kgeo.equatorial_images import calc_redshift, calc_polquantities, calc_evpa
 from kgeo.kerr_raytracing_ana import raytrace_ana
 
 from kgeo.off_equatorial_lensing import findroot
-from kgeo.geometry import sort_image
-
-import numpy as np
 
 from kgeo.bfields import *
 from kgeo.velocities import *
@@ -21,10 +19,18 @@ bfield_default = Bfield('rad')
 vel_default = Velocity('zamo')
 emis_default = Emissivity('bpl')
 SPECIND = 1 # default (negative) spectral index
+source = 'M87'
+MoD = 3.77883459  # this is what was used for M/D in uas for the M87 simulations
+ra = 12.51373 
+dec = 12.39112 
+flux230 = 1.0     # total flux
+rotation = 90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
+
 
 def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
-         polarization=False, specind=SPECIND, th_s=np.pi/2, density=1, retsin = False):
+         polarization=False, specind=SPECIND, th_s=np.pi/2, density=1, 
+         retsin = False, emit='jet', pathcor='R', anis=None):
 
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
@@ -66,7 +72,6 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
     zeromask = np.abs(alpha)<0
         
     if np.any(~zeromask):
-
         ###############################
         # get velocity and redshift
         ###############################        
@@ -86,33 +91,39 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
         ###############################
 
         if polarization:
-
-            (sinthb, kappa, pathlength, bsq) = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
-                                                 kr_sign, kth_sign, 
-                                                 velocity=velocity, 
-                                                 bfield=bfield, th=th_s)
+            (sinthb, kappa, pathlength, bsq, cosjet) = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
+                                                                          kr_sign, kth_sign, 
+                                                                          velocity=velocity, 
+                                                                          bfield=bfield, th=th_s, pathcor=pathcor)
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
 
         else:
             sinthb = 1
         
         sin_thb[~zeromask] = sinthb  
-        Iemis *= bsq**((1+specind)/2) #for spectral index of 1, we add on factor of B^2 
 
+        if emit != 'disk':
+            Iemis *= bsq**((1+specind)/2) #for spectral index of 1 and the non-disk emissivity profile, we add on factor of B^2 
                              
         ###############################
         # observed emission
-        ###############################         
-
-        Iobs_here[~zeromask] = (gg**3) * (gg**specind) * pathlength * Iemis * (sinthb**(1+specind))       
-
+        ###############################
+        
+        spower = 1+2*specind #EDF is gamma^{-s}
+        costhb = np.abs(np.cos(np.arcsin(sinthb)))
+        etafac = 1 if anis == None else (1+(anis-1)*costhb**2)**(-spower/2)
+        if anis != None:
+            print('anisotropy! ',anis)
+        Iobs_here[~zeromask] = (gg**3) * (gg**specind) * pathlength * Iemis * (sinthb**(1+specind)) * etafac      
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs_here[~zeromask]
             Uobs[~zeromask] = sin2chi*Iobs_here[~zeromask]
 
+
     else:
-        print("masked all pixels in Iobs_off!")
+        print("masked all pixels in Iobs! m=%i"%mbar)
+
 
     Iobs_2 = np.copy(Iobs_here)
     Qobs_2 = np.copy(Qobs)
@@ -120,22 +131,19 @@ def Iobs_off(a, r_o, r_s, th_o, alpha, beta, kr_sign, kth_sign,
 
     Iobs_2[r_s<=rh] = Qobs_2[r_s<=rh] = Uobs_2[r_s<=rh] = 0 #zero out emission coming from within the horizon
 
-
     if not retsin:
         return Iobs_2, Qobs_2, Uobs_2
-    return Iobs_2, Qobs_2, Uobs_2, sinthb    
-
-
-
+    return Iobs_2, Qobs_2, Uobs_2, np.sqrt(bsq)*sinthb
+    #returns images contained in order of neq
 
 
 #get stokes parameters for a grid with off-equatorial emission in BZ model
-#returns images contained in order of neq
 def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo, 
-              do_phi_and_t = True, neqmax=1, outgeo=None, tol=1e-8, 
-              model='para', pval=1,   
-              nu_parallel = 0,  gammamax=None, retvals = False,
-              sigma=2, sumsubring=True, usemono=False, retsin=False): #neqmax is the maximum number of equatorial crossings
+              do_phi_and_t = True, model='para', neqmax=1, eta=1, outgeo=None, tol=1e-8, emit='jet',
+              nu_parallel = 0, pval=1, gammamax=None, retvals = False, 
+              vel='driftframe', sigma=2, sumsubring=True, usemono=False, retsin=False, 
+              sigmaplasma=1, pathcor='R', specind = 1, anis = None, shift = 0): #neqmax is the maximum number of equatorial crossings
+    
 
     """Get stokes parameters for a grid with off-equatorial emission in BZ jet model
        
@@ -169,39 +177,35 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo,
        Returns:
 
     """
-    ashape = alphavals.shape # store shapes for later
-    alphavals = alphavals.flatten() # flatten since we need everything to be a vector for our code to work
+
+    ashape = alphavals.shape #store shapes for later
+    alphavals = alphavals.flatten() #flatten since we need everything to be a vector for our code to work
     betavals = betavals.flatten()
 
     if outgeo == None:
-        outgeo = raytrace_ana(a=a,
-                              observer_coords = [0,r_o,th_o,0],
-                              image_coords = [alphavals, betavals], #assumes 1D arrays of alpha and beta
-                              ngeo=ngeo,
-                              do_phi_and_t=do_phi_and_t,
-                              savedata=False, plotdata=False)
-
+            outgeo = raytrace_ana(a=a,
+                 observer_coords = [0,r_o,th_o,0],
+                 image_coords = [alphavals, betavals], #assumes 1D arrays of alpha and beta
+                 ngeo=ngeo,
+                 do_phi_and_t=do_phi_and_t,
+                 savedata=False, plotdata=False)
+    
     #solve for crossing points and densities there
-    tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, r_o, th_o, a, ngeo, 
-                                                                              model=model, neqmax=neqmax, tol=tol, pval=pval)
-
+    tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, 
+                                                                              r_o, th_o, a, ngeo, 
+                                                                              do_phi_and_t = do_phi_and_t, model=model,
+                                                                              neqmax=neqmax, tol=tol, pval=pval, shift=shift)
 
     print('guesses before ', guesses_shape)
+    
     #reshape coordinates
     alphavals = np.tile(alphavals, guesses_shape[0])
     betavals = np.tile(betavals, guesses_shape[0])
 
 
-    if model == 'mono' or (model == 'power' and pval == 0):
-        dvals = density_mono_all(rvals, thvals, guesses_shape, psitarget, a, nu_parallel, sigma, neqmax=neqmax, gammamax=gammamax)
-    elif model == 'para':
-        dvals = density_para_all(rvals, thvals, guesses_shape, psitarget, a, nu_parallel, sigma, neqmax=neqmax, gammamax=gammamax)
-    elif (model == 'power' and pval > 0):
-        dvals = density_power_all(rvals, thvals, guesses_shape, psitarget, a, nu_parallel, sigma, neqmax=neqmax, gammamax=gammamax, pval = pval, usemono=usemono)
-    
     #initialize arrays
     if model == 'para':
-        bf = Bfield('bz_para')
+        bf = Bfield('bz_para', shift=shift)
     elif model == 'mono':
         bf = Bfield('bz_monopole') #initialize bfield
     elif model == 'power':
@@ -209,12 +213,28 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo,
     else:
         bf = 0
 
-    #generate intensity data
+
+    if emit == 'disk':
+        dvals = np.exp(-rvals/3) #cuts off after photon ring
+
+    elif emit == 'sigma':
+        dvals = densityconstsigma(rvals, thvals, a, nu_parallel, sigmaplasma, model, gammamax=gammamax, pval = pval, usemono=usemono, shift=shift, velmodel=vel)
+    
+    elif emit == 'poynting':
+        dvals = densitypoynting(rvals, thvals, a, bf, gammamax=gammamax, nu_parallel = nu_parallel)
+
+    else: #do jet emissivity profile
+        if model == 'mono' or (model == 'power' and pval == 0):
+            dvals = density_mono_all(rvals, thvals, guesses_shape, psitarget, a, nu_parallel, sigma, neqmax=neqmax, gammamax=gammamax)
+        elif model == 'para':
+            dvals = density_para_all(rvals, thvals, guesses_shape, psitarget, a, nu_parallel, sigma, neqmax=neqmax, gammamax=gammamax)
+        elif (model == 'power' and pval > 0):
+            dvals = density_power_all(rvals, thvals, guesses_shape, psitarget, a, nu_parallel, sigma, neqmax=neqmax, gammamax=gammamax, pval = pval, usemono=usemono)
+    
+
     outvec = Iobs_off(a, r_o, rvals, th_o, alphavals, betavals, signpr, signptheta,
-                      emissivity=Emissivity('constant'), 
-                      velocity=Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel, gammamax=gammamax), 
-                      bfield=bf,
-                      polarization=True, specind=SPECIND, th_s=thvals, density=dvals, retsin=retsin) 
+    emissivity=Emissivity('constant'), velocity=Velocity(vel, bfield=bf, nu_parallel = nu_parallel, gammamax=gammamax), bfield=bf,
+    polarization=True,  specind=specind, th_s=thvals, density=dvals, retsin=retsin, emit=emit, pathcor=pathcor, anis = anis) #generate data
 
 
     iobs = np.copy(outvec[0])
@@ -228,10 +248,8 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo,
     uobs = np.real(np.nan_to_num(np.array(uobs)))
 
     if not sumsubring:
-        #return iobs, qobs, uobs, neqvals, guesses_shape  #just return the raw subrings
-        
-        return iobs, qobs, uobs, neqvals, np.nan_to_num(rvals), np.nan_to_num(thvals), guesses_shape  #just return the raw subrings #AC edited
-        
+        return iobs, qobs, uobs, neqvals, guesses_shape  #just return the raw subrings
+
     #call sorter here
     ivec, qvec, uvec = sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax)
     evpa = np.nan_to_num(0.5*np.arctan2(uvec, qvec))
@@ -240,9 +258,7 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo,
         return ivec, qvec, uvec, evpa
     if not retsin: #return stokes + intersection data
         return ivec, qvec, uvec, evpa, np.nan_to_num(rvals), np.nan_to_num(thvals)
-    return ivec, qvec, uvec, evpa, np.nan_to_num(rvals), np.nan_to_num(thvals), np.nan_to_num(outvec[3]) #return stokes+intersection+pitch angle
-
-
+    return ivec, qvec, uvec, evpa, np.nan_to_num(rvals), np.nan_to_num(thvals), np.nan_to_num(outvec[3])#, np.nan_to_num(outvec[4]), np.nan_to_num(outvec[5]), np.nan_to_num(outvec[6]), np.nan_to_num(outvec[7]), np.nan_to_num(outvec[8]) #return stokes+intersection+pitch angle
 
 #returns images contained in order of neq
 def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax):
@@ -269,6 +285,7 @@ def sort_image(iobs, qobs, uobs, neqvals, guesses_shape, ashape, neqmax):
     uarr.append(np.reshape(np.sum(np.reshape(uobs, guesses_shape), axis=0), ashape))
 
     return np.array(iarr), np.array(qarr), np.array(uarr)
+
 
 ###########################################################
 # computes density as solution to continuity equation with a Gaussian source of width (in r) sigma
@@ -485,5 +502,112 @@ def density_power_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel
         rhovals.append(rho)
 
     return np.nan_to_num(np.array(rhovals).flatten(), nan=0.0)
+
+
+
+#compute density assuming that sigma=b^2/rho=sigmaplasma=const
+def densityconstsigma(rvals, thvals, a, nu_parallel, sigmaplasma, model, gammamax=None, pval = 1.0, usemono=False, shift=0, velmodel='driftframe'):
+    if model == 'mono':
+        bfield = Bfield("bz_monopole", C=1)
+    elif model == 'para':
+        bfield = Bfield("bz_para", C=1, shift=shift)
+    elif model == 'power':
+        bfield = Bfield("power", p=pval, usemono=usemono)
+    (B1, B2, B3) = bfield.bfield_lab(a, rvals, th=thvals)
+
+    # Metric
+    a2 = a**2
+    r2 = rvals**2
+    cth2 = np.cos(thvals)**2
+    sth2 = np.sin(thvals)**2
+    Delta = r2 - 2*rvals + a2
+    Sigma = r2 + a2 * cth2
+    gdet = Sigma*np.sqrt(sth2) #metric determinant
+
+    g00 = -(1 - 2*rvals/Sigma)
+    g11 = Sigma/Delta
+    g22 = Sigma
+    g33 = (r2 + a2 + 2*rvals*a2*sth2 / Sigma) * sth2
+    g03 = -2*rvals*a*sth2 / Sigma
+
+
+    #compute velocity
+    vel = Velocity(velmodel, bfield = bfield, nu_parallel = nu_parallel, gammamax = gammamax)
+    (u0,u1,u2,u3) = vel.u_lab(a, rvals, th=thvals)
+    u0_l = g00*u0 + g03*u3
+    u1_l = g11*u1
+    u2_l = g22*u2 
+    u3_l = g33*u3 + g03*u0
+
+    #compute b^mu
+    b0 = B1*u1_l + B2*u2_l + B3*u3_l
+    b1 = (B1 + b0*u1)/u0
+    b2 = (B2 + b0*u2)/u0
+    b3 = (B3 + b0*u3)/u0     
+
+    b0_l = g00*b0 + g03*b3
+    b1_l = g11*b1
+    b2_l = g22*b2
+    b3_l = g33*b3 + g03*b0
+        
+    bsq = b0*b0_l + b1*b1_l + b2*b2_l + b3*b3_l
+
+    return bsq/sigmaplasma #assumption is that bsq/rho = sigmaplasma
+
+def densitypoynting(rvals, thvals, a, bf, gammamax=None, nu_parallel='FF'):
+    #compute metric factors
+    sig = rvals**2+a**2*np.cos(thvals)**2
+    delta = rvals**2-2*rvals+a**2
+    pi = (rvals**2+a**2)**2-a**2*delta*np.sin(thvals)**2
+    alphalapse = np.sqrt(delta*sig/pi)
+    grr = sig/delta
+    gthetatheta = sig
+    gphiphi = pi*np.sin(thvals)**2/sig
+    
+    #compute magnetic field components in ZAMO frame
+    (B1, B2, B3) = bf.bfield_lab(a, rvals, th=thvals)
+    B1Zamo = alphalapse*B1*np.sqrt(grr)
+    B2Zamo = alphalapse*B2*np.sqrt(gthetatheta)
+    B3Zamo = alphalapse*B3*np.sqrt(gphiphi)
+    Bsq = B1Zamo**2+B2Zamo**2+B3Zamo**2
+    
+    #compute perpendicular velocity
+    velocityhere = Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel, gammamax = gammamax)
+    (vperpmag, vperp1, vperp2, vperp3) = velocityhere.u_lab(a, rvals, th=thvals, retqty=True)
+
+    #compute Poynting flux from S=vperp*B^2
+    poyntingmag = Bsq*vperpmag
+    return np.abs(np.nan_to_num(poyntingmag))
+
+
+###########################################################
+# arranges intensity and polarization arrays into ehtim image object
+# previously in image.py
+###########################################################
+
+def makeim(ivals, qvals, uvals, agrid, saveim=None):
+    npix = len(agrid)**2        # number of pixels
+    amax = np.max(agrid)         # maximum alpha,beta in R
+    psize = 2.*amax/len(agrid)
+    psize_rad = psize*MoD*eh.RADPERUAS
+
+    ivals_im = np.real(np.flipud(ivals))
+    qvals_im = np.real(np.flipud(qvals))
+    uvals_im = np.real(np.flipud(uvals))
+    fluxscale = 1.0#flux230/np.sum(ivals_im)
+
+    im = eh.image.Image(ivals_im*fluxscale, psize_rad, ra, dec)
+    im.add_qu(qvals_im*fluxscale, uvals_im*fluxscale)
+    im.source = source
+    
+    if saveim != None:
+        im.save_fits(saveim)
+    
+    return im
+    
+    
+
+    
+
 
 

@@ -2,9 +2,8 @@
 import numpy as np
 import ehtim as eh
 import matplotlib.pyplot as plt
-from kgeo.off_eq import getstokes
+from kgeo.off_equatorial_images import getstokes, sort_image
 from kgeo.bfields import Bfield
-from kgeo.geometry import sort_image
 
 # file label
 label='jettest'
@@ -59,19 +58,18 @@ betas = np.linspace(-amax, -amax+npix*psize, npix)
 alpha_arr, beta_arr = np.meshgrid(alphas, betas)
 imshape = alpha_arr.shape
 
-sumsubring=False
 imagedat =  getstokes(psitarget, alpha_arr, beta_arr, r_o, th_o, spin, ngeo, 
                       do_phi_and_t = True, neqmax=nmax, outgeo=None, tol=1e-8, 
                       model=bmodel, pval=pval,   
                       nu_parallel=nu_parallel,  gammamax=gammamax, 
                       sigma=sigma, usemono=False, 
-                      sumsubring=sumsubring, retvals=True, retsin=False)
+                      sumsubring=True, retvals=True, retsin=False)
 
 
-(ivals, qvals, uvals, neqvals, rvals, thvals, guesses_shape) = imagedat
+(iarr, qarr, uarr, evparr, rvals, thvals) = imagedat
 
 # TODO is sort_image ignoring last subring? what exactly is this doing? 
-iarr, qarr, uarr = sort_image(ivals, qvals, uvals, neqvals, guesses_shape, imshape, nmax)    
+#iarr, qarr, uarr = sort_image(ivals, qvals, uvals, neqvals, guesses_shape, imshape, nmax)    
     
 #try to make a contour plt...
 rhovals = rvals*np.sin(thvals)
@@ -79,11 +77,13 @@ zvals = rvals*np.cos(thvals)
 
 zlevelstop = np.arange(0,200,20)
 zlevelsbot = np.arange(-200,0,20)
-plt.contour(alpha_arr, beta_arr, np.reshape(zvals,(guesses_shape[0],npix,npix))[0], zlevelstop, colors='k', linestyles='solid')
-plt.contour(alpha_arr, beta_arr, np.reshape(zvals,(guesses_shape[0],npix,npix))[0], zlevelsbot, colors='r', linestyles='solid')
 
-plt.contour(alpha_arr, beta_arr, np.reshape(zvals,(guesses_shape[0],npix,npix))[1], zlevelstop, colors='k', linestyles='dashed')
-plt.contour(alpha_arr, beta_arr, np.reshape(zvals,(guesses_shape[0],npix,npix))[1], zlevelsbot, colors='r', linestyles='dashed')
+# TODO: fix contour plots
+#plt.contour(alpha_arr, beta_arr, np.reshape(zvals,(guesses_shape[0],npix,npix))[0], zlevelstop, colors='k', linestyles='solid')
+#plt.contour(alpha_arr, beta_arr, np.reshape(zvals,(guesses_shape[0],npix,npix))[0], zlevelsbot, colors='r', linestyles='solid')
+
+#plt.contour(alpha_arr, beta_arr, np.reshape(zvals,(guesses_shape[0],npix,npix))[1], zlevelstop, colors='k', linestyles='dashed')
+#plt.contour(alpha_arr, beta_arr, np.reshape(zvals,(guesses_shape[0],npix,npix))[1], zlevelsbot, colors='r', linestyles='dashed')
 
 #plt.contour(alpha_arr, beta_arr, np.reshape(zvals,(guesses_shape[0],npix,npix))[2], zlevelstop, colors='k', linestyles='solid')
 #plt.contour(alpha_arr, beta_arr, np.reshape(zvals,(guesses_shape[0],npix,npix))[2], zlevelsbot, colors='r', linestyles='solid')
