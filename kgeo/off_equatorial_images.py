@@ -191,9 +191,13 @@ def getstokes(psitarget, alphavals, betavals, r_o, th_o, a, ngeo,
                  savedata=False, plotdata=False)
     
     #solve for crossing points and densities there
-    tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, r_o, th_o, a, ngeo, do_phi_and_t = do_phi_and_t, model=model, neqmax=neqmax, tol=tol, pval=pval, shift=shift)
+    tau, rvals, thvals, signpr, signptheta, neqvals, guesses_shape = findroot(outgeo, psitarget, alphavals, betavals, 
+                                                                              r_o, th_o, a, ngeo, 
+                                                                              do_phi_and_t = do_phi_and_t, model=model,
+                                                                              neqmax=neqmax, tol=tol, pval=pval, shift=shift)
 
     print('guesses before ', guesses_shape)
+    
     #reshape coordinates
     alphavals = np.tile(alphavals, guesses_shape[0])
     betavals = np.tile(betavals, guesses_shape[0])

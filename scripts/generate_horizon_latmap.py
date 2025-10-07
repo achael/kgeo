@@ -1,6 +1,7 @@
 import numpy as np
 from kgeo.kerr_raytracing_ana import raytrace_ana
 from kgeo.equatorial_lensing import rho_of_req, nmax_equatorial
+import matplotlib.pyplot as plt
 
 spin = 0.99
 inc = 17*np.pi/180.

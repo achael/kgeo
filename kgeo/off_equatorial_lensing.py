@@ -104,6 +104,7 @@ def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_
     taumaxes = get_maxtau_forwardjet(a, rout, inc, alphas, betas, neqmax=neqmax)
     psifromgeo = psifunc(outgeo.r_s, outgeo.th_s, a, model=model, pval=pval, shift=shift) - psitarget
     
+    print(len(alphas))
     for i in range(len(alphas)):
         impactparam = np.sqrt(alphas[i]**2+betas[i]**2)
         if np.abs(np.sin(inc)) < .1 and impactparam > 100: #100: #can use flat-space face-on raytracing for guess
@@ -134,6 +135,7 @@ def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_
 
         #mininds += 1 #necessary since we cut off the endpoints earlier
         #average two points which the zero lives between
+        tauguesses.append(np.array([(outgeo.mino_times[indfinal, i]+outgeo.mino_times[indfinal+1, i])/2 for indfinal in mininds]))
     
     return makegoodarray(tauguesses)
 
@@ -144,7 +146,6 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
     #guesses  
     guesses = getguesses(outgeo, a, r_o, th_o, alpha, beta, psitarget, ngeo, do_phi_and_t=do_phi_and_t, neqmax=neqmax, model=model, pval=pval, shift=shift)
     guesses_shape = guesses.shape
-    print(guesses_shape)
 
     # conserved quantities
     lam = np.tile(-alpha*np.sin(th_o), len(guesses)) #tile them to match shape of guess vector
@@ -170,16 +171,15 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
     tau_tot = mino_total(a, r_o, eta, r1, r2, r3, r4)
     taumax = tau_tot * MAXTAUFRAC
 
-      
     #function to minimize   
     def get_coord_intersect(minotimes):
         #integration in theta
         (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(minotimes, (1, len(minotimes))),
-                                        do_phi_and_t=True)
+                                         do_phi_and_t=True)
 
         #integration in r
         (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(minotimes, (1, len(minotimes))),
-                                        do_phi_and_t=True)
+                                              do_phi_and_t=True)
        
         arrhere = psifunc(r_s[0], th_s[0], a, model=model, pval=pval, shift=shift) - psitarget
         arrhere[guesses == -1] = 0 #no intersections
@@ -193,15 +193,15 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
 
     #integration in theta
     (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(outqty, (1, len(outqty))),
-                                 do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need G_ph, G_t here?
+                                     do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need G_ph, G_t here?
     (th_s_further, G_ph_further, G_t_further) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(outqty*(1+perturb), (1, len(outqty))),
-                                do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need G_ph, G_t here?
+                                     do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need G_ph, G_t here?
 
     #integration in r
     (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(outqty, (1, len(outqty))),
-                                  do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
+                                          do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
     (r_s_further, I_ph_further, I_t_further, I_sig_further) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(outqty*(1+perturb), (1, len(outqty))),
-                                  do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
+                                          do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
 
     
     signpr = np.sign(r_s-r_s_further)[0]

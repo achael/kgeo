@@ -5,7 +5,6 @@
 
 import numpy as np
 import scipy.special as sp
-from tqdm import tqdm
 from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
 from kgeo.equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
 import time
@@ -18,6 +17,8 @@ vel_default = Velocity('zamo')
 emis_default = Emissivity('bpl')
 SPECIND = 1 # default (negative) spectral index
 DISKANGLE = 0.1 # default h/r for equatorial disk
+SINTHB = np.pi/4. # assumption for sin(thetab) if polarization==False
+OBSFREQ = 230.e9 # default observation frequency
 
 def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max, psize,
                nmax_only=False,
@@ -27,7 +28,8 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                polarization=False, 
                pathlength=False,
                specind=SPECIND,
-               diskangle=DISKANGLE):
+               diskangle=DISKANGLE,
+               nu_obs=OBSFREQ):
     """computes an image in range (alpha_min, alpha_max) x (beta_min, beta_max)
       for all orders of m up to mbar_max
       and pixel size psize"""
@@ -91,7 +93,8 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                           polarization=polarization,
                           pathlength=pathlength,
                           specind=specind,
-                          diskangle=diskangle)
+                          diskangle=diskangle,
+                          nu_obs=nu_obs)
         
             outarr_I[:,mbar] = imdat[0]
             outarr_Q[:,mbar] = imdat[1]
@@ -106,10 +109,12 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                 outarr_lp[:,mbar] = imdat[9]
                 outarr_Ie[:,mbar] = imdat[10]
                 
-                outdat = (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g, outarr_sinthb, outarr_n, outarr_np, 
+                outdat = (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g,
+                          outarr_sinthb, outarr_n, outarr_np, 
                           outarr_lp, outarr_Ie)
             else:
-                outdat = (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g, outarr_sinthb, outarr_n, outarr_np)
+                outdat = (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g,
+                          outarr_sinthb, outarr_n, outarr_np)
 
             print('image %i...%0.2f s'%(mbar, time.time()-tstart))
 
@@ -118,7 +123,8 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
 
 def Iobs(a, r_o, th_o, mbar, alpha, beta, 
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
-         polarization=False, pathlength=False, specind=SPECIND, diskangle=DISKANGLE, th_s=np.pi/2):
+         polarization=False, pathlength=False, specind=SPECIND, diskangle=DISKANGLE, nu_obs=OBSFREQ,
+         th_s=np.pi/2):
 
     """Return (Iobs, g, r_s, Ir, Imax, Nmax) where
        Iobs is Observed intensity for a ring of order mbar, GLM20 Eq 6
@@ -190,40 +196,56 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         g[~zeromask] = gg
 
         ###############################
-        # get emissivity in local frame
-        ###############################
-        Iemis = emissivity.jrest(a, r_s[~zeromask])
-
-        ###############################
         # get polarization quantities
         # if polarization not used, set sin(theta_b) = 1 everywhere
         ###############################
         if polarization:
-            sinthb, kappa, llp, bsq = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
-                                                         kr_sign, kth_sign, u0, u1, u2, u3, 
-                                                         bfield=bfield, th=th_s)
+            # TODO: we are currently overwriting pathlength from calc_polquantities in disk images
+            # TODO: pathlength from calc_polquantities is directly used in jet model!
+            # TODO: reconcile these  
+            sinthb, kappa, llp1, bsq, kdotnorm = calc_polquantities(a, r_s[~zeromask], 
+                                                                    lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, 
+                                                                    velocity=velocity,
+                                                                    bfield=bfield, th=th_s, pathcor='R')
 
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
         else:
-            sinthb = 1
+            sinthb = SINTHB
         
         sin_thb[~zeromask] = sinthb   
-                             
+
+        ###############################
+        # get emissivity in local frame
+        ###############################
+        Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, nu_obs=nu_obs)
+    
+        # add spectral terms to emissivity if not using a physical one
+        # TODO: put this in j_rest? 
+        Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
+        
         ###############################
         # observed emission
         ###############################  
         if pathlength:
-            # TODO: we are currently overwriting pathlength from calc_polquantities used in jet model!
-            # TODO: reconcile these for the equatorial disk w/r/t factors of r 
+            # TODO: we are currently overwriting pathlength from calc_polquantities in disk images
+            # TODO: pathlength from calc_polquantities is directly used in jet model!
+            # TODO: reconcile these  
             llp = calc_pathlength_equatorial(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], 
                                              kr_sign, kth_sign, u0, u1, u2, u3, 
                                              th=th_s, diskangle=diskangle)
-            Iobs[~zeromask] = (gg**3) * (gg**specind) * Iemis * (sinthb**(1+specind)) * np.abs(llp)
+            
+            # fluid frame path length llp \propto 1/g            
+            #llp2 = llp1*diskangle*r_s[~zeromask]
+            #ldiff = 1-np.abs(llp2)/np.abs(llp)
+            #print("ldiff:", np.min(ldiff),np.median(ldiff),np.max(ldiff))
+            
+            Iemis *= np.abs(llp)
+            Iobs[~zeromask] = (gg**3) * Iemis
             Ie[~zeromask] = Iemis
             lp[~zeromask] = llp
                     
         else:       
-            Iobs[~zeromask] = (gg**2) * (gg**specind) * Iemis * (sinthb**(1+specind))       
+            Iobs[~zeromask] = (gg**2) * Iemis   
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs[~zeromask]
@@ -286,7 +308,7 @@ def calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2)
     if not isinstance(kr_sign, np.ndarray): kr_sign = np.array([kr_sign]).flatten()
 
     if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
-        raise Exception("g_grmhd_fit input arrays are different lengths!")
+        raise Exception("calc_redshift input arrays are different lengths!")
     
 
     # Metric
@@ -305,75 +327,9 @@ def calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2)
     g = 1 / (1*u0 - lam*u3 - np.sign(kth_sign)*u2*np.sqrt(TH) - np.sign(kr_sign)*u1*np.sqrt(R)/Delta)
     
     return g
-def calc_tetrades(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2):
-    """ calculate tetrads for transformation to orthonormal frame"""
 
-    if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
-    if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
-    if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
-    if not isinstance(kr_sign, np.ndarray): kr_sign = np.array([kr_sign]).flatten()
-        
-    if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
-        raise Exception("g_grmhd_fit input arrays are different lengths!")
-    
-            
-    # Metric
-    a2 = a**2
-    r2 = r**2
-    cth2 = np.cos(th)**2
-    sth2 = np.sin(th)**2
-    Delta = r2 - 2*r + a2
-    Sigma = r2 + a2 * cth2
-
-    g00 = -(1 - 2*r/Sigma)
-    g11 = Sigma/Delta
-    g22 = Sigma
-    g33 = (r2 + a2 + 2*r*a2*sth2 / Sigma) * sth2
-    g03 = -2*r*a*sth2 / Sigma
-
-    g00_up = -(r2 + a2 + 2*r*a2*sth2/Sigma) / Delta
-    g11_up = Delta/Sigma
-    g22_up = 1./Sigma
-    g33_up = (Delta - a2*sth2)/(Sigma*Delta*sth2)
-    g03_up = -(2*a*r)/(Sigma*Delta)
-
-    # covariant velocity
-    u0_l = g00*u0 + g03*u3
-    u1_l = g11*u1
-    u2_l = g22*u2 
-    u3_l = g33*u3 + g03*u0
-    
-    # define tetrads to comoving frame
-    Nr = np.sqrt(-g11*(u0_l*u0 + u3_l*u3)*(1 + u2_l*u2))
-    Nth = np.sqrt(g22*(1 + u2_l*u2))
-    Nph = np.sqrt(-Delta*sth2*(u0_l*u0 + u3_l*u3))        
-
-    e0_t = -u0
-    e1_t = -u1
-    e2_t = -u2
-    e3_t = -u3
-    
-    e0_x = u1_l*u0/Nr
-    e1_x = -(u0_l*u0 + u3_l*u3)/Nr
-    e2_x = 0
-    e3_x = u1_l*u3/Nr
-
-    e0_y = u2_l*u0/Nth
-    e1_y = u2_l*u1/Nth
-    e2_y = (1+u2_l*u2)/Nth
-    e3_y = u2_l*u3/Nth
-
-    e0_z = u3_l/Nph
-    e1_z = 0
-    e2_z = 0
-    e3_z = -u0_l/Nph
-                                       
-    # output tetrades
-    tetrades = ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z))
-    
-    return tetrades
-    
-def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, 
+def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
+                       velocity=vel_default,
                        bfield=bfield_default, th=np.pi/2, pathcor='R'):
 
     """ calculate polarization quantities"""
@@ -384,9 +340,8 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     if not isinstance(kr_sign, np.ndarray): kr_sign = np.array([kr_sign]).flatten()
         
     if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
-        raise Exception("g_grmhd_fit input arrays are different lengths!")
-    
-            
+        raise Exception("calc_polquantities input arrays are different lengths!")
+         
     # Metric
     a2 = a**2
     r2 = r**2
@@ -408,52 +363,40 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     g33_up = (Delta - a2*sth2)/(Sigma*Delta*sth2)
     g03_up = -(2*a*r)/(Sigma*Delta)
 
-    # covarient velocity
+    # contravarient and covarient velocity
+    (u0,u1,u2,u3) = velocity.u_lab(a, r,th=th)    
+            
     u0_l = g00*u0 + g03*u3
     u1_l = g11*u1
     u2_l = g22*u2 
     u3_l = g33*u3 + g03*u0
-                
-    # photon momentum
-    R = (r2 + a2 -a*lam)**2 - Delta*(eta + (lam-a)**2)
-    TH = eta + a2*cth2 - lam*lam*cth2/sth2
-    
-    k0_l = -1
-    k1_l = kr_sign*np.sqrt(R)/Delta
-    k2_l = kth_sign*np.sqrt(TH)
-    k3_l = lam
-
-    k0 = g00_up * k0_l + g03_up * k3_l
-    k1 = g11_up * k1_l
-    k2 = g22_up * k2_l
-    k3 = g33_up * k3_l + g03_up * k0_l   
-    
+                    
     # calculate tetrades
-    tetrades = calc_tetrades(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=th)
+    tetrades = velocity.tetrades(a, r, th=th)
     ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z)) = tetrades 
                          
-
     # B-field defined in the lab frame: transform to fluid-frame quantities
     if bfield.fieldframe=='lab':
     
         # get lab frame B^i
-
         (B1, B2, B3) = bfield.bfield_lab(a, r, th=th)
          
         #normal vector to jet wall (necessary for path length)
-        norm0_l = 0 #dpsidt
-        norm1_l = -B2*gdet  #dpsidr
-        norm2_l = B1*gdet #dpsidtheta
-        norm3_l = 0 #dpsidphi
+        norm0_l = 0        #dpsidt
+        norm1_l = -B2*gdet #dpsidr
+        norm2_l = B1*gdet  #dpsidtheta
+        norm3_l = 0        #dpsidphi
 
-
+        # fluid frame bfield
         # here, we assume the field is degenerate and e^\mu = u_\nu F^{\mu\nu} = 0
         # (standard GRMHD assumption)
+        (b0, b1, b2, b3) = bfield.bfield_fluid(a,r,velocity,th=th)
         b0 = B1*u1_l + B2*u2_l + B3*u3_l
         b1 = (B1 + b0*u1)/u0
         b2 = (B2 + b0*u2)/u0
         b3 = (B3 + b0*u3)/u0     
 
+        # covarient
         b0_l = g00*b0 + g03*b3
         b1_l = g11*b1
         b2_l = g22*b2
@@ -469,8 +412,7 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
         norm_x = e0_x*norm0_l + e1_x*norm1_l  + e2_x*norm2_l + e3_x*norm3_l
         norm_y = e0_y*norm0_l + e1_y*norm1_l  + e2_y*norm2_l + e3_y*norm3_l
         norm_z = e0_z*norm0_l + e1_z*norm1_l  + e2_z*norm2_l + e3_z*norm3_l
-    
- 
+     
     # B-field defined directly in comoving frame as in Gelles+2021
     elif bfield.fieldframe=='comoving':
         print('comoving!')
@@ -482,18 +424,40 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     # comvoving frame magnitude    
     Bp_mag = np.sqrt(Bp_x**2 + Bp_y**2 + Bp_z**2)
 
+    #bdiff = 1-bsq/(Bp_mag**2)
+    #print("bdiff:", np.min(bdiff),np.median(bdiff),np.max(bdiff))
+    bsq = Bp_mag**2 # this is the comoving field strength, same as above 
+        
     norm_mag = np.sqrt(norm_x**2+norm_y**2+norm_z**2)
     norm_x_unit = norm_x/norm_mag
     norm_y_unit = norm_y/norm_mag
     norm_z_unit = norm_z/norm_mag
+    
+    # photon momentum/wavevector
+    R = (r2 + a2 -a*lam)**2 - Delta*(eta + (lam-a)**2)
+    TH = eta + a2*cth2 - lam*lam*cth2/sth2
+    
+    k0_l = -1
+    k1_l = kr_sign*np.sqrt(R)/Delta
+    k2_l = kth_sign*np.sqrt(TH)
+    k3_l = lam
 
+    k0 = g00_up * k0_l + g03_up * k3_l
+    k1 = g11_up * k1_l
+    k2 = g22_up * k2_l
+    k3 = g33_up * k3_l + g03_up * k0_l   
+            
     # wavevector in comoving frame  
     kp_x = e0_x*k0_l + e1_x*k1_l  + e2_x*k2_l + e3_x*k3_l
     kp_y = e0_y*k0_l + e1_y*k1_l  + e2_y*k2_l + e3_y*k3_l
     kp_z = e0_z*k0_l + e1_z*k1_l  + e2_z*k2_l + e3_z*k3_l  
     kp_mag = np.sqrt(kp_x**2 + kp_y**2 + kp_z**2)
-    kp_t = kp_mag #k^2=0 normalization for photon
+    kp_t = kp_mag #k^2=0 normalization for photon; kp_t==1/g
 
+    #kp_t_v2 = 1/calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=th)
+    #ktdiff = 1-kp_t/(kp_t_v2)
+    #print("ktdiff:", np.min(ktdiff),np.median(ktdiff),np.max(ktdiff))
+        
     #path length
     kdotnorm = kp_x*norm_x_unit + kp_y*norm_y_unit + kp_z*norm_z_unit
     pathfac = 1.0 #modify for jet wall thickness profile
@@ -515,14 +479,15 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
     f2 = e2_x*f_x + e2_y*f_y + e2_z*f_z          
     f3 = e3_x*f_x + e3_y*f_y + e3_z*f_z      
     
-    # penrose-walker
+    # penrose-walker constant
     A = k0*f1 - k1*f0 + a*sth2*(k1*f3 - k3*f1)
     B = ((r2+a2)*(k3*f2 - k2*f3) - a*(k0*f2 - k2*f0))*np.sin(th)
     kappa = (r - 1j*a*np.cos(th))*(A - 1j*B)
 
     return (sinthb, kappa, pathlength, bsq, np.abs(kdotnorm))
 
-def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2, diskangle=DISKANGLE):
+def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3,
+                               th=np.pi/2, diskangle=DISKANGLE):
     """ calculate rest frame path length through equatorial disk (Narayan+2021 eq 13)"""
 
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
@@ -531,13 +496,13 @@ def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3
     if not isinstance(kr_sign, np.ndarray): kr_sign = np.array([kr_sign]).flatten()
         
     if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
-        raise Exception("g_grmhd_fit input arrays are different lengths!")
+        raise Exception("calc_polquantities input arrays are different lengths!")
        
     # get the redshift g = 1/k_t     
     gg = calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=th)
     kthat = 1/gg
 
-    # get the z component of local photon momentum
+    # get the y\propto\theta component of local photon momentum
     # TODO this assumes that u^2 == 0!
     if (isinstance(u2,np.ndarray) and np.any(u2!=0)) or u2!=0:
         raise Exception("calc_pathlength assumes that u2==0!")
@@ -548,11 +513,11 @@ def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3
     a2 = a*a
     TH = eta + a2*cth2 - lam*lam*cth2/sth2
     k2_l = kth_sign*np.sqrt(TH)
-    kzhat = -k2_l*r
-    
+    kyhat = -k2_l/r # valid only in equatorial plane
+        
     # get path length 
     diskheight = diskangle*r
-    lp = diskheight * kthat / kzhat
+    lp = diskheight * (kthat / kyhat)
          
     return lp
       
