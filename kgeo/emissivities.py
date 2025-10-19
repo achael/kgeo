@@ -81,12 +81,9 @@ class Emissivity(object):
 
         # Thermal model j calculation added
         elif self.emistype=='thermal':
-            if g is None or sinthetab is None:
-                raise ValueError("thermal emissivity requires g and sinthetab")
             nu_em = np.asarray(nu_obs) / np.asarray(g)
             ne, Te, B = self.profiles_plaw(r)
-            sinb = np.clip(np.asarray(sinthetab), 0.0, 1.0)
-            j = j_nu_thermal(ne, B, Te, nu_em, sinb)
+            j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)
 
         elif self.emistype=='bpl':
             j = emisBPL(a, r, p1=self.p1, p2=self.p2)
@@ -121,16 +118,15 @@ def emisGLM(a, r, gamma_off=GAMMAOFF, sigma=SIGMA_GLM, mu_ring=False):
 
 # Thermal model function definitions
 def II_fit(x):
-    x = np.maximum(x, 1e-40)
     return 2.5651 * (1.0 + 1.92*x**(-1.0/3.0) + 0.9977*x**(-2.0/3.0)) * np.exp(-1.8899 * x**(1.0/3.0))
 
 # critical freqneucy (in fluid frame)
 def nu_c_fcn(B, Theta_e, sin_thetaB):
-    return (3.0/(4.0*np.pi)) * (e*B*Theta_e**2)/(me*c) * np.maximum(sin_thetaB, 0.0)
+    return (3.0/(4.0*np.pi)) * (e*B*Theta_e**2)/(me*c) * sin_thetaB
 
 # Emissivity j_nu (fluid frame, per unit volume, freq, steradians)
 def j_nu_thermal(ne, B, Te, nu, sin_thetaB):
     Theta_e = kB*Te/(me*c*c)
     nu_c = nu_c_fcn(B, Theta_e, sin_thetaB)
     x = nu/np.maximum(nu_c, 1e-40)
-    return (ne * e**2 * nu**2)/(np.sqrt(3) * c * np.maximum(Theta_e, 1e-40)**2) * II_fit(x)
+    return (ne * e**2 * nu)/(2 * np.sqrt(3) * c * (Theta_e**2)) * II_fit(x)
