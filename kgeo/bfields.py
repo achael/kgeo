@@ -39,7 +39,7 @@ class Bfield(object):
 
         if self.fieldtype in ['rad', 'vert', 'tor', 'simple', 'simple_rm1',
                               'monopoleA', 'bz_monopole', 'bz_guess',
-                              'bz_para', 'power', 'fromfile']:
+                              'bz_para', 'power', 'fromfile', 'gen_power']:
             self.fieldframe = 'lab'
         elif self.fieldtype in ['const_comoving']:
             self.fieldframe = 'comoving'
@@ -77,6 +77,11 @@ class Bfield(object):
         elif self.fieldtype == 'fromfile':
             self.filename = self.kwargs.get('file', None)
             self.cached_data = load_cache_from_file(self.filename)
+        # added model
+        elif self.fieldtype == 'gen_power':
+            self.n = self.kwargs.get('n', 0)
+            self.p = self.kwargs.get('p', 1)
+            self.isAbove = self.kwargs.get('isAbove', True)
         else:
             self.Cr = self.kwargs.get('Cr',0)
             self.Cvert = self.kwargs.get('Cvert',0)
@@ -113,6 +118,9 @@ class Bfield(object):
         elif self.fieldtype == 'power':
             (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
             b_components = (B1,B2,B3)
+        elif self.fieldtype == 'gen_power':
+            (B1,B2,B3,omega) = Bfield_gen_power(a, r, th, self.n, self.p, self.isAbove)
+            b_components = (B1, B2, B3)
         elif self.fieldtype=='fromfile':
             B1, B2, B3 = Bfield_from_cache(a, r, self.cached_data)
             b_components = B1, B2, B3
@@ -151,6 +159,8 @@ class Bfield(object):
             (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)
         elif self.fieldtype=='power':
             (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+        elif self.fieldtype=='gen_power':
+            (B1,B2,B3,omega) = Bfield_gen_power(a, r, th, self.n, self.p, self.isAbove)
 
         else:
             raise Exception("self.omega_field not implemented for fieldtype %s'!"%self.fieldtype)
@@ -164,7 +174,7 @@ class Bfield(object):
 
         if self.fieldtype=='bz_monopole' and self.secondorder_only:
             e_components = Efield_BZmonopole(a,r,th, self.C)
-        elif self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power']:
+        elif self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power', 'gen_power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,omega) = Bfield_BZmonopole(a, r, th, self.C,secondorder_only=self.secondorder_only)
             elif self.fieldtype=='monopoleA':
@@ -175,6 +185,8 @@ class Bfield(object):
                 (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)
             elif self.fieldtype=='power':
                 (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+            elif self.fieldtype=='gen_power':
+                (B1,B2,B3,omega) = Bfield_gen_power(a, r, th, self.n, self.p, self.isAbove)
             a2 = a**2
             r2 = r**2
             cth2 = np.cos(th)**2
@@ -198,17 +210,19 @@ class Bfield(object):
 
         if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
-        if self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power']:
+        if self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power', 'gen_power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)
             elif self.fieldtype=='monopoleA':
-                (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)
+                (B1,B2,B3,OmegaF) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
                 (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C)
             elif self.fieldtype=='power':
-                (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+                (B1,B2,B3,OmegaF) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+            elif self.fieldtype=='gen_power':
+                (B1,B2,B3,OmegaF) = Bfield_gen_power(a, r, th, self.n, self.p, self.isAbove)
             sF01 = -B1
             sF02 = -B2
             sF03 = -B3
@@ -228,17 +242,19 @@ class Bfield(object):
            below defn is for stationary, axisymmetric fields"""
         if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
-        if self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power']:
+        if self.fieldtype in ['bz_monopole','monopoleA','bz_guess','bz_para','power', 'gen_power']:
             if self.fieldtype=='bz_monopole':
                 (B1,B2,B3,OmegaF) = Bfield_BZmonopole(a, r, th, self.C)
             elif self.fieldtype=='monopoleA':
-                (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)
+                (B1,B2,B3,OmegaF) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
                 (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C)
             elif self.fieldtype=='power' :
-                (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+                (B1,B2,B3,OmegaF) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+            elif self.fieldtype=='gen_power' :
+                (B1,B2,B3,OmegaF) = Bfield_gen_power(a, r, th, self.n, self.p, self.isAbove)
 
             # Metric in BL
             a2 = a**2
@@ -630,6 +646,45 @@ def Bfield_power(a, r, th, p, C=1, usemono=False):
 
     return (Br, Bth, Bph, OmegaBZ)
 
+# added new model 
+def Bfield_gen_power(a, r, th, n, p, isAbove):
+
+    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
+        raise Exception("|a| should be a float in range [0,1)")
+    
+    a2 = a**2
+    r2 = r**2
+    rp = 1+np.sqrt(1-a2)  # outer horizon
+    sth = np.sin(th)
+    cth = np.cos(th)
+    abscth = np.abs(cth)
+    cth2 = cth**2
+    sth2 = sth**2
+    Delta = r2 - 2*r + a2
+    Sigma = r2 + a2*cth2
+    gdet = sth*Sigma
+    Omega_H = a / (2*rp)
+
+    # sgn(cospi/2) is positive when above and negative when below)
+    if isAbove == True:
+        I_0 = (a*np.pi*sth2)/(rp*rp + a2*cth2)
+        dpsidtheta = sth * ((r/rp)**p)
+    
+    else:
+        I_0 = -1 * (a*np.pi*sth2)/(rp*rp + a2*cth2)
+        dpsidtheta = -1 * sth * ((r/rp)**p)
+        
+
+    I = I_0 * (r/rp)**(n)
+    dpsidr = (1 - np.abs(cth))*((p*(r**(p-1)))/(rp**p))
+
+    # field components
+    Br = dpsidtheta / gdet
+    Bth = -1 * (dpsidr / gdet)
+    Bph = I / (2*np.pi*Delta*sth2)
+
+    return (Br, Bth, Bph, 0.5 * Omega_H)
+    
 
 def load_cache_from_file(filename):
     """
