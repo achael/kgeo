@@ -79,8 +79,8 @@ class Bfield(object):
             self.cached_data = load_cache_from_file(self.filename)
         # added model
         elif self.fieldtype == 'gen_power':
-            self.n = self.kwargs.get('n', 0)
-            self.p = self.kwargs.get('p', 1)
+            self.n_I = self.kwargs.get('n_I', 0)
+            self.p_val = self.kwargs.get('p_val', 1)
             self.isAbove = self.kwargs.get('isAbove', True)
         else:
             self.Cr = self.kwargs.get('Cr',0)
@@ -118,8 +118,9 @@ class Bfield(object):
         elif self.fieldtype == 'power':
             (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
             b_components = (B1,B2,B3)
+        # added model
         elif self.fieldtype == 'gen_power':
-            (B1,B2,B3,omega) = Bfield_gen_power(a, r, th, self.n, self.p, self.isAbove)
+            (B1,B2,B3,omega) = Bfield_gen_power(a, r, th, self.n_I, self.p_val, self.isAbove)
             b_components = (B1, B2, B3)
         elif self.fieldtype=='fromfile':
             B1, B2, B3 = Bfield_from_cache(a, r, self.cached_data)
@@ -159,8 +160,9 @@ class Bfield(object):
             (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)
         elif self.fieldtype=='power':
             (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+        # added model
         elif self.fieldtype=='gen_power':
-            (B1,B2,B3,omega) = Bfield_gen_power(a, r, th, self.n, self.p, self.isAbove)
+            (B1,B2,B3,omega) = Bfield_gen_power(a, r, th, self.n_I, self.p_val, self.isAbove)
 
         else:
             raise Exception("self.omega_field not implemented for fieldtype %s'!"%self.fieldtype)
@@ -185,8 +187,9 @@ class Bfield(object):
                 (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)
             elif self.fieldtype=='power':
                 (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+            # added model
             elif self.fieldtype=='gen_power':
-                (B1,B2,B3,omega) = Bfield_gen_power(a, r, th, self.n, self.p, self.isAbove)
+                (B1,B2,B3,omega) = Bfield_gen_power(a, r, th, self.n_I, self.p_val, self.isAbove)
             a2 = a**2
             r2 = r**2
             cth2 = np.cos(th)**2
@@ -221,8 +224,9 @@ class Bfield(object):
                 (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C)
             elif self.fieldtype=='power':
                 (B1,B2,B3,OmegaF) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+            # added model
             elif self.fieldtype=='gen_power':
-                (B1,B2,B3,OmegaF) = Bfield_gen_power(a, r, th, self.n, self.p, self.isAbove)
+                (B1,B2,B3,OmegaF) = Bfield_gen_power(a, r, th, self.n_I, self.p_val, self.isAbove)
             sF01 = -B1
             sF02 = -B2
             sF03 = -B3
@@ -253,8 +257,9 @@ class Bfield(object):
                 (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C)
             elif self.fieldtype=='power' :
                 (B1,B2,B3,OmegaF) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
+            # added model
             elif self.fieldtype=='gen_power' :
-                (B1,B2,B3,OmegaF) = Bfield_gen_power(a, r, th, self.n, self.p, self.isAbove)
+                (B1,B2,B3,OmegaF) = Bfield_gen_power(a, r, th, self.n_I, self.p_val, self.isAbove)
 
             # Metric in BL
             a2 = a**2
@@ -647,7 +652,7 @@ def Bfield_power(a, r, th, p, C=1, usemono=False):
     return (Br, Bth, Bph, OmegaBZ)
 
 # added new model 
-def Bfield_gen_power(a, r, th, n, p, isAbove):
+def Bfield_gen_power(a, r, th, n_I, p_val, isAbove):
 
     if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
         raise Exception("|a| should be a float in range [0,1)")
@@ -668,21 +673,22 @@ def Bfield_gen_power(a, r, th, n, p, isAbove):
     # sgn(cospi/2) is positive when above and negative when below)
     if isAbove == True:
         I_0 = (a*np.pi*sth2)/(rp*rp + a2*cth2)
-        dpsidtheta = sth * ((r/rp)**p)
+        dpsidtheta = sth * ((r/rp)**p_val)
     
     else:
         I_0 = -1 * (a*np.pi*sth2)/(rp*rp + a2*cth2)
-        dpsidtheta = -1 * sth * ((r/rp)**p)
+        dpsidtheta = -1 * sth * ((r/rp)**p_val)
         
 
-    I = I_0 * (r/rp)**(n)
-    dpsidr = (1 - np.abs(cth))*((p*(r**(p-1)))/(rp**p))
+    I = I_0 * (r/rp)**(n_I)
+    dpsidr = (1 - np.abs(cth))*((p_val*(r**(p_val-1)))/(rp**p_val))
 
     # field components
     Br = dpsidtheta / gdet
     Bth = -1 * (dpsidr / gdet)
     Bph = I / (2*np.pi*Delta*sth2)
 
+    # TODO allow more general choices of \Omega 
     return (Br, Bth, Bph, 0.5 * Omega_H)
     
 
