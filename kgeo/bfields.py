@@ -367,6 +367,36 @@ class Bfield(object):
         bsq = b0*b0_l + b1*b1_l + b2*b2_l + b3*b3_l
 
         return bsq
+    
+    def bsq_comp(self, a, r, velocity, th=np.pi/2.):
+        """returns b^2 in frame u^\mu, making ideal MHD assumption, e^\mu=0"""
+        if not isinstance(r, np.ndarray):
+            r = np.array([r]).flatten()
+
+        # Metric
+        a2 = a**2
+        r2 = r**2
+        cth2 = np.cos(th)**2
+        sth2 = np.sin(th)**2
+        Delta = r2 - 2*r + a2
+        Sigma = r2 + a2 * cth2
+
+        g00 = -(1 - 2*r/Sigma)
+        g11 = Sigma/Delta
+        g22 = Sigma
+        g33 = (r2 + a2 + 2*r*a2*sth2 / Sigma) * sth2
+        g03 = -2*r*a*sth2 / Sigma
+
+        # contravarient components
+        (b0, b1, b2, b3) = self.bfield_fluid(a, r, velocity, th=th)
+
+        # covarient components
+        b0_l = g00*b0 + g03*b3
+        b1_l = g11*b1
+        b2_l = g22*b2
+        b3_l = g33*b3 + g03*b0
+
+        return (b0, b1, b2, b3), (b0_l, b1_l, b2_l, b3_l)
 
 
 def Bfield_simple(a, r, coeffs):
