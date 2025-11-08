@@ -7,6 +7,8 @@ import time
 from mpmath import polylog
 from scipy.interpolate import RegularGridInterpolator
 import pkg_resources
+from kgeo.bfields import Bfield
+from kgeo.velocities import Velocity
 
 # kgeo path TODO
 KGEOPATH = '/home/achael/RelElectrons/kgeo/kgeo'
@@ -43,13 +45,18 @@ class Emissivity(object):
 
         # thermal model object variables added
         if self.emistype=='thermal':
-            self.Rb = float(self.kwargs.get('Rb', 5.0)) # 
-            self.ne0 = float(self.kwargs['ne0']) #
-            self.Te0 = float(self.kwargs['Te0']) #
+            self.Rb = float(self.kwargs.get('Rb', 5.0))  
+            self.ne0 = float(self.kwargs['ne0']) 
+            self.Te0 = float(self.kwargs['Te0']) 
             self.B0 = float(self.kwargs['B0'])
             self.alpha_n = float(self.kwargs.get('alpha_n', 0.7))
             self.alpha_T = float(self.kwargs.get('alpha_T', 1.0))
             self.alpha_B = float(self.kwargs.get('alpha_B', 1.5))
+            
+            # added variables for bfield model
+            self.bfield_model = bool(self.kwargs.get('bfield_model', False))
+            self.p_val = float(self.kwargs.get('p_val', 0.5)) 
+            self.n_I = float(self.kwargs.get('n_I', -3/2)) 
 
         elif self.emistype=='bpl':
             self.p1 = self.kwargs.get('p1', P1E_230)
@@ -67,13 +74,13 @@ class Emissivity(object):
         else:
             raise Exception("emistype %s not recognized in Emissivity!"%self.emistype)
         
-    # power law function to defineg thermal variables
+    # power law function to define thermal variables
     def profiles_plaw(self, r):
         x = np.asarray(r, dtype=float)/self.Rb
         ne = self.ne0 * np.power(x, -self.alpha_n)
         Te = self.Te0 * np.power(x, -self.alpha_T)
         B  = self.B0  * np.power(x, -self.alpha_B)
-        return ne, Te, B
+        return ne, Te, self.B
 
     def jrest(self, a, r, g=None, sinthetab=None, nu_obs=OBSFREQ):
         if self.emistype=='constant':
@@ -82,7 +89,17 @@ class Emissivity(object):
         # Thermal model j calculation added
         elif self.emistype=='thermal':
             nu_em = np.asarray(nu_obs) / np.asarray(g)
-            ne, Te, B = self.profiles_plaw(r)
+
+            # option to input bfield model 
+            if self.bfield_model == True:
+                bfield = Bfield('gen_power', n_I = self.n_I, p_val= self.p_val, isAbove = True)
+                vel = Velocity('kep',retrograde=False)
+                self.B = self.B0 * np.sqrt(bfield.bsq(a, r, vel, th=np.pi/2))
+            
+            # otherwise, simple power law field
+            else:
+                ne, Te, B = self.profiles_plaw(r)
+
             j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)
 
         elif self.emistype=='bpl':
