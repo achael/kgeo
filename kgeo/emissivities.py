@@ -89,21 +89,17 @@ class Emissivity(object):
         # Thermal model j calculation added
         elif self.emistype=='thermal':
             nu_em = np.asarray(nu_obs) / np.asarray(g)
-<<<<<<< Updated upstream
-
             # option to input bfield model 
             if self.bfield_model == True:
                 bfield = Bfield('gen_power', n_I = self.n_I, p_val= self.p_val, isAbove = True)
                 vel = Velocity('kep',retrograde=False)
-                self.B = self.B0 * np.sqrt(bfield.bsq(a, r, vel, th=np.pi/2))
+                self.B = np.sqrt(bfield.bsq(a, r, vel, th=np.pi/2)) 
+                self.B = (self.B / self.Rb) * self.B0
             
             # otherwise, simple power law field
             else:
                 ne, Te, B = self.profiles_plaw(r)
 
-=======
-            ne, Te, B = self.profiles_plaw(r)
->>>>>>> Stashed changes
             j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)
 
         elif self.emistype=='bpl':
@@ -149,10 +145,5 @@ def nu_c_fcn(B, Theta_e, sin_thetaB):
 def j_nu_thermal(ne, B, Te, nu, sin_thetaB):
     Theta_e = kB*Te/(me*c*c)
     nu_c = nu_c_fcn(B, Theta_e, sin_thetaB)
-<<<<<<< Updated upstream
     x = nu/np.maximum(nu_c, 1e-40)
     return (ne * e**2 * nu)/(2 * np.sqrt(3) * c * (Theta_e**2)) * II_fit(x)
-=======
-    x = nu/nu_c
-    return (ne * e**2 * nu)/(2 * np.sqrt(3) * c * Theta_e**2) * II_fit(x)
->>>>>>> Stashed changes
