@@ -127,7 +127,7 @@ class Bfield(object):
             b_components = B1, B2, B3
         else:
             raise Exception("fieldtype %s not recognized in Bfield.bfield_lab!"%self.fieldtype)
-
+        
         return b_components
 
     def bfield_comoving(self, a, r):
@@ -166,6 +166,7 @@ class Bfield(object):
 
         else:
             raise Exception("self.omega_field not implemented for fieldtype %s'!"%self.fieldtype)
+        
         return omega
 
 
