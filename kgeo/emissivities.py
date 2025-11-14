@@ -67,12 +67,12 @@ class Emissivity(object):
         else:
             raise Exception("emistype %s not recognized in Emissivity!"%self.emistype)
         
-    # power law function to defineg thermal variables
+    # power law disk profiles to define thermal variables
     def profiles_plaw(self, r):
         x = np.asarray(r, dtype=float)/self.Rb
-        ne = self.ne0 * np.power(x, -self.alpha_n)
-        Te = self.Te0 * np.power(x, -self.alpha_T)
-        B  = self.B0  * np.power(x, -self.alpha_B)
+        ne = self.ne0 * np.power(x, -self.alpha_n) # cm^-3
+        Te = self.Te0 * np.power(x, -self.alpha_T) # K 
+        B  = self.B0  * np.power(x, -self.alpha_B) # Gauss
         return ne, Te, B
 
     def jrest(self, a, r, g=None, sinthetab=None, nu_obs=OBSFREQ):
@@ -81,9 +81,9 @@ class Emissivity(object):
 
         # Thermal model j calculation added
         elif self.emistype=='thermal':
-            nu_em = np.asarray(nu_obs) / np.asarray(g)
-            ne, Te, B = self.profiles_plaw(r)
-            j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)
+            nu_em = np.asarray(nu_obs) / np.asarray(g)     # emitted frequency
+            ne, Te, B = self.profiles_plaw(r)              # local plasma properties
+            j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)  # local rest frame emissivity in cgs units
 
         elif self.emistype=='bpl':
             j = emisBPL(a, r, p1=self.p1, p2=self.p2)
@@ -122,11 +122,15 @@ def II_fit(x):
 
 # critical freqneucy (in fluid frame)
 def nu_c_fcn(B, Theta_e, sin_thetaB):
-    return (3.0/(4.0*np.pi)) * (e*B*Theta_e**2)/(me*c) * sin_thetaB
+    nu_B = e*B/(2.0*np.pi*me*c)
+    nu_c = 1.5 * nu_B * Theta_e**2 * sin_thetaB
+    return nu_c
+    #return (3.0/(4.0*np.pi)) * (e*B*Theta_e**2)/(me*c) * sin_thetaB
 
 # Emissivity j_nu (fluid frame, per unit volume, freq, steradians)
+# cgs units: erg s^-1 cm^-3 Hz^-1 sr^-1
 def j_nu_thermal(ne, B, Te, nu, sin_thetaB):
-    Theta_e = kB*Te/(me*c*c)
+    Theta_e = kB*Te/(me*c*c)       # strictly valid only in Theta_e > 3 limit
     nu_c = nu_c_fcn(B, Theta_e, sin_thetaB)
-    x = nu/np.maximum(nu_c, 1e-40)
+    x = nu/np.maximum(nu_c, 1e-40) # strictly valid only in nu > nu_c limit
     return (ne * e**2 * nu)/(2 * np.sqrt(3) * c * (Theta_e**2)) * II_fit(x)
