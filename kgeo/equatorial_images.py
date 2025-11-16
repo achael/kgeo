@@ -206,15 +206,21 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
                                                          bfield=bfield, th=th_s)
 
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
+            Bmag_vals = np.sqrt(bsq)
         else:
             sinthb = SINTHB
+            _, _, _, bsq = calc_polquantities(a, r_s[~zeromask], 
+                                                         lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, 
+                                                         velocity=velocity,
+                                                         bfield=bfield, th=th_s)
+            Bmag_vals = np.sqrt(bsq)
         
         sin_thb[~zeromask] = sinthb   
 
         ###############################
         # get emissivity in local frame
         ###############################
-        Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, nu_obs=nu_obs)
+        Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, nu_obs=nu_obs, Bmag=Bmag_vals)
     
         # add spectral terms to emissivity if not using a physical one
         # TODO: put this in j_rest? 

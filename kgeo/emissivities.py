@@ -43,7 +43,6 @@ class Emissivity(object):
         self.emiscut_in = self.kwargs.get('emiscut_in', 0)
         self.emiscut_out = self.kwargs.get('emiscut_out', 1.e10)
 
-        # thermal model object variables added
         if self.emistype=='thermal':
             self.Rb = float(self.kwargs.get('Rb', 5.0))  
             self.ne0 = float(self.kwargs['ne0']) 
@@ -52,11 +51,7 @@ class Emissivity(object):
             self.alpha_n = float(self.kwargs.get('alpha_n', 0.7))
             self.alpha_T = float(self.kwargs.get('alpha_T', 1.0))
             self.alpha_B = float(self.kwargs.get('alpha_B', 1.5))
-            
-            # added variables for bfield model
             self.bfield_model = bool(self.kwargs.get('bfield_model', False))
-            self.p_val = float(self.kwargs.get('p_val', 0.5)) 
-            self.n_I = float(self.kwargs.get('n_I', -3/2)) 
 
         elif self.emistype=='bpl':
             self.p1 = self.kwargs.get('p1', P1E_230)
@@ -83,7 +78,7 @@ class Emissivity(object):
         B  = self.B0  * np.power(x, -self.alpha_B) # Gauss
         return ne, Te, B
 
-    def jrest(self, a, r, g=None, sinthetab=None, nu_obs=OBSFREQ):
+    def jrest(self, a, r, g=None, sinthetab=None, nu_obs=OBSFREQ, Bmag=None):
         if self.emistype=='constant':
             j = np.ones(r.shape)
 
@@ -94,12 +89,10 @@ class Emissivity(object):
 
             # option to overwrite power law with B from bfield model 
             if self.bfield_model == True:
-                bfield = Bfield('gen_power', n_I = self.n_I, p_val= self.p_val, isAbove = True)
-                vel = Velocity('kep',retrograde=False)
-                B = np.sqrt(bfield.bsq(a, r, vel, th=np.pi/2)) 
-                B = (B / self.Rb) * self.B0
+                Bmag = np.asarray(Bmag, dtype=float)
+                B = (Bmag / self.Rb) * self.B0
             
-            j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)
+            j = j_nu_thermal(ne, B, Te, nu_em, sinthetab, Bmag)
 
         elif self.emistype=='bpl':
             j = emisBPL(a, r, p1=self.p1, p2=self.p2)

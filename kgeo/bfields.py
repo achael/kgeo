@@ -685,9 +685,6 @@ def Bfield_power(a, r, th, p, C=1, usemono=False):
 # added new model 
 def Bfield_gen_power(a, r, th, n_I, p_val, isAbove):
 
-    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
-        raise Exception("|a| should be a float in range [0,1)")
-    
     a2 = a**2
     r2 = r**2
     rp = 1+np.sqrt(1-a2)  # outer horizon
@@ -711,7 +708,7 @@ def Bfield_gen_power(a, r, th, n_I, p_val, isAbove):
         dpsidtheta = -1 * sth * ((r/rp)**p_val)
         
 
-    I = I_0 * (r/rp)**(n_I)
+    I = I_0 * (r/rp)**(-1*n_I)
     dpsidr = (1 - np.abs(cth))*((p_val*(r**(p_val-1)))/(rp**p_val))
 
     # field components
