@@ -208,11 +208,8 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
             Bmag_vals = np.sqrt(bsq)
         else:
-            sinthb = SINTHB
-            _, _, _, bsq = calc_polquantities(a, r_s[~zeromask], 
-                                                         lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, 
-                                                         velocity=velocity,
-                                                         bfield=bfield, th=th_s)
+            sinthb = SINTHB   # TODO: calculate this for non-polarized case? More granular control? 
+            bsq = bfield.bsq(a, r_s[~zeromask], velocity, th=th_s)
             Bmag_vals = np.sqrt(bsq)
         
         sin_thb[~zeromask] = sinthb   
@@ -220,11 +217,11 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         ###############################
         # get emissivity in local frame
         ###############################
-        Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, nu_obs=nu_obs, Bmag=Bmag_vals)
+        Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, Bmag=Bmag_vals, nu_obs=nu_obs, specind=specind)
     
         # add spectral terms to emissivity if not using a physical one
-        # TODO: put this in j_rest? 
-        Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
+        # now moved to inside emissivity.jrest 
+        #Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
         
         ###############################
         # observed emission

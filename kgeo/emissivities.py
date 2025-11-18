@@ -30,7 +30,9 @@ c  = 2.99792458e10   # cm/s
 kB = 1.380649e-16    # erg/K
 h  = 6.62607015e-27  # erg*s
 
+# default observation frequency and spectral index
 OBSFREQ = 230.e9
+SPECIND = 0.0
 
 class Emissivity(object):
     """ object for rest frame emissivity as a function of r, only in equatorial plane for now (theta=np.pi/2) """
@@ -78,21 +80,23 @@ class Emissivity(object):
         B  = self.B0  * np.power(x, -self.alpha_B) # Gauss
         return ne, Te, B
 
-    def jrest(self, a, r, g=None, sinthetab=None, nu_obs=OBSFREQ, Bmag=None):
-        if self.emistype=='constant':
-            j = np.ones(r.shape)
+    def jrest(self, a, r, g=None, sinthetab=None, Bmag=None, nu_obs=OBSFREQ, specind=SPECIND):
 
-        # Thermal model j calculation added
-        elif self.emistype=='thermal':
+        ## Physical models
+        if self.emistype=='thermal':
             nu_em = np.asarray(nu_obs) / np.asarray(g)     # emitted frequency
             ne, Te, B = self.profiles_plaw(r)              # local plasma properties
 
-            # option to overwrite power law with B from bfield model 
+            # option to overwrite default power law field strength with actual |B| from model 
             if self.bfield_model == True:
                 Bmag = np.asarray(Bmag, dtype=float)
                 B = (Bmag / self.Rb) * self.B0
             
-            j = j_nu_thermal(ne, B, Te, nu_em, sinthetab, Bmag)
+            j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)
+
+        ## Phenomenological models
+        elif self.emistype=='constant':
+            j = np.ones(r.shape)
 
         elif self.emistype=='bpl':
             j = emisBPL(a, r, p1=self.p1, p2=self.p2)
@@ -102,6 +106,13 @@ class Emissivity(object):
 
         else:
             raise Exception("emistype %s not recognized in Emissivity.emis!"%self.emistype)
+
+        # add spectral behavior for non-physical emissivities
+        if self.emistype != 'thermal':
+            if g is not None:
+                j *=  (g**specind)
+            if sinthetab is not None:
+                j *= (sinthetab**(1+specind))
 
         return j
 
