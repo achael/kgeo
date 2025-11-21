@@ -37,7 +37,7 @@ SPECIND = 0.0
 class Emissivity(object):
     """ object for rest frame emissivity as a function of r, only in equatorial plane for now (theta=np.pi/2) """
     def __init__(self, emistype="bpl", **kwargs):
-        print("Emissivity emistype =", repr(emistype))
+        #print("Emissivity emistype =", repr(emistype))
 
         self.emistype = emistype
         self.kwargs = kwargs
@@ -89,8 +89,10 @@ class Emissivity(object):
 
             # option to overwrite default power law field strength with actual |B| from model 
             if self.bfield_model == True:
-                Bmag = np.asarray(Bmag, dtype=float)
-                B = (Bmag / self.Rb) * self.B0
+                B = np.asarray(Bmag, dtype=float)
+                # TODO: need to normalize outside of here where 
+                # TODO: or just pass bfield and velocity objects directly
+                #B = (Bmag / self.Rb) * self.B0
             
             j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)
 

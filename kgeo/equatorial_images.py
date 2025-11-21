@@ -16,7 +16,7 @@ bfield_default = Bfield('rad')
 vel_default = Velocity('zamo')
 emis_default = Emissivity('bpl')
 SPECIND = 1 # default (negative) spectral index
-DISKANGLE = 0.1 # default h/r for equatorial disk
+DISKANGLE = 0.1 # default h/r for equatorial disk (this is the full opening angle, not half-angle)
 SINTHB = np.pi/4. # assumption for sin(thetab) if polarization==False
 OBSFREQ = 230.e9 # default observation frequency
 
@@ -206,17 +206,21 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
                                                          bfield=bfield, th=th_s)
 
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
-            Bmag_vals = np.sqrt(bsq)
         else:
             sinthb = SINTHB   # TODO: calculate this for non-polarized case? More granular control? 
             bsq = bfield.bsq(a, r_s[~zeromask], velocity, th=th_s)
-            Bmag_vals = np.sqrt(bsq)
         
         sin_thb[~zeromask] = sinthb   
 
         ###############################
         # get emissivity in local frame
         ###############################
+        # normalize b field strength for thermal emissivity:
+        Bmag_vals = np.sqrt(bsq)
+        if emissivity.emistype == 'thermal':
+            B0 = np.sqrt(bfield.bsq(a, emissivity.Rb, velocity, th=th_s))
+            Bmag_vals = (Bmag_vals / B0) * emissivity.B0
+            
         Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, Bmag=Bmag_vals, nu_obs=nu_obs, specind=specind)
     
         # add spectral terms to emissivity if not using a physical one
@@ -245,7 +249,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
             lp[~zeromask] = llp
                     
         else:       
-            Iobs[~zeromask] = (gg**2) * Iemis   
+            Iobs[~zeromask] = (gg**2) * Iemis # * disk thickness h / k^\theta  
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs[~zeromask]
