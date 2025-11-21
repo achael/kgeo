@@ -129,6 +129,32 @@ class Bfield(object):
             raise Exception("fieldtype %s not recognized in Bfield.bfield_lab!"%self.fieldtype)
         
         return b_components
+    
+    #new fcn to return compnenets of lab frame field
+    def bfield_lab_comp(self, a, r, th=np.pi/2.):
+        a2   = a**2
+        r2   = r**2
+        cth2 = np.cos(th)**2
+        sth2 = np.sin(th)**2
+
+        Delta = r2 - 2.0*r + a2
+        Sigma = r2 + a2*cth2
+
+        g00 = -(1.0 - 2.0*r/Sigma)
+        g11 = Sigma/Delta
+        g22 = Sigma
+        g33 = (r2 + a2 + 2.0*r*a2*sth2/Sigma) * sth2
+        g03 = -2.0*r*a*sth2 / Sigma
+
+        B1, B2, B3 = self.bfield_lab(a, r, th=th)
+
+        B0 = np.zeros_like(B1)
+        B0_l = g00*B0 + g03*B3   
+        B1_l = g11*B1              
+        B2_l = g22*B2                
+        B3_l = g33*B3 + g03*B0        
+
+        return (B0, B1, B2, B3), (B0_l, B1_l, B2_l, B3_l)
 
     def bfield_comoving(self, a, r):
         """fluid frame B-field"""

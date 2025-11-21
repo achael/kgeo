@@ -90,8 +90,7 @@ class Emissivity(object):
             # option to overwrite default power law field strength with actual |B| from model 
             if self.bfield_model == True:
                 B = np.asarray(Bmag, dtype=float)
-                # TODO: need to normalize outside of here where 
-                # TODO: or just pass bfield and velocity objects directly
+                # TODO: change to handle normalization inside emissivities
                 #B = (Bmag / self.Rb) * self.B0
             
             j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)

@@ -200,17 +200,18 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         # if polarization not used, set sin(theta_b) = 1 everywhere
         ###############################
         if polarization:
-            sinthb, kappa, llp1, bsq = calc_polquantities(a, r_s[~zeromask], 
-                                                         lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, 
-                                                         velocity=velocity,
-                                                         bfield=bfield, th=th_s)
-
+            sinthb, kappa, llp1, bsq = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, velocity=velocity, bfield=bfield, th=th_s)
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
         else:
             sinthb = SINTHB   # TODO: calculate this for non-polarized case? More granular control? 
             bsq = bfield.bsq(a, r_s[~zeromask], velocity, th=th_s)
         
         sin_thb[~zeromask] = sinthb   
+
+        if emissivity.emistype == 'thermal':
+            bsq0 = bfield.bsq(a, emissivity.Rb, velocity, th=th_s)
+            Bmag_vals = np.sqrt(bsq / bsq0) * emissivity.B0 
+        
 
         ###############################
         # get emissivity in local frame
