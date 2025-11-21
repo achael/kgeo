@@ -200,22 +200,18 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         # if polarization not used, set sin(theta_b) = 1 everywhere
         ###############################
         if polarization:
-            sinthb, kappa, llp1, bsq = calc_polquantities(a, r_s[~zeromask], 
-                                                         lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, 
-                                                         velocity=velocity,
-                                                         bfield=bfield, th=th_s)
-
+            sinthb, kappa, llp1, bsq = calc_polquantities(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, velocity=velocity, bfield=bfield, th=th_s)
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
-            Bmag_vals = np.sqrt(bsq)
         else:
             sinthb = SINTHB
-            _, _, _, bsq = calc_polquantities(a, r_s[~zeromask], 
-                                                         lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, 
-                                                         velocity=velocity,
-                                                         bfield=bfield, th=th_s)
-            Bmag_vals = np.sqrt(bsq)
+            bsq = bfield.bsq(a, r_s[~zeromask],velocity=velocity,th=th_s)
         
         sin_thb[~zeromask] = sinthb   
+
+        if emissivity.emistype == 'thermal':
+            bsq0 = bfield.bsq(a, emissivity.Rb, velocity, th=th_s)
+            Bmag_vals = np.sqrt(bsq / bsq0) * emissivity.B0 
+        
 
         ###############################
         # get emissivity in local frame
@@ -224,8 +220,9 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
     
         # add spectral terms to emissivity if not using a physical one
         # TODO: put this in j_rest? 
-        Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
-        
+        if emissivity.emistype != "thermal":
+            Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
+
         ###############################
         # observed emission
         ###############################  

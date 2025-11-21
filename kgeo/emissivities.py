@@ -90,9 +90,9 @@ class Emissivity(object):
             # option to overwrite power law with B from bfield model 
             if self.bfield_model == True:
                 Bmag = np.asarray(Bmag, dtype=float)
-                B = (Bmag / self.Rb) * self.B0
+                B = Bmag
             
-            j = j_nu_thermal(ne, B, Te, nu_em, sinthetab, Bmag)
+            j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)
 
         elif self.emistype=='bpl':
             j = emisBPL(a, r, p1=self.p1, p2=self.p2)
