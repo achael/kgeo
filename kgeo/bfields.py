@@ -39,7 +39,7 @@ class Bfield(object):
 
         if self.fieldtype in ['rad', 'vert', 'tor', 'simple', 'simple_rm1',
                               'monopoleA', 'bz_monopole', 'bz_guess',
-                              'bz_para', 'power', 'fromfile']:
+                              'bz_para', 'power', 'fromfile', 'fromdict']:
             self.fieldframe = 'lab'
         elif self.fieldtype in ['const_comoving']:
             self.fieldframe = 'comoving'
@@ -77,10 +77,12 @@ class Bfield(object):
         elif self.fieldtype == 'fromfile':
             self.filename = self.kwargs.get('file', None)
             self.cached_data = load_cache_from_file(self.filename)
+        elif self.fieldtype == 'fromdict':
+            self.cached_data = self.kwargs.get('data', None)
         else:
-            self.Cr = self.kwargs.get('Cr',0)
-            self.Cvert = self.kwargs.get('Cvert',0)
-            self.Cph = self.kwargs.get('Cph',0)
+            self.Cr = self.kwargs.get('Cr', 0)
+            self.Cvert = self.kwargs.get('Cvert', 0)
+            self.Cph = self.kwargs.get('Cph', 0)
 
             if self.Cr == self.Cvert == self.Cph == 0.:
                 raise Exception("all field coefficients are 0!")
@@ -113,7 +115,7 @@ class Bfield(object):
         elif self.fieldtype == 'power':
             (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
             b_components = (B1,B2,B3)
-        elif self.fieldtype=='fromfile':
+        elif self.fieldtype in ['fromfile', 'fromdict']:
             B1, B2, B3 = Bfield_from_cache(a, r, self.cached_data)
             b_components = B1, B2, B3
         else:
