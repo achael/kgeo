@@ -61,7 +61,7 @@ velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.75, 
 #emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
 
 #emissivity = Emissivity("thermal", ne0=1.e5, Te0=5.e10, B0=10, alpha_n=0.7, alpha_T=1.0, alpha_B=1.5, bfield_model=True)
-#emissivity = Emissivity("thermal", ne0=1.e4, Te0=1.e11, B0=10, alpha_n=1.5, alpha_T=0.7, alpha_B=1.5, bfield_model=True)
+emissivity = Emissivity("thermal", ne0=1.e4, Te0=1.e11, B0=10, alpha_n=1.5, alpha_T=0.7, alpha_B=1.5, bfield_model=True)
 
 ################################################################################################################
 plt.close('all')

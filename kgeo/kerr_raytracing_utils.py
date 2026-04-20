@@ -684,14 +684,14 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
     return n_equatorial
 
 def n_angular_turnings(a, th_o, alpha, beta, tau):
-    """ the fractional number of equatorial crossings
-        equation only applies for normal geodesics eta>0"""
+    """ the fractional number of angular turnings"""
+    #TODO -- go back and review this, particularly for the vortical geodesics
 
     # checks
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
-    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-    #    raise Exception("th_o should be a float in range (0,pi/2]")
+    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
+        raise Exception("th_o should be a float in range (0,pi/2]")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -729,12 +729,12 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         # angular turning points
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
 
-        # equation 12 for F0
+        # equation 29 for F0
         # checks on xFarg should be handled in uplus_uminus function
         xFarg = np.cos(th_o)/np.sqrt(u_plus)
         F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
 
-        # equation 17 for K
+        # equation 33 for K
         K = sp.ellipkinc(0.5*np.pi, uratio)
 
         # from eq 51
@@ -743,11 +743,15 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
 
         betamask = (beta_reg<=0)
         if np.any(betamask):
-            nturn_reg[:,betamask] = ((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K))[:,betamask] + 0.5
+            nturn_reg[:,betamask] =  ((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K))[:,betamask] + 0.5
+            
         if np.any(~betamask):
-            nturn_reg[:,~betamask] = ((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K) - 1)[:,~betamask] + 1.5
+            nturn_reg[:,~betamask] = ((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K))[:,~betamask] + 0.5 
 
-        n_turning[:,~vortmask] = nturn_reg           
+        n_turning[:,~vortmask] = nturn_reg     
+        
+    # vorical motion
+    # todo -- really need to check this      
     if np.any(vortmask):
 
         lam_v = lam[vortmask]
@@ -758,13 +762,12 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         # angular turning points
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_v,eta_v)
 
-        # equation 56 for source, assume northern hemisphere h=1
+        # equation 56 for source, assume northern hemisphere h=1 #TODO what if \theta_o < \pi/2
         Nu = np.arcsin(np.sqrt((np.cos(th_o)**2-u_minus)/(u_plus-u_minus)))
-        G0 = sp.ellipkinc(Nu, 1-uratio)
+        F0 = sp.ellipkinc(Nu, 1-uratio)
 
         # equation 60 for K
         K = sp.ellipkinc(0.5*np.pi, 1-uratio)
-
 
         # these come from eq 70 and are currently not right
         nturn_v = np.empty(tau_v.shape)
@@ -772,12 +775,15 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         
         betamask = (beta_v<=0)
         if np.any(betamask):
-            #nturn_v[:,betamask] = ((tau_v*np.sqrt(a2u_minus) - G0) / (2*K))[:,betamask] + 0.5
-            nturn_v[:,betamask] = ((tau_v*np.sqrt(a2u_minus) - G0) / (K))[:,betamask] +1# TODO -- plus one? 
+            # TODO check everything this is very confusing
+            norbit = ((tau_v*np.sqrt(a2u_minus) - F0) / (2*K))[:,betamask] + 0.5
+            newmask = norbit > 0.5
+            norbit[newmask] += 0.5
+            nturn_v[:,betamask] = norbit
                         
         if np.any(~betamask):
-            nturn_v[:,~betamask] = ((tau_v*np.sqrt(a2u_minus) + G0) / (K))[:,~betamask]   
-
+            nturn_v[:,~betamask]  =  ((tau_v*np.sqrt(a2u_minus) + F0) / (2*K))[:,~betamask] + 0.5  
+            
         n_turning[:, vortmask] = nturn_v
     
     if not alltau:
