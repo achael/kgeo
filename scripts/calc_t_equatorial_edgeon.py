@@ -112,6 +112,11 @@ def main(spin=SPIN, rout=ROUT, fov_alpha=FOV_ALPHA, fov_beta=FOV_BETA, psize=PSI
     r_crossings[ring_mask_down] = r_crossings_down[ring_mask_down]
     r_crossings = np.ma.masked_array(r_crossings,~ring_mask)
 
+    phi_crossings = np.zeros(alpha_arr.shape)
+    phi_crossings[ring_mask_up] = phi_crossings_up[ring_mask_up]; 
+    phi_crossings[ring_mask_down] = phi_crossings_down[ring_mask_down]
+    phi_crossings = np.ma.masked_array(phi_crossings,~ring_mask)
+
     #########################################################
     # make some plots
     #########################################################
@@ -135,9 +140,28 @@ def main(spin=SPIN, rout=ROUT, fov_alpha=FOV_ALPHA, fov_beta=FOV_BETA, psize=PSI
     ax_rs.set_title(r'$a=%.2f$'%(spin), fontsize=fs_title)
     ax_rs.tick_params(labelleft=False)    
 
+    # source BL azimuth
+    plt.figure(2)
+    ax_phis = plt.gca()
+    pc_phis = ax_phis.imshow(np.flipud(phi_crossings.reshape(imshape)),
+                        cmap='hsv', rasterized=False, vmin=-np.pi, vmax=np.pi,
+                        extent=extent, interpolation='none')
+    clevels=[-7*np.pi/8.,-5*np.pi/8.,-3*np.pi/8.,-np.pi/8,np.pi/8,3*np.pi/8.,5*np.pi/8, 7*np.pi/8]
+    cset = ax_phis.contour(alphas, betas,
+                        phi_crossings.reshape(imshape),
+                        levels=clevels, 
+                        colors='k', linestyles='-',linewidths=0.5)
+    _divider_phis = make_axes_locatable(ax_phis)
+    _cax_phis = _divider_phis.append_axes("right", size="5%", pad=0.05)
+    clb_phis = plt.colorbar(pc_phis, cax=_cax_phis)
+    clb_phis.ax.set_title(r'$\phi_s$', fontsize=fs_cb)
+    ax_phis.set_xlabel(r'$\alpha\;[M]$', fontsize=fs_ax)
+    plt.suptitle(r'Source $\phi$')
+    ax_phis.set_title(r'$a=%.2f$'%(spin), fontsize=fs_title)
+    ax_phis.tick_params(labelleft=False)    
 
     # source coordinate time shifted by r_camera/c
-    plt.figure(2)
+    plt.figure(3)
     tplot = -t_crossings - rout
     tmax = 50 #np.max(np.abs(tplot))
     ax_ts = plt.gca()
