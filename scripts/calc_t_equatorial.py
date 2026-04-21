@@ -9,7 +9,7 @@ from kgeo.kerr_raytracing_ana import raytrace_ana, coords_at_tau
 
 # black hole and observer parameters (TODO: replace with command line arguments)
 SPIN = 0.99
-INC = 110*np.pi/180.
+INC = 60*np.pi/180.
 
 # TODO ROUT shouldn't matter, but it seems to when it is very large. Some issue in Mino steps? 
 ROUT = 1.e6 #5.4e10 is M87 distance in M. Unfortunately subraction becomes an issue here...
