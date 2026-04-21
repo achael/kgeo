@@ -134,13 +134,13 @@ def main(spin=SPIN, inc=INC, rout=ROUT, mbar_max=MBAR_MAX, fov_alpha=FOV_ALPHA, 
         # source coordinate time shifted by r_camera/c
         plt.figure(100*mbar + 4)
         tplot = -t_crossings - rout
-        tmax = 200#np.max(np.abs(tplot))
+        tmax = 50#np.max(np.abs(tplot))
         ax_ts = plt.gca()
         pc_ts = ax_ts.imshow(np.flipud(tplot.reshape(imshape)),
-                            cmap='bwr', rasterized=False, vmin=-tmax, vmax=tmax,
+                            cmap='bwr', rasterized=False, vmin=0, vmax=tmax,
                             extent=extent, interpolation='none')
         
-        clevels = np.linspace(-tmax,tmax,100)
+        clevels = np.linspace(0,tmax,100)
         cstyles = np.array(['-' for level in clevels])
         cstyles[clevels==0] = '--'
         cstyles[clevels<0] = ':'
