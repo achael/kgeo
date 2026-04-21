@@ -49,7 +49,7 @@ def raytrace_ana(a=SPIN,
                  ngeo=NGEO, maxtaufrac=MAXTAUFRAC,
                  do_phi_and_t=True,
                  savedata=False, plotdata=True):
-
+    """analytically raytrace over the full range of mino times"""
     tstart = time.time()
 
     [_, r_o, th_o, _] = observer_coords # assumes ph_o = 0
@@ -72,10 +72,82 @@ def raytrace_ana(a=SPIN,
 
     print('calculating preliminaries...')
 
-    # horizon radii
-    rplus  = 1 + np.sqrt(1-a**2)
-    rminus = 1 - np.sqrt(1-a**2)
+    # conserved quantities
+    lam = -alpha*np.sin(th_o)
+    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    
+    # spin zero should have no vortical geodesics
+    if(np.abs(a)<MINSPIN and np.any(eta<0)):
+        eta[eta<0]=EP # TODO ok?
+        print("WARNING: there were eta<0 points for spin %f<MINSPIN!"%a)
 
+    # radial roots and radial motion case
+    (r1, r2, r3, r4, rclass) = radial_roots(a, lam, eta)
+
+    # total Mino time to infinity
+    tau_tot = mino_total(a, r_o, eta, r1, r2, r3, r4)
+
+    # define steps equally spaced in Mino time tau
+    # rays have equal numbers of steps -- step size dtau depends on the ray
+    # mino time is positive back from screen in GL19b conventions
+    dtau = maxtaufrac*tau_tot / (ngeo - 1)
+    tausteps = np.linspace(0, maxtaufrac*tau_tot, ngeo)
+    
+    # calculate the points along the geodsic at tausteps
+    affinesteps, geo_coords = coords_at_tau(a, observer_coords, image_coords, tausteps, do_phi_and_t=True)
+    
+    
+    # create Geodesics object
+    geos = Geodesics(a, observer_coords, image_coords, tausteps, affinesteps, geo_coords)
+
+    if savedata and do_phi_and_t:
+        print('saving data...')
+        try:
+            geos.savegeos()
+        except:
+            print("Error saving to file!")
+ 
+    if plotdata and do_phi_and_t:
+        print('plotting data...')
+        try:
+            geos.plotgeos()
+            plt.pause(1.e-3)
+            plt.show()
+            plt.pause(1.e-3)
+        except:
+            print("Error plotting data!")
+
+    tstop = time.time()
+    print('done!  ', tstop-tstart, ' seconds!')
+    return geos
+
+
+#TODO -- errors in phi raytracing with alpha=0, beta!=0.
+def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
+    """ compute coordinates x^\mu at a particular Mino time""" 
+
+    [_, r_o, th_o, _] = observer_coords # assumes ph_o = 0
+    [alpha, beta] = image_coords
+
+    # checks
+    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+    if (a<0): print("WARNING a<0! Not fully verified!")
+    if not (isinstance(r_o,float) and (r_o>=100)):
+        raise Exception("r_o should be a float > 100")
+    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
+        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    if (th_o>np.pi/2.): print("WARNING th_o>pi/2! Not fully verified!")
+
+    if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+    if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
+    if len(alpha) != len(beta):
+        raise Exception("alpha, beta are different lengths!")
+    if len(tau.shape)==1:
+        tau = tau.reshape(1,tau.shape[0])
+    if not(tau.shape[1]==len(alpha)): #TODO
+        raise Exception("tau has incompatible shape in coords_at_tau!")
+        
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
@@ -93,22 +165,11 @@ def raytrace_ana(a=SPIN,
 
     # radial roots and radial motion case
     (r1, r2, r3, r4, rclass) = radial_roots(a, lam, eta)
-
-    # total Mino time to infinity
-    tau_tot = mino_total(a, r_o, eta, r1, r2, r3, r4)
-
-    # define steps equally spaced in Mino time tau
-    # rays have equal numbers of steps -- step size dtau depends on the ray
-    # mino time is positive back from screen in GL19b conventions
-    dtau = maxtaufrac*tau_tot / (ngeo - 1)
-    tausteps = np.linspace(0, maxtaufrac*tau_tot, ngeo)
-    
-    #pol_orbits = n_poloidal_orbits(a, th_o, alpha, beta, tausteps)
-        
+   
     # integrate in theta
     print('integrating in theta...',end="\r")
     start = time.time()
-    (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,tausteps,
+    (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,tau,
                                      do_phi_and_t=do_phi_and_t)
     stop = time.time()
     print('integrating in theta...%0.2f s'%(stop-start))
@@ -116,43 +177,20 @@ def raytrace_ana(a=SPIN,
     # integrate in r
     print('integrating in r...',end="\r")
     start = time.time()
-    (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
+    (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tau,
                                           do_phi_and_t=do_phi_and_t)
     stop = time.time()
     print('integrating in r...%0.2f s'%(stop-start))
     
     # combine integrals to get phi, t, and sigma as a function of time
     sig_s = 0 + I_sig + a**2 * G_t # GL19a 15
-    t_s = 0 + I_t + a**2 * G_t     # GL19a 12
-    ph_s = 0 + I_ph + lam*G_ph     # GL19a 11
+    t_s   = 0 + I_t + a**2 * G_t   # GL19a 12
+    ph_s  = 0 + I_ph + lam*G_ph    # GL19a 11
     
-    # create Geodesics object
-    affinesteps = sig_s
+    # return 
     geo_coords = [t_s,r_s,th_s,ph_s]
-    geos = Geodesics(a, observer_coords, image_coords, tausteps, affinesteps, geo_coords)
 
-    if savedata and do_phi_and_t:
-        print('saving data...')
-        try:
-            geos.savegeos()
-        except:
-            print("Error saving to file!")
- 
-    if plotdata and do_phi_and_t:
-        print('plotting data...')
-        try:
-            #plt.ion()
-            geos.plotgeos()
-            plt.pause(1.e-3)
-            plt.show()
-            plt.pause(1.e-3)
-        except:
-            print("Error plotting data!")
-
-    tstop = time.time()
-    print('done!  ', tstop-tstart, ' seconds!')
-    return geos
-
+    return sig_s, geo_coords
 
 def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
                  do_phi_and_t=True):
