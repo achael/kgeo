@@ -30,6 +30,13 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "ruff",
+]
+
 [project.urls]
 Homepage = "https://github.com/achael/kgeo"
 Download = "https://github.com/achael/kgeo/archive/v0.0.1.tar.gz"
