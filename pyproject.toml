@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kgeo"
+version = "0.0.1"
+description = "Analytic Kerr Raytracing"
+readme = "README.md"
+license = { text = "GPLv3" }
+authors = [
+    { name = "Andrew Chael", email = "achael@princeton.edu" },
+]
+keywords = ["astronomy", "EHT", "black holes"]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "scipy",
+    "mpmath",
+    "tqdm",
+    "matplotlib",
+    "ehtim",
+    "h5py",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3.8",
+]
+
+[project.urls]
+Homepage = "https://github.com/achael/kgeo"
+Download = "https://github.com/achael/kgeo/archive/v0.0.1.tar.gz"
+
+[tool.setuptools]
+packages = ["kgeo"]
+
+[tool.setuptools.package-data]
+"*" = ["*.dat", "*.csv"]
