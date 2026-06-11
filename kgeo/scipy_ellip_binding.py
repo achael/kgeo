@@ -39,9 +39,9 @@ def ellip_pi(n,phi,m,precision=1.e-3):
     if(np.abs(phi)>np.pi/2. and m>=1):
         raise Exception("abs(phi)>pi/2 and m >= 1 in ellipticPi!")
     if(np.abs(phi)>np.pi/2. and n==1):
-        return np.infty
+        return np.inf
     if (rho==0):
-        return np.infty
+        return np.inf
     if (np.isinf(n)): # TODO large n limit
         return 0.
 
@@ -148,12 +148,12 @@ def ellip_pi_arr(n,phi,m):
     # TODO this limit causes issues in G_ph when alpha=0
     mask5 = (np.abs(phi)>halfpi) * (n==1) * ~donemask
     if np.any(mask5):
-        outarr[mask5] = np.infty        
+        outarr[mask5] = np.inf        
     donemask += mask5
     
     mask6 = (rho==0) * ~donemask
     if np.any(mask6):
-        outarr[mask6] = np.infty        
+        outarr[mask6] = np.inf        
     donemask += mask6
     
     mask7 = np.isinf(n) * ~donemask

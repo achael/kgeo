@@ -184,9 +184,9 @@ def ellip_pi_gsl(n,phi,m,precision=Mode.default):
     if(np.abs(phi)>np.pi/2. and m>=1):
         raise Exception("abs(phi)>pi/2 and m >= 1 in ellipticPi!")
     if(np.abs(phi)>np.pi/2. and n==1):
-        return np.infty
+        return np.inf
     if (rho==0):
-        return np.infty
+        return np.inf
     if (np.isinf(n)): # TODO large n limit
         return 0.
 

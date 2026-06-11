@@ -427,8 +427,8 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
         g0 = np.sqrt((4*a2**2 - (CC-DD)**2)/ ((CC+DD)**2 - 4*a2**2)) # 0<g0<1, GL19a B88
 
         x4rp = (rplus + b1)/a2 # GL19a, B83 for origin at horizon
-        if r_o==np.infty:
-            x4ro = np.infty # GL19a, B83 for observer at r_o
+        if r_o==np.inf:
+            x4ro = np.inf # GL19a, B83 for observer at r_o
         else:
             x4ro = (r_o + b1)/a2 # GL19a, B83 for observer at r_o
 
@@ -467,7 +467,7 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
 
         x3rp = (AA*rrp1 - BB*rrp2)/(AA*rrp1 + BB*rrp2) # GL19a, B55
         x3rm = (AA*rrm1 - BB*rrm2)/(AA*rrm1 + BB*rrm2) # GL19a, B55
-        if r_o==np.infty:
+        if r_o==np.inf:
             x3ro = (AA - BB)/(AA + BB)  # GL19a, B55 for observer at r_o
         else:
             x3ro = (AA*rro1 - BB*rro2)/(AA*rro1 + BB*rro2)
@@ -500,7 +500,7 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
         # parameters for case 2
         k2 = (rr32*rr41)/(rr31*rr42)# 0<k=k2<1, GL19a B13
         x2rp = np.sqrt((rr31*(rplus-rr4))/(rr41*(rplus-rr3)))# GL19a, B35
-        if r_o==np.infty:
+        if r_o==np.inf:
             x2ro = np.sqrt(rr31/rr41)# B35, for observer at r_o
         else:
             x2ro = np.sqrt((rr31*(r_o-rr4))/(rr41*(r_o-rr3)))# GL19a, B35
@@ -532,7 +532,7 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
 
         # parameters for case 2
         k2 = (rr32*rr41)/(rr31*rr42)# 0<k=k2<1, GL19a B13
-        if r_o==np.infty:
+        if r_o==np.inf:
             x2ro = np.sqrt(rr31/rr41)# B35, for observer at r_o
         else:
             x2ro = np.sqrt((rr31*(r_o-rr4))/(rr41*(r_o-rr3)))# GL19a, B35

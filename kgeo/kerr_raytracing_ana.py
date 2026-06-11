@@ -419,8 +419,8 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
 
         x4rp = (rplus  + b1)/a2 # GL19a, B83 at horizon
         x4rm = (rminus + b1)/a2 # GL19a, B83 at inner horizon
-        if r_o==np.infty:
-            x4ro = np.infty # GL19a, B83 for observer at r_o
+        if r_o==np.inf:
+            x4ro = np.inf # GL19a, B83 for observer at r_o
         else:
             x4ro = (r_o + b1)/a2 # GL19a, B83 for observer at r_o
 
@@ -495,7 +495,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
 
         x3rp = (AA*rrp1 - BB*rrp2)/(AA*rrp1 + BB*rrp2) # GL19a, B55
         x3rm = (AA*rrm1 - BB*rrm2)/(AA*rrm1 + BB*rrm2) # GL19a, B55
-        if r_o==np.infty:
+        if r_o==np.inf:
             x3ro = (AA - BB)/(AA + BB)  # GL19a, B55 for observer at r_o
         else:
             x3ro = (AA*rro1 - BB*rro2)/(AA*rro1 + BB*rro2)
@@ -574,7 +574,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
         # parameters for case 2
         k2 = (rr32*rr41)/(rr31*rr42)# 0<k=k2<1, GL19a B13
 
-        if r_o==np.infty:
+        if r_o==np.inf:
             x2ro = np.sqrt(rr31/rr41) # B35, for observer at r_o
         else:
             x2ro = np.sqrt((rr31*(r_o-rr4))/(rr41*(r_o-rr3)))# GL19a, B35
@@ -658,7 +658,7 @@ def S1_S2(al,phi,j,ret_s2=True): #B92 and B93 of GL19a
         S2b = S1*(1./al2p1 + (1-j)/al2j)
         S2 = S2a + S2b
     else:
-        S2=np.NaN
+        S2=np.nan
 
     return (S1,S2)
 
@@ -678,6 +678,6 @@ def R1_R2(al,phi,j,ret_r2=True): #B62 and B65 of GL19a
         R2 = R2 + (2*j - nn)*R1 / (j + (1-j)*al2)
 
     else:
-        R2=np.NaN
+        R2=np.nan
 
     return (R1,R2)

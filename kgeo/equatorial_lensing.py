@@ -16,7 +16,7 @@ from multiprocessing import cpu_count, Pool
 import os
 
 INF = 1.e50
-R0 = np.infty
+R0 = np.inf
 NPROC = 10
 
 def nmax_equatorial(a, r_o, th_o, alpha, beta):
