@@ -6,12 +6,15 @@ from kgeo.equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
 import time
 from mpmath import polylog
 from scipy.interpolate import RegularGridInterpolator
-import pkg_resources
 from kgeo.bfields import Bfield
 from kgeo.velocities import Velocity
 
-# kgeo path TODO
-KGEOPATH = '/home/achael/RelElectrons/kgeo/kgeo'
+# Loader for synchrotron power-law fit data, used by a function that is
+# not yet re-implemented. Uncomment when that function is restored. The
+# __file__-relative path resolves after install regardless of cwd.
+# import os
+# _synchpl_gxfit_file = os.path.join(os.path.dirname(__file__), 'data', 'synchpl_gxfit.csv')
+# synchpl_gxfit = np.loadtxt(_synchpl_gxfit_file, delimiter=',')
 
 # Broken Power Law parameters
 P1E_230=-2.0; P2E_230=-0.5; # for  230 GHz
