@@ -38,4 +38,4 @@ Download = "https://github.com/achael/kgeo/archive/v0.0.1.tar.gz"
 packages = ["kgeo"]
 
 [tool.setuptools.package-data]
-"*" = ["*.dat", "*.csv"]
+kgeo = ["data/*.dat", "data/*.csv"]

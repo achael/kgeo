@@ -2,7 +2,7 @@ import numpy as np
 import scipy.special as sp
 from mpmath import polylog
 from scipy.interpolate import UnivariateSpline
-import pkg_resources
+import os
 
 def f(r):
     """BZ monopole f(r) function"""
@@ -20,7 +20,7 @@ def f(r):
 #np.savetxt('./bz_fr_data.dat', np.vstack((rsinterp,fsinterp)).T)
 
 # get f(r) from pre-saved data
-datafile = pkg_resources.resource_stream(__name__, 'bz_fr_data.dat')
+datafile = os.path.join(os.path.dirname(__file__), 'data', 'bz_fr_data.dat')
 (rsinterp,fsinterp) = np.loadtxt(datafile)
 NINTERP = len(rsinterp)
 RMAXINTERP = np.max(rsinterp)
