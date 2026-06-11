@@ -124,7 +124,7 @@ def raytrace_ana(a=SPIN,
 
 #TODO -- errors in phi raytracing with alpha=0, beta!=0.
 def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
-    """ compute coordinates x^\mu at a particular Mino time""" 
+    r""" compute coordinates x^\mu at a particular Mino time""" 
 
     [_, r_o, th_o, _] = observer_coords # assumes ph_o = 0
     [alpha, beta] = image_coords

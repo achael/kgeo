@@ -241,7 +241,7 @@ class Bfield(object):
         return e_components
 
     def maxwell(self, a, r, th=np.pi/2):
-        """Maxwell tensor starF^{\mu\nu} in BL coordinates.
+        r"""Maxwell tensor starF^{\mu\nu} in BL coordinates.
            below defn is for stationary, axisymmetric fields"""
 
         if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
@@ -275,7 +275,7 @@ class Bfield(object):
         return sF_out
 
     def faraday(self, a, r, th=np.pi/2):
-        """Faraday tensor F^{\mu\nu} in BL coordinates.
+        r"""Faraday tensor F^{\mu\nu} in BL coordinates.
            below defn is for stationary, axisymmetric fields"""
         if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
@@ -334,7 +334,7 @@ class Bfield(object):
         return F_out
 
     def bfield_fluid(self, a, r, velocity, th=np.pi/2.):
-        """returns b^\mu in frame u^\mu, making ideal MHD assumption, e^\mu=0"""
+        r"""returns b^\mu in frame u^\mu, making ideal MHD assumption, e^\mu=0"""
         if not isinstance(r, np.ndarray):
             r = np.array([r]).flatten()
 
@@ -369,7 +369,7 @@ class Bfield(object):
         return (b0, b1, b2, b3)
 
     def bsq(self, a, r, velocity, th=np.pi/2.):
-        """returns b^2 in frame u^\mu, making ideal MHD assumption, e^\mu=0"""
+        r"""returns b^2 in frame u^\mu, making ideal MHD assumption, e^\mu=0"""
         if not isinstance(r, np.ndarray):
             r = np.array([r]).flatten()
 
@@ -402,7 +402,7 @@ class Bfield(object):
         return bsq
     
     def bsq_comp(self, a, r, velocity, th=np.pi/2.):
-        """returns b^2 in frame u^\mu, making ideal MHD assumption, e^\mu=0"""
+        r"""returns b^2 in frame u^\mu, making ideal MHD assumption, e^\mu=0"""
         if not isinstance(r, np.ndarray):
             r = np.array([r]).flatten()
 
