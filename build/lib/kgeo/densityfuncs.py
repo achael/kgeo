@@ -65,7 +65,7 @@ def density_mono_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel,
         bupper = np.transpose(np.transpose(bfield.bfield_lab(spin, rdirect, th=thdirect)))
 
         #paraboloid
-        velpara = Velocity('driftframe', bfield = bfield, nu_parallel = nu_parallel, gammamax = None)
+        velpara = Velocity('driftframe', bfield = bfield, nu_parallel = nu_parallel, gammamax = gammamax)
         (u0,u1,u2,u3) = velpara.u_lab(spin, rdirect, th=thdirect)
 
         #density
@@ -114,17 +114,17 @@ def eta_para(thetavals, theta0, spin, psi, sigma):
 
 
 #density for BZ paraboloid
-def density_para_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel, sigma, neqmax=2, gammamax=None):
+def density_para_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel, sigma, neqmax=2, gammamax=None, shift=0):
     #properties of fieldline
     rp = 1+np.sqrt(1-spin**2)
 
     #initialize
-    bfield = Bfield("bz_para", C=1)
+    bfield = Bfield("bz_para", C=1, shift=shift)
     rnew = np.reshape(rvals, guesses_shape)
     thnew = np.arccos(np.abs(np.cos(np.reshape(thvals, guesses_shape)))) #only works for above equator, but we can employ reflection symmetry
     rhovals = []
     indstart = np.where(np.nan_to_num(rnew)[0]!=0)[0][0]
-    omega = bfield.omega_field(spin,rnew[0][indstart],th=thnew[0][indstart])
+    omega = bfield.omega_field(spin,rnew[0][indstart],th=thnew[0][indstart], shift=bfield.shift)
 
     #stagnation surface
     r0, theta0 = r0min_para(psiBZpara(rnew[0][indstart], thnew[0][indstart], spin), omega, spin, 1.0)
@@ -138,13 +138,13 @@ def density_para_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel,
         bupper = np.transpose(np.transpose(bfield.bfield_lab(spin, rdirect, th=thdirect)))
 
         #paraboloid
-        velpara = Velocity('driftframe', bfield = bfield, nu_parallel = nu_parallel, gammamax = None)
+        velpara = Velocity('driftframe', bfield = bfield, nu_parallel = nu_parallel, gammamax = gammamax)
         (u0,u1,u2,u3) = velpara.u_lab(spin, rdirect, th=thdirect)
 
         #density
         eta = eta_para(thdirect, theta0, spin, psitarget, sigma)
         rho = eta*bupper[0]/u1
-        #indstart = np.where(thdirect != 0)[0][0]
+#        indstart = np.where(thdirect != 0)[0][0]
         #rho = rho/rho[indstart] #normalize to be 1 at the origin
         rhovals.append(rho)
 
@@ -169,12 +169,16 @@ def eta_power(rvals, r0, spin, pval, psi, sigma):
     if not hasattr(rvals, '__len__'):
         return scint.quad(inthere, r0, rvals, epsabs=1e-13, epsrel=1e-13)[0]/normfac
 
+
     #loop through and compute integral from each value of x to the next
     indstart = np.where(rvals != 1)[0][0]
     intvals = [0.0 for i in range(indstart)]
     for i in range(indstart,len(rvals),1):
         if rvals[i] == 0:
             intvals.append(0)
+            continue
+        if (rvals[i]-r0)/sigma > 5: #pure outflow far enough out
+            intvals.append(normfac)
             continue
         intcell = scint.quad(inthere, r0, rvals[i], epsabs=1e-13, epsrel=1e-13)[0]
         intvals.append(intcell)
@@ -207,7 +211,7 @@ def density_power_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel
         bupper = np.transpose(np.transpose(bfield.bfield_lab(spin, rdirect, th=thdirect)))
 
         #paraboloid
-        velpara = Velocity('driftframe', bfield = bfield, nu_parallel = nu_parallel, gammamax = None)
+        velpara = Velocity('driftframe', bfield = bfield, nu_parallel = nu_parallel, gammamax = gammamax)
         (u0,u1,u2,u3) = velpara.u_lab(spin, rdirect, th=thdirect)
 
         #density
@@ -217,3 +221,82 @@ def density_power_all(rvals, thvals, guesses_shape, psitarget, spin, nu_parallel
         rhovals.append(rho)
 
     return np.nan_to_num(np.array(rhovals).flatten(), nan=0.0)
+
+
+#compute density assuming that sigma=b^2/rho=sigmaplasma=const
+def densityconstsigma(rvals, thvals, a, nu_parallel, sigmaplasma, model, gammamax=None, pval = 1.0, usemono=False, shift=0, velmodel='driftframe'):
+    if model == 'mono':
+        bfield = Bfield("bz_monopole", C=1)
+    elif model == 'para':
+        bfield = Bfield("bz_para", C=1, shift=shift)
+    elif model == 'power':
+        bfield = Bfield("power", p=pval, usemono=usemono)
+    (B1, B2, B3) = bfield.bfield_lab(a, rvals, th=thvals)
+
+    # Metric
+    a2 = a**2
+    r2 = rvals**2
+    cth2 = np.cos(thvals)**2
+    sth2 = np.sin(thvals)**2
+    Delta = r2 - 2*rvals + a2
+    Sigma = r2 + a2 * cth2
+    gdet = Sigma*np.sqrt(sth2) #metric determinant
+
+    g00 = -(1 - 2*rvals/Sigma)
+    g11 = Sigma/Delta
+    g22 = Sigma
+    g33 = (r2 + a2 + 2*rvals*a2*sth2 / Sigma) * sth2
+    g03 = -2*rvals*a*sth2 / Sigma
+
+
+    #compute velocity
+    vel = Velocity(velmodel, bfield = bfield, nu_parallel = nu_parallel, gammamax = gammamax)
+    (u0,u1,u2,u3) = vel.u_lab(a, rvals, th=thvals)
+    u0_l = g00*u0 + g03*u3
+    u1_l = g11*u1
+    u2_l = g22*u2 
+    u3_l = g33*u3 + g03*u0
+
+    #compute b^mu
+    b0 = B1*u1_l + B2*u2_l + B3*u3_l
+    b1 = (B1 + b0*u1)/u0
+    b2 = (B2 + b0*u2)/u0
+    b3 = (B3 + b0*u3)/u0     
+
+    b0_l = g00*b0 + g03*b3
+    b1_l = g11*b1
+    b2_l = g22*b2
+    b3_l = g33*b3 + g03*b0
+        
+    bsq = b0*b0_l + b1*b1_l + b2*b2_l + b3*b3_l
+
+    return bsq/sigmaplasma #assumption is that bsq/rho = sigmaplasma
+
+def densitypoynting(rvals, thvals, a, bf, gammamax=None, nu_parallel='FF'):
+    #compute metric factors
+    sig = rvals**2+a**2*np.cos(thvals)**2
+    delta = rvals**2-2*rvals+a**2
+    pi = (rvals**2+a**2)**2-a**2*delta*np.sin(thvals)**2
+    alphalapse = np.sqrt(delta*sig/pi)
+    grr = sig/delta
+    gthetatheta = sig
+    gphiphi = pi*np.sin(thvals)**2/sig
+    
+    #compute magnetic field components in ZAMO frame
+    (B1, B2, B3) = bf.bfield_lab(a, rvals, th=thvals)
+    B1Zamo = alphalapse*B1*np.sqrt(grr)
+    B2Zamo = alphalapse*B2*np.sqrt(gthetatheta)
+    B3Zamo = alphalapse*B3*np.sqrt(gphiphi)
+    Bsq = B1Zamo**2+B2Zamo**2+B3Zamo**2
+    
+    #compute perpendicular velocity
+    velocityhere = Velocity('driftframe', bfield=bf, nu_parallel = nu_parallel, gammamax = gammamax)
+    (vperpmag, vperp1, vperp2, vperp3) = velocityhere.u_lab(a, rvals, th=thvals, retqty=True)
+
+    #compute Poynting flux from S=vperp*B^2
+    poyntingmag = Bsq*vperpmag
+    return np.abs(np.nan_to_num(poyntingmag))
+    
+    
+
+    
