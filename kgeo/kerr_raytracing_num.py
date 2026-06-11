@@ -2,15 +2,15 @@
 # 19a: https://arxiv.org/pdf/1910.12881.pdf
 # 19b: https://arxiv.org/pdf/1910.12873.pdf
 
-import numpy as np
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 import time
-from kgeo.kerr_raytracing_utils import Geodesics
-from kgeo.kerr_raytracing_utils import my_sign,angular_turning,radial_roots,mino_total
-from kgeo.kerr_raytracing_utils import MINSPIN, EP
+
+import matplotlib.pyplot as plt
+import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.interpolate import interp1d
+from tqdm import tqdm
+
+from kgeo.kerr_raytracing_utils import EP, MINSPIN, Geodesics, angular_turning, mino_total, my_sign, radial_roots
 
 SPIN = 0.94
 INC = 20*np.pi/180.
@@ -63,7 +63,7 @@ def raytrace_num(a=SPIN,
     # spin zero should have no voritical geodesics
     if(a<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
-        print("WARNING: there were eta<0 points for spin %f<MINSPIN!"%a)
+        print(f"WARNING: there were eta<0 points for spin {a:f}<MINSPIN!")
 
     # angular turning points
     (u_plus, u_minus, th_plus, th_minus, thclass) = angular_turning(a, th_o, lam, eta)

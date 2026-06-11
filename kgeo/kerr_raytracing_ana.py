@@ -10,13 +10,13 @@
 # TODO what to do if we have double roots r3==r4 / land exactly on the critical curve?
 # TODO -- add image plane transformations for a<0, th_o>pi/2?
 
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.special as sp
-import matplotlib.pyplot as plt
-import time
-from kgeo.kerr_raytracing_utils import Geodesics
-from kgeo.kerr_raytracing_utils import my_sign,angular_turning,radial_roots,mino_total
-from kgeo.kerr_raytracing_utils import MINSPIN, EP
+
+from kgeo.kerr_raytracing_utils import EP, MINSPIN, Geodesics, angular_turning, mino_total, my_sign, radial_roots
 
 SPIN = 0.94
 INC = 20*np.pi/180.
@@ -75,11 +75,11 @@ def raytrace_ana(a=SPIN,
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-    
+
     # spin zero should have no vortical geodesics
     if(np.abs(a)<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
-        print("WARNING: there were eta<0 points for spin %f<MINSPIN!"%a)
+        print(f"WARNING: there were eta<0 points for spin {a:f}<MINSPIN!")
 
     # radial roots and radial motion case
     (r1, r2, r3, r4, rclass) = radial_roots(a, lam, eta)
@@ -92,11 +92,11 @@ def raytrace_ana(a=SPIN,
     # mino time is positive back from screen in GL19b conventions
     dtau = maxtaufrac*tau_tot / (ngeo - 1)
     tausteps = np.linspace(0, maxtaufrac*tau_tot, ngeo)
-    
+
     # calculate the points along the geodsic at tausteps
     affinesteps, geo_coords = coords_at_tau(a, observer_coords, image_coords, tausteps, do_phi_and_t=True)
-    
-    
+
+
     # create Geodesics object
     geos = Geodesics(a, observer_coords, image_coords, tausteps, affinesteps, geo_coords)
 
@@ -106,7 +106,7 @@ def raytrace_ana(a=SPIN,
             geos.savegeos()
         except:
             print("Error saving to file!")
- 
+
     if plotdata and do_phi_and_t:
         print('plotting data...')
         try:
@@ -124,7 +124,7 @@ def raytrace_ana(a=SPIN,
 
 #TODO -- errors in phi raytracing with alpha=0, beta!=0.
 def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
-    r""" compute coordinates x^\mu at a particular Mino time""" 
+    r""" compute coordinates x^\mu at a particular Mino time"""
 
     [_, r_o, th_o, _] = observer_coords # assumes ph_o = 0
     [alpha, beta] = image_coords
@@ -147,25 +147,25 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
         tau = tau.reshape(1,tau.shape[0])
     if not(tau.shape[1]==len(alpha)): #TODO
         raise Exception("tau has incompatible shape in coords_at_tau!")
-        
+
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-    
+
     # spin zero should have no vortical geodesics
     if(np.abs(a)<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
-        print("WARNING: there were eta<0 points for spin %f<MINSPIN!"%a)
+        print(f"WARNING: there were eta<0 points for spin {a:f}<MINSPIN!")
 
     # sign of final angular momentum
     s_o = my_sign(beta)
-        
+
     # angular turning points and number of equatorial crossings
     (u_plus, u_minus, th_plus, th_minus, thclass) = angular_turning(a, th_o, lam, eta)
 
     # radial roots and radial motion case
     (r1, r2, r3, r4, rclass) = radial_roots(a, lam, eta)
-   
+
     # integrate in theta
     print('integrating in theta...',end="\r")
     start = time.time()
@@ -181,13 +181,13 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
                                           do_phi_and_t=do_phi_and_t)
     stop = time.time()
     print('integrating in r...%0.2f s'%(stop-start))
-    
+
     # combine integrals to get phi, t, and sigma as a function of time
     sig_s = 0 + I_sig + a**2 * G_t # GL19a 15
     t_s   = 0 + I_t + a**2 * G_t   # GL19a 12
     ph_s  = 0 + I_ph + lam*G_ph    # GL19a 11
-    
-    # return 
+
+    # return
     geo_coords = [t_s,r_s,th_s,ph_s]
 
     return sig_s, geo_coords
@@ -197,7 +197,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
     if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")        
+        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
     if not isinstance(s_o, np.ndarray): s_o = np.array([s_o]).flatten()
     if not isinstance(eta, np.ndarray): eta= np.array([eta]).flatten()
     if not isinstance(lam, np.ndarray): lam= np.array([lam]).flatten()
@@ -212,14 +212,14 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
     th_s = np.zeros(tausteps.shape)
     G_ph = np.zeros(tausteps.shape)
     G_t  = np.zeros(tausteps.shape)
-    
+
     # ordinary motion:
     if(np.any(eta>0.)):
         mask = eta>=0.
         up = u_plus[mask]
         um = u_minus[mask]
         s = s_o[mask]
-        
+
         # compute factors up/um and a**2 * um (in zero spin limit)
         if(np.abs(a)<MINSPIN):
             uratio = np.zeros(eta.shape)[mask]
@@ -240,7 +240,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         if do_phi_and_t:
 
             # GL 19a, 30
-            Gph_o = -pref * ellippi_arr(up, elliparg, k) 
+            Gph_o = -pref * ellippi_arr(up, elliparg, k)
 
             # GL 19a, 31
             maskk = (k==0)
@@ -249,7 +249,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
                 Gt_o[maskk] = 2*up*pref*0.125*(-2*elliparg + np.sin(2*elliparg))[maskk]
             if np.any(~maskk):
                 Gt_o[~maskk] = 2*up*pref* (sp.ellipeinc(elliparg,k) - F)[~maskk]/(2*k[~maskk]) # GL 19a, 31
-                                                
+
         # compute the amplitude Phi_tau, GL 19a, 45
         snarg = np.sqrt(-a2um)*(-tausteps[:,mask] + s*Gth_o)
         snarg = snarg.astype(float)
@@ -291,10 +291,10 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
                 Gtout[:,maskk] = -2*up*pref*0.125*(-2*Phi_tau + np.sin(2*Phi_tau))[:,maskk]
             if np.any(~maskk):
                 Gtout[:,~maskk] = -(2*up*pref* (sp.ellipeinc(Phi_tau,k) - sp.ellipkinc(Phi_tau,k)))[:,~maskk]/(2*k[~maskk]) # GL 19a, 31
-                
+
             Gtout =  Gtout - s*Gt_o
             G_t[:,mask] = Gtout
-                                    
+
     # vortical motion case
     # most eta=0 exact points are a limit of vortical motion
     if(np.any(eta<=0.)):
@@ -312,7 +312,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         # compute antideriviatives at the observer point
         if th_o <= np.pi/2: h = 1. # sign(cos(th)) GL19a 54,  hemisphere
         else: h = -1
-        
+
         prefA = 1/np.sqrt(a2um) # u_minus>0 always for eta<0
         prefB = prefA / (1.-um)
         prefC = np.sqrt(um/a**2)
@@ -631,8 +631,8 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
     I_sig = I_2
 
     return (r_s, I_phi, I_t, I_sig)
-    
-    
+
+
 # auxillary functions for the radial integrals
 # TODO al->0 limit??
 def S1_S2(al,phi,j,ret_s2=True): #B92 and B93 of GL19a

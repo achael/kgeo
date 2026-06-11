@@ -1,8 +1,9 @@
 import numpy as np
+
 from kgeo.bfields import Bfield
-from kgeo.velocities import Velocity
 from kgeo.emissivities import Emissivity
 from kgeo.equatorial_images import make_image
+from kgeo.velocities import Velocity
 
 
 def _get_evpa_kgeo(Q, U):

@@ -1,12 +1,11 @@
 #solves where null geodesics cross fieldlines of fixed psi
 
 import numpy as np
-import scipy.special as sp
 import scipy.optimize as opt
-from kgeo.kerr_raytracing_utils import radial_roots,mino_total,uplus_uminus, my_sign, angular_turning
-from kgeo.kerr_raytracing_utils import MINSPIN, EP
-from kgeo.kerr_raytracing_ana import th_integrate,r_integrate
+import scipy.special as sp
 
+from kgeo.kerr_raytracing_ana import r_integrate, th_integrate
+from kgeo.kerr_raytracing_utils import EP, MINSPIN, angular_turning, mino_total, my_sign, radial_roots, uplus_uminus
 
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
 
@@ -30,7 +29,7 @@ def psi_power(r,theta,pval):
 #general psi
 def psifunc(r, theta, a, model='para', pval=1, shift=0): #defines psi
     if model == 'para':
-        return psi_BZ_para(r, theta, a, shift=shift) 
+        return psi_BZ_para(r, theta, a, shift=shift)
     elif model=='mono':
         return psi_BZ_mono(theta)
     elif model == 'power':
@@ -40,7 +39,7 @@ def psifunc(r, theta, a, model='para', pval=1, shift=0): #defines psi
 
 
 #counts number of equatorial crossings on way from source to observer
-def getneq(a, tau, u_minus, u_plus, th_s, th_o, signptheta, betas): 
+def getneq(a, tau, u_minus, u_plus, th_s, th_o, signptheta, betas):
     #combine equations 81 and 82 of GL Lensing
     uratio = u_plus/u_minus
     xFarg = np.cos(th_o)/np.sqrt(u_plus)
@@ -60,12 +59,12 @@ def getneq(a, tau, u_minus, u_plus, th_s, th_o, signptheta, betas):
 def get_maxtau_forwardjet(a, r_o, th_o, alpha, beta, neqmax=1): #maximum minotime before first mth crossing
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-        
+
     (r1, r2, r3, r4, rclass) = radial_roots(a, lam, eta)
     tau_tot = mino_total(a, r_o, eta, r1, r2, r3, r4)
     tau_tot2 = tau_tot * MAXTAUFRAC
 
-    if neqmax == None: #no limit to geodesic length
+    if neqmax is None: #no limit to geodesic length
         return tau_tot2
 
     # angular turning points
@@ -78,18 +77,18 @@ def get_maxtau_forwardjet(a, r_o, th_o, alpha, beta, neqmax=1): #maximum minotim
 
     # equation 17 for K
     K = sp.ellipkinc(0.5*np.pi, uratio)
-    
+
     #get taumax for non-vortical Geodesics from Eq. 81 of Kerr Lensing
     mbarmax = neqmax-1
-    mmax = mbarmax+np.heaviside(beta, 0)   
+    mmax = mbarmax+np.heaviside(beta, 0)
     taumax = (2*mmax*K-np.sign(beta)*F0)/np.sqrt(-u_minus*a**2)
-    
+
     #now deal with vortical
     taumax[eta<=0] = tau_tot2[eta<=0]
     return np.min(np.array([taumax, tau_tot2]),axis=0) #max tau is either total or mth equatorial crossing
 
 #converts guess array into correct dimensions
-def makegoodarray(arr): 
+def makegoodarray(arr):
     max_length = max(len(a) for a in arr)
     result = -np.ones((len(arr), max_length))
     for i, a in enumerate(arr):
@@ -100,10 +99,10 @@ def makegoodarray(arr):
 # returns guesses for the psi of the first equatorial crossing
 def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_t=True, neqmax=1, model='para',pval=1,shift=0): #returns guesses for the psi of the first equatorial crossing
     tauguesses = []
-    
+
     taumaxes = get_maxtau_forwardjet(a, rout, inc, alphas, betas, neqmax=neqmax)
     psifromgeo = psifunc(outgeo.r_s, outgeo.th_s, a, model=model, pval=pval, shift=shift) - psitarget
-    
+
     print(len(alphas))
     for i in range(len(alphas)):
         impactparam = np.sqrt(alphas[i]**2+betas[i]**2)
@@ -122,13 +121,13 @@ def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_
                 rparam = 1
 
         minfunc = np.roll(psifromgeo[:,i], -1)*psifromgeo[:,i] #we need to make sure this function crosses zero
-        
+
         indmax = np.argmin(np.abs(outgeo.mino_times[:,i]-taumaxes[i]))
         minfunc = minfunc[:indmax+1] #+1 for python and conventions
-        
+
         minfunc = minfunc[1:-2] #don't trust left or right endpoint
         mininds = (np.where(minfunc<0)[0])+1 #indices of zero crossings
-                        
+
         if len(mininds) == 0: #no solution
             tauguesses.append(np.array([-1]))
             continue
@@ -136,14 +135,14 @@ def getguesses(outgeo, a, rout, inc, alphas, betas, psitarget, ngeo, do_phi_and_
         #mininds += 1 #necessary since we cut off the endpoints earlier
         #average two points which the zero lives between
         tauguesses.append(np.array([(outgeo.mino_times[indfinal, i]+outgeo.mino_times[indfinal+1, i])/2 for indfinal in mininds]))
-    
+
     return makegoodarray(tauguesses)
 
 
 
 #find crossing using newton's method
-def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, tol=1e-8, pval=1, shift=0, retphi = False): 
-    #guesses  
+def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = True, model='para', neqmax=1, tol=1e-8, pval=1, shift=0, retphi = False):
+    #guesses
     guesses = getguesses(outgeo, a, r_o, th_o, alpha, beta, psitarget, ngeo, do_phi_and_t=do_phi_and_t, neqmax=neqmax, model=model, pval=pval, shift=shift)
     guesses_shape = guesses.shape
 
@@ -154,7 +153,7 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
     # spin zero should have no vortical geodesics
     if(np.abs(a)<MINSPIN and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
-        print("WARNING: there were eta<0 points for spin %f<MINSPIN!"%a)
+        print(f"WARNING: there were eta<0 points for spin {a:f}<MINSPIN!")
 
     # sign of final angular momentum
     s_o = np.tile(my_sign(beta), len(guesses))
@@ -162,7 +161,7 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
 
     #now flatten guesses
     guesses = guesses.flatten()
-    
+
     #angular integrals
     (u_plus, u_minus, th_plus, th_minus, thclass) = angular_turning(a, th_o, lam, eta)
 
@@ -171,7 +170,7 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
     tau_tot = mino_total(a, r_o, eta, r1, r2, r3, r4)
     taumax = tau_tot * MAXTAUFRAC
 
-    #function to minimize   
+    #function to minimize
     def get_coord_intersect(minotimes):
         #integration in theta
         (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,np.reshape(minotimes, (1, len(minotimes))),
@@ -180,7 +179,7 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
         #integration in r
         (r_s, I_ph, I_t, I_sig) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(minotimes, (1, len(minotimes))),
                                               do_phi_and_t=True)
-       
+
         arrhere = psifunc(r_s[0], th_s[0], a, model=model, pval=pval, shift=shift) - psitarget
         arrhere[guesses == -1] = 0 #no intersections
 
@@ -203,7 +202,7 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
     (r_s_further, I_ph_further, I_t_further, I_sig_further) = r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,np.reshape(outqty*(1+perturb), (1, len(outqty))),
                                           do_phi_and_t=True) #AC change do_phi_and_t to False because we don't need I_ph, I_t here?
 
-    
+
     signpr = np.sign(r_s-r_s_further)[0]
     signptheta = np.sign(th_s-th_s_further)[0]
     r_s = np.copy(r_s[0])
@@ -213,8 +212,8 @@ def findroot(outgeo, psitarget, alpha, beta, r_o, th_o, a, ngeo, do_phi_and_t = 
     neqvals = getneq(a, outqty, u_minus, u_plus, th_s, th_o, signptheta, betatile)
 
     outqty[guesses == -1] = r_s[guesses==-1] = th_s[guesses==-1] = signpr[guesses==-1] = signptheta[guesses==-1] = 0 #no crossing
-    
+
     if retphi:
         return outqty, r_s, th_s, ph_s, signpr, signptheta, neqvals, guesses_shape
-        
+
     return outqty, r_s, th_s, signpr, signptheta, neqvals, guesses_shape

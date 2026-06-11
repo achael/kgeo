@@ -1,10 +1,11 @@
 import numpy as np
 import scipy.optimize as opt
+
 from kgeo.bfields import Bfield
 
 # simulation fit factors
-ELLISCO =1.; VRISCO = 2;
-P1=6.; P2=2.; DD=0.2;
+ELLISCO =1.; VRISCO = 2
+P1=6.; P2=2.; DD=0.2
 
 # gelles model parameters
 BETA = 0.3
@@ -20,7 +21,7 @@ _allowed_velocity_models = [
 ]
 
 
-class Velocity(object):
+class Velocity:
     """ object for lab frame velocity as a function of r, only in equatorial plane for now """
 
     def __init__(self, veltype="kep", **kwargs):
@@ -57,14 +58,14 @@ class Velocity(object):
         elif self.veltype == 'driftframe':
             self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
             self.nu_parallel = self.kwargs.get('nu_parallel', 0)
-            self.gammamax = self.kwargs.get('gammamax', None)            
+            self.gammamax = self.kwargs.get('gammamax', None)
         elif self.veltype=='MHD':
             self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
             self.gammamax = self.kwargs.get('gammamax', 100.0)
-                           
-        else: 
 
-            raise Exception("veltype %s not recognized in Velocity!"%self.veltype)
+        else:
+
+            raise Exception(f"veltype {self.veltype} not recognized in Velocity!")
 
     def u_lab(self, a, r, th=np.pi/2., retqty=False):
         """Return lab frame contravarient velocity vector"""
@@ -91,7 +92,7 @@ class Velocity(object):
             ucon = u_MHD(a, r, bfield=self.bfield, th=th, gammamax = self.gammamax)
 
         else:
-            raise Exception("veltype %s not recognized in Velocity.u_lab!"%self.veltype)
+            raise Exception(f"veltype {self.veltype} not recognized in Velocity.u_lab!")
 
         return ucon
 
@@ -506,7 +507,7 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
                 r0, theta0 = r0min_para(psihere, omega, a, 1.0, shift=bfield.shift)
             except:
                 r0, theta0 = r0min_para(.999999*psihere, omega, a, 1.0, shift=bfield.shift)
-        
+
         elif bfield.fieldtype == 'power':
             psihere = psiBZpower(r[ind], th[ind], bfield.pval) #compute psi of the fieldline chosen
             try:
@@ -593,7 +594,7 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
     gamma = 1./np.sqrt(1-vsq)
 
     #approximate MHD gamma by summing gamma_FF and gamma_max in series
-    if gammamax:  
+    if gammamax:
         pval0 = 2.0
         gammamax = gammamax*np.ones_like(gamma)
         gammaeff = (1/gammamax**pval0+1/gamma**pval0)**(-1/pval0)
@@ -628,7 +629,7 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
         v3perp = v3 - B3*Bdotv/Bsq
         vperpsq = g11*v1perp*v1perp + g22*v2perp*v2perp + g33*v3perp*v3perp
         return (np.sqrt(vperpsq), v1perp, v2perp, v3perp) #returns magnitude of vperp
-    
+
     return (u0, u1, u2, u3)
 
 #now MHD helper functions
@@ -638,7 +639,7 @@ def getL(E, sigma, r0, theta, Omegaf, spin, M): #gets L as a function of launch 
         return L
     g = metric(r0, spin, theta, M)
     ginv = invmetric(r0, spin, theta, M)
-    
+
     gtt = g[0][0]
     gtphi = g[0][3]
     ginvtt = ginv[0][0]
@@ -647,29 +648,29 @@ def getL(E, sigma, r0, theta, Omegaf, spin, M): #gets L as a function of launch 
     ginvphiphi = ginv[3][3]
     gtphifac = gtphi+gphiphi*Omegaf
     gttfac = gtt+gtphi*Omegaf
-    
+
     coef0 = (gtt+Omegaf*(2*gtphi+gphiphi*Omegaf))**2
     coef1 = ginvphiphi*gtphifac**2+2*ginvtphi*gtphifac*gttfac+ginvtt*gttfac**2
     efac2 = -coef0/coef1 #(E-L*Omegaf)^2
-    
+
     if efac2<0:
         print('Requested launch point is outside of light cylinder!')
         return 0
-    
+
     L = (E-np.sqrt(efac2))/Omegaf
     return L
 
 #solve for conserved quantities as function of more physical parameters
 def allcons(gammamax, r0, Omegaf, spin, M, pval, theta0=np.pi/2, useexact = False): #returns quantities for minimum-energy trans-fast wind launched from equator at r0 (in units of M)
     R0 = r0*Omegaf*M
-    upmax = np.sqrt(gammamax**2-1) 
+    upmax = np.sqrt(gammamax**2-1)
     sigmahere = upmax**3/(np.sin(theta0)**2) if pval == 0 else upmax**3/2/psiBZpower(R0,theta0,pval)
     Ehere = gammamax**3
     Lhere = getL(Ehere, sigmahere, r0, theta0, Omegaf, spin, M)
     return sigmahere, Ehere, Lhere
 
 #solves the quartic equation for the alfven point
-def alfven(theta, Omegaf, spin, M, L, E): 
+def alfven(theta, Omegaf, spin, M, L, E):
     if spin==0 and M==0:
         return np.sqrt(L/E/Omegaf)/np.sin(theta) # in units of 1/Omegaf, the 1/sin(theta) switches from cylindrical to spherical
     coef0 = spin**2*Omegaf*np.cos(theta)**2*(L-spin**2*E*Omegaf*np.sin(theta)**2)
@@ -685,7 +686,7 @@ def alfven(theta, Omegaf, spin, M, L, E):
 def wind_quartic(E, L, sigma, r, theta, Omegaf, spin, M, p): #r, spin, and Omegaf in units of M
     g = metric(r, spin, theta, M)
     ginv = invmetric(r, spin, theta, M)
-    
+
     gtt = g[0][0]
     gtphi = g[0][3]
     ginvtt = ginv[0][0]
@@ -711,12 +712,12 @@ def wind_quartic(E, L, sigma, r, theta, Omegaf, spin, M, p): #r, spin, and Omega
     coef2 = gfunc*gfunc2**2+alpha**2*(1+ginvtt*E**2-2*E*L*ginvtphi+ginvphiphi*L**2)
     coef1 = 2*alpha*(gtt+E**2*(ginvtphi*epsilon+ginvtt*zeta)-E*L*(ginvphiphi*epsilon+ginvtt*Omegaf*zeta+ginvtphi*gamma)+Omegaf*(gphiphi*Omegaf+L**2*beta+gtphi*(2+L**2*(ginvphiphi+ginvtphi*Omegaf))))
     coef0 = ginvphiphi*epsilon**2*delta**2+2*ginvtphi*epsilon*zeta*delta**2+ginvtt*zeta**2*delta**2+gfunc2**2
-    
+
     return np.polynomial.polynomial.Polynomial([coef0, coef1, coef2, coef3, coef4])
 
 #solve quartic wind equation for ur
 def ursolve(E, L, sigma, r, theta, Omegaf, spin, M, phere, rA = None):
-    if rA == None:
+    if rA is None:
         rA = alfven(theta, Omegaf, spin, M, L, E) #Alfven point
     poly = wind_quartic(E, L, sigma, r, theta, Omegaf, spin, M, phere)
     root = poly.roots()[1] if r<rA else poly.roots()[2]
@@ -734,14 +735,14 @@ def umuMHD(E, L, sigma, r, theta, Omegaf, spin, M, phere, rA = None):
     utheta = -ur*bthetarat
     xifdotxif = g[0][0]+2*g[0][3]*Omegaf+g[3][3]*Omegaf**2
     num = g[0][0]*L+g[3][3]*Omegaf*E+g[0][3]*(E+Omegaf*L)
-    Br = sigma*Omegaf**(pval-2)*r**pval/g[2][2]
+    Br = sigma*Omegaf**(phere-2)*r**phere/g[2][2]
     Mp2 = ur/Br
     denom = xifdotxif+Mp2
     Bbar = -num/denom
     ulowert = -(E+Omegaf*Bbar/eta)
     ulowerphi = L+Bbar/eta
-    ut = ginv[0][0]*ulowert+ginv[0][3]*ulowerphi 
-    uphi = ginv[3][3]*ulowerphi+ginv[0][3]*ulowert 
+    ut = ginv[0][0]*ulowert+ginv[0][3]*ulowerphi
+    uphi = ginv[3][3]*ulowerphi+ginv[0][3]*ulowert
     normhere = (ulowert*ut+ulowerphi*uphi+ur**2*g[1][1]+utheta**2*g[2][2])
     if np.abs(normhere+1)>1e-8:
         print('problem!', normhere)
@@ -752,11 +753,11 @@ def load_cache_from_file(filename):
     Load U123 primitive velocity data from file into cache.
     """
     # load header from file
-    with open(filename, 'r') as f:
+    with open(filename) as f:
         header = f.readline().strip()
         if header[0] != '#':
             header = None
-            raise Exception("file %s does not have a header!" % filename)
+            raise Exception(f"file {filename} does not have a header!")
         else:
             header = [x.strip() for x in header[1:].split(',')]
 
@@ -820,7 +821,7 @@ def u_from_u123(a, r, ru123_cache):
     u3 = u3 - gamma * alpha * gcon03
 
     return (u0, u1, u2, u3)
-    
+
 
 ########################################################################
 # computes unique parallel boost parameter in force-free electrodynamics
@@ -854,7 +855,7 @@ def r0min_para(psi, Omegaf, spin, M, shift=0): #does numerical root find
     return rtrue, thetatrue
 
 #stagnation surface for r^p(1-costheta)
-def r0min_power(psi, Omegaf, spin, p, M, usemono=False): 
+def r0min_power(psi, Omegaf, spin, p, M, usemono=False):
     bf = Bfield('power', p=p, usemono=usemono)
     def minfunc(R):
         rsphere = rfromR_power(R, psi, p)
@@ -915,22 +916,22 @@ def Nderiv(r, theta, a, Omegaf, M, bf_here):
     Sigma = r**2+a**2*cth**2
     dNdr = a**4*Omegaf**2*r*cth**4*sth**2+r**2*(-M+Omegaf*sth**2*(2*a*M+Omegaf*r**3-a**2*M*Omegaf*sth**2))+a**2*cth**2*(M+Omegaf*sth**2*(-2*a*M+2*Omegaf*r**3+a**2*M*Omegaf*sth**2))
     dNdr /= Sigma**2/2
-    
+
     denomtheta = a**2+2*r**2+a**2*np.cos(2*theta)**2
     dNdtheta = Omegaf**2*(a**2+r*(r-2*M))+8*M*r*(a*(a*Omegaf-1)+Omegaf*r**2)**2/denomtheta**2
     dNdtheta *= np.sin(2*theta)
-    
+
     bvec = bf_here.bfield_lab(a, r, th=theta)
-    
+
     return bvec[0]*dNdr + bvec[1]*dNdtheta #B.nabla(N)
 
 
 #solve for L as a function of launch point
 #gets Eco=E-OmegaF*L as a function of launch point r0
-def getEco(r0, theta, Omegaf, spin, M): 
+def getEco(r0, theta, Omegaf, spin, M):
     g = metric(r0, spin, theta, M)
     ginv = invmetric(r0, spin, theta, M)
-    
+
     gtt = g[0][0]
     gtphi = g[0][3]
     ginvtt = ginv[0][0]
@@ -939,7 +940,7 @@ def getEco(r0, theta, Omegaf, spin, M):
     ginvphiphi = ginv[3][3]
     gtphifac = gtphi+gphiphi*Omegaf
     gttfac = gtt+gtphi*Omegaf
-    
+
     coef0 = (gtt+Omegaf*(2*gtphi+gphiphi*Omegaf))**2
     coef1 = ginvphiphi*gtphifac**2+2*ginvtphi*gtphifac*gttfac+ginvtt*gttfac**2
     efac2 = -coef0/coef1 #(E-L*Omegaf)^2
@@ -957,7 +958,7 @@ def metric(r, a, theta, M):
     gmunu[1][1] = SigmaK/DeltaK
     gmunu[2][2] = SigmaK
     gmunu[3][3] = (r**2+a**2+2*M*r*a**2/SigmaK*np.sin(theta)**2)*np.sin(theta)**2
-    
+
     return np.swapaxes(gmunu, 0, -1) if hasattr(r, 'shape') else gmunu
 
 #inverse metric
@@ -972,6 +973,6 @@ def invmetric(r, a, theta, M):
     ginvmunu[1][1] = DeltaK/SigmaK
     ginvmunu[2][2] = 1/SigmaK
     ginvmunu[3][3] = (DeltaK-a**2*np.sin(theta)**2)/(SigmaK*DeltaK*np.sin(theta)**2)
-    
+
     return np.swapaxes(ginvmunu, 0, -1) if hasattr(r, 'shape') else ginvmunu
 

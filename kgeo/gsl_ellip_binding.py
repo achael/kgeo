@@ -1,15 +1,11 @@
 # ADAPTED from GSL Airy function bindings in https://github.com/perey/python-gsl
 
-import numpy as np
-from ctypes import CDLL, CFUNCTYPE
-from ctypes import c_double, c_int,c_uint, c_void_p,c_char_p
-from ctypes import pointer, POINTER, Structure
-from enum import IntEnum
 from collections.abc import Callable
-
+from ctypes import CDLL, CFUNCTYPE, POINTER, Structure, c_char_p, c_double, c_int, c_uint, pointer
+from enum import IntEnum
 
 import mpmath as mp
-import scipy.special as sp
+import numpy as np
 
 # Load the gsl library
 # the path to gsl on my system /usr/lib/x86_64-linux-gnu/libgsl.so,

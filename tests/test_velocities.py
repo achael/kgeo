@@ -1,6 +1,6 @@
 import numpy as np
-from kgeo.velocities import Velocity, _allowed_velocity_models
 
+from kgeo.velocities import Velocity, _allowed_velocity_models
 
 _MIDPLANE = np.pi/2.
 

@@ -1,13 +1,5 @@
+
 import numpy as np
-import scipy.special as sp
-from tqdm import tqdm
-from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
-from kgeo.equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
-import time
-from mpmath import polylog
-from scipy.interpolate import RegularGridInterpolator
-from kgeo.bfields import Bfield
-from kgeo.velocities import Velocity
 
 # Loader for synchrotron power-law fit data, used by a function that is
 # not yet re-implemented. Uncomment when that function is restored. The
@@ -17,8 +9,8 @@ from kgeo.velocities import Velocity
 # synchpl_gxfit = np.loadtxt(_synchpl_gxfit_file, delimiter=',')
 
 # Broken Power Law parameters
-P1E_230=-2.0; P2E_230=-0.5; # for  230 GHz
-P1E_86=0; P2E_86=-.75;  # for 86 GHz
+P1E_230=-2.0; P2E_230=-0.5 # for  230 GHz
+P1E_86=0; P2E_86=-.75  # for 86 GHz
 
 # GLM model parameters
 GAMMAOFF = -1.5
@@ -37,7 +29,7 @@ h  = 6.62607015e-27  # erg*s
 OBSFREQ = 230.e9
 SPECIND = 0.0
 
-class Emissivity(object):
+class Emissivity:
     """ object for rest frame emissivity as a function of r, only in equatorial plane for now (theta=np.pi/2) """
     def __init__(self, emistype="bpl", **kwargs):
         #print("Emissivity emistype =", repr(emistype))
@@ -49,9 +41,9 @@ class Emissivity(object):
         self.emiscut_out = self.kwargs.get('emiscut_out', 1.e10)
 
         if self.emistype=='thermal':
-            self.Rb = float(self.kwargs.get('Rb', 5.0))  
-            self.ne0 = float(self.kwargs['ne0']) 
-            self.Te0 = float(self.kwargs['Te0']) 
+            self.Rb = float(self.kwargs.get('Rb', 5.0))
+            self.ne0 = float(self.kwargs['ne0'])
+            self.Te0 = float(self.kwargs['Te0'])
             self.B0 = float(self.kwargs['B0'])
             self.alpha_n = float(self.kwargs.get('alpha_n', 0.7))
             self.alpha_T = float(self.kwargs.get('alpha_T', 1.0))
@@ -72,14 +64,14 @@ class Emissivity(object):
         elif self.emistype == 'constant':
             pass
         else:
-            raise Exception("emistype %s not recognized in Emissivity!"%self.emistype)
-        
+            raise Exception(f"emistype {self.emistype} not recognized in Emissivity!")
+
 
     # power law disk profiles to define thermal variables
     def profiles_plaw(self, r):
         x = np.asarray(r, dtype=float)/self.Rb
         ne = self.ne0 * np.power(x, -self.alpha_n) # cm^-3
-        Te = self.Te0 * np.power(x, -self.alpha_T) # K 
+        Te = self.Te0 * np.power(x, -self.alpha_T) # K
         B  = self.B0  * np.power(x, -self.alpha_B) # Gauss
         return ne, Te, B
 
@@ -90,12 +82,12 @@ class Emissivity(object):
             nu_em = np.asarray(nu_obs) / np.asarray(g)     # emitted frequency
             ne, Te, B = self.profiles_plaw(r)              # local plasma properties
 
-            # option to overwrite default power law field strength with actual |B| from model 
-            if self.bfield_model == True:
+            # option to overwrite default power law field strength with actual |B| from model
+            if self.bfield_model:
                 B = np.asarray(Bmag, dtype=float)
                 # TODO: change to handle normalization inside emissivities
                 #B = (Bmag / self.Rb) * self.B0
-            
+
             j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)
 
         ## Phenomenological models
@@ -109,7 +101,7 @@ class Emissivity(object):
             j = emisGLM(a, r, gamma_off=self.gamma_off, sigma=self.sigma, mu_ring=self.mu_ring)
 
         else:
-            raise Exception("emistype %s not recognized in Emissivity.emis!"%self.emistype)
+            raise Exception(f"emistype {self.emistype} not recognized in Emissivity.emis!")
 
         # add spectral behavior for non-physical emissivities
         if self.emistype != 'thermal':

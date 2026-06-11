@@ -2,18 +2,26 @@
 # Gralla & Lupsasca 10 section VI C
 # https://arxiv.org/pdf/1910.12873.pdf
 
+import os
+from multiprocessing import Pool
+
+import ehtim.observing.obs_helpers as obsh
+import ehtim.parloop as parloop
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.special as sp
-from scipy.optimize import brentq
 from scipy.interpolate import interp1d
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus, n_equatorial_crossings, n_poloidal_orbits
+from scipy.optimize import brentq
+
 from kgeo.kerr_raytracing_ana import r_integrate
-import ehtim.parloop as parloop
-import ehtim.observing.obs_helpers as obsh
-from multiprocessing import cpu_count, Pool
-import os
+from kgeo.kerr_raytracing_utils import (
+    is_outside_crit,
+    mino_total,
+    n_equatorial_crossings,
+    n_poloidal_orbits,
+    radial_roots,
+    uplus_uminus,
+)
 
 INF = 1.e50
 R0 = np.inf
@@ -34,11 +42,11 @@ def nmax_equatorial(a, r_o, th_o, alpha, beta):
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
         raise Exception("alpha, beta are different lengths!")
-    
+
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-        
+
     # radial roots
     (r1,r2,r3,r4,rclass) = radial_roots(a,lam,eta)
 
@@ -47,7 +55,7 @@ def nmax_equatorial(a, r_o, th_o, alpha, beta):
 
     # number of crossings
     nmax = n_equatorial_crossings(a,th_o,alpha,beta,Imax)
-    
+
     return nmax
 
 def nmax_poloidal(a, r_o, th_o, alpha, beta):
@@ -65,11 +73,11 @@ def nmax_poloidal(a, r_o, th_o, alpha, beta):
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
         raise Exception("alpha, beta are different lengths!")
-    
+
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-        
+
     # radial roots
     (r1,r2,r3,r4,rclass) = radial_roots(a,lam,eta)
 
@@ -78,7 +86,7 @@ def nmax_poloidal(a, r_o, th_o, alpha, beta):
 
     # number of crossings
     nmax = n_poloidal_orbits(a, th_o, alpha, beta, Imax)
-    
+
     return nmax
 
 
@@ -159,7 +167,7 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
 
             # which subring are we in?
             m = mbar + np.heaviside(beta_reg, 0)
-                
+
             betamask = (beta_reg<=0)
             if np.any(betamask):
                 Nmax_reg[betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) - F0) / (2*K)))[betamask]
@@ -170,7 +178,7 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
         else:
             # which subring are we in?
             m = mbar + np.heaviside(-beta_reg, 0)
-                    
+
             betamask = (beta_reg>=0)
             if np.any(betamask):
                 Nmax_reg[betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) + F0) / (2*K)))[betamask]
@@ -178,7 +186,7 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
             if np.any(~betamask):
                 Nmax_reg[~betamask] = (np.floor((Imax_reg*np.sqrt(-a2u_minus) - F0) / (2*K)) - 1)[~betamask]
                 Ir_reg[~betamask] = ((2*m*K + F0)/np.sqrt(-a2u_minus))[~betamask]
-                        
+
         # calculate the emission radius given the elapsed mino time
         # TODO -- clean up hacky indexing here
         r_s_reg,_,_,_ = r_integrate(a,r_o,lam_reg,eta_reg,
@@ -260,7 +268,7 @@ def rho_of_req_single(a, th0, req, varphi, mbar=0):
     rho = brentq(objfunc, rhomin, rhomax, args=(varphi, a, th0, req, mbar))
 
     return rho
-    
+
 def critical_curve(a, th0, n=100000):
     """returns parametrized critical curve (alpha,beta) array with n points
        won't work for a=0 exactly"""
@@ -400,7 +408,7 @@ def make_curves2(i, which, n, spin, inc, mmax, outpath):
         obsh.prog_msg(counter.value(), counter.maxval, 'bar', counter.value() - 1)
 
     # TODO RENAME
-    if os.path.isfile('%s/a%02.0f_i%02.0f_%s.txt'%(outpath,100*spin,inc,which)):
+    if os.path.isfile(f'{outpath}/a{100*spin:02.0f}_i{inc:02.0f}_{which}.txt'):
         return
 
     try:
@@ -411,7 +419,7 @@ def make_curves2(i, which, n, spin, inc, mmax, outpath):
             else:
                 out = np.hstack((out, rhos.reshape(-1,1)))
 
-        np.savetxt('%s/a%02.0f_i%02.0f_%s.txt'%(outpath,100*spin,inc,which),out)
+        np.savetxt(f'{outpath}/a{100*spin:02.0f}_i{inc:02.0f}_{which}.txt',out)
     except:
         return
 

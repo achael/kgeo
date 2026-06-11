@@ -1,7 +1,7 @@
 # Uses newest version of scipy with Carlson elliptic integrals
 
-import numpy as np
 import mpmath as mp
+import numpy as np
 import scipy.special as sp
 
 halfpi = 0.5*np.pi
@@ -65,17 +65,17 @@ def ellip_pi(n,phi,m,precision=1.e-3):
         # TODO should we just use scipy ellipkinc here?!
 
         CRF = sp.elliprf(x,y,z)
-        
+
         if rho>0:
             CRJ = sp.elliprj(x,y,z,rho)
-            
+
         else: # transform for rho<0, https://dlmf.nist.gov/19.20#E14 19.20.14
             q = -rho
             p = (z*(x+y+q) - x*y) / (z + q)
 
             CRJ0 = sp.elliprj(x,y,z,p)
             CRC = sp.elliprc(x*y + p*q,p*q)
-            
+
 
             CRJ = ((p-z)*CRJ0 - 3*CRF + 3*np.sqrt((x*y*z)/(x*y+p*q))*CRC)/(q+z)
 
@@ -94,17 +94,17 @@ def ellip_pi_arr(n,phi,m):
     if not isinstance(n, np.ndarray): n  = np.array([n]).flatten()
     if not isinstance(phi, np.ndarray): phi = np.array([phi]).flatten()
     if not isinstance(m, np.ndarray): m = np.array([m]).flatten()
-    
+
     #print(n.shape[-1],phi.shape[-1],m.shape[-1])
     if not(n.shape[-1]==phi.shape[-1]==m.shape[-1]):
         raise Exception("inputs to ellip_pi_arr do not have same last dimension!")
-        
-    # if dimensions aren't equal, expand parameter arrays # TODO?? 
+
+    # if dimensions aren't equal, expand parameter arrays # TODO??
     if (len(n.shape)!=len(phi.shape)):
         n = np.outer(np.ones(phi.shape[0]),n)
     if (len(m.shape)!=len(phi.shape)):
         m = np.outer(np.ones(phi.shape[0]),m)
-                        
+
     # real range is m sin^2(phi) < 1, n sin^2 phi < 1
     # relation to Carlson symmetric form only works for -pi/2 < phi < pi/2,
     # need to use periodicity outside this range
@@ -121,44 +121,44 @@ def ellip_pi_arr(n,phi,m):
 
     outarr = np.zeros(phi.shape)
     donemask = np.zeros(phi.shape).astype(bool)
-    
+
     # limit as phi->0
     mask1 = np.abs(phi)<=1.e-10
     if np.any(mask1):
         outarr[mask1] = phi[mask1]
     donemask += mask1
-    
+
     # limit as m->-infinity
     mask2 = (m<-1.e14) * ~donemask
     if np.any(mask2):
         outarr[mask2] = 0.
     donemask += mask2
-        
+
     # check the allowed region
     mask3 = (y<0) * ~donemask
     if np.any(mask3):
         outarr[mask3] = np.nan
     donemask += mask3
-            
+
     mask4 = (np.abs(phi)>halfpi) * (m>=1) * ~donemask
     if np.any(mask4):
-        outarr[mask4] = np.nan        
+        outarr[mask4] = np.nan
     donemask += mask4
-    
+
     # TODO this limit causes issues in G_ph when alpha=0
     mask5 = (np.abs(phi)>halfpi) * (n==1) * ~donemask
     if np.any(mask5):
-        outarr[mask5] = np.inf        
+        outarr[mask5] = np.inf
     donemask += mask5
-    
+
     mask6 = (rho==0) * ~donemask
     if np.any(mask6):
-        outarr[mask6] = np.inf        
+        outarr[mask6] = np.inf
     donemask += mask6
-    
+
     mask7 = np.isinf(n) * ~donemask
     if np.any(mask7):
-        outarr[mask7] = 0        
+        outarr[mask7] = 0
     donemask += mask7
 
     # account for periodicity
@@ -166,8 +166,8 @@ def ellip_pi_arr(n,phi,m):
     if np.any(mask8):
         m_m = m[mask8]
         n_m = n[mask8]
-        phi_m = phi[mask8] 
-        
+        phi_m = phi[mask8]
+
         s = np.sign(phi_m)
         k = s*np.floor(np.abs(phi_m)/np.pi)
         phi2 = phi_m - k*np.pi
@@ -176,13 +176,13 @@ def ellip_pi_arr(n,phi,m):
         Pi = comp_part + incomp_part
         outarr[mask8] = Pi
     donemask += mask8
-        
+
     mask9 = (np.abs(phi)>halfpi) * (np.abs(phi)<=np.pi) * ~donemask
     if np.any(mask9):
         m_m = m[mask9]
         n_m = n[mask9]
-        phi_m = phi[mask9] 
-            
+        phi_m = phi[mask9]
+
         s = np.sign(phi_m)
         phi2 = -phi_m + s*np.pi
         comp_part = s*2*ellip_pi_arr(n_m,halfpi*np.ones(phi2.shape),m_m)
@@ -190,41 +190,41 @@ def ellip_pi_arr(n,phi,m):
         Pi = comp_part + incomp_part
         outarr[mask9] = Pi
     donemask += mask9
-    
+
     # all others
     nmask = ~donemask
     if np.any(nmask):
         m_m = m[nmask]
         n_m = n[nmask]
-        phi_m = phi[nmask] 
-            
+        phi_m = phi[nmask]
+
         sphi_m = sphi[nmask]
         x_m = x[nmask]
         y_m = y[nmask]
         z_m = z[nmask]
         rho_m = rho[nmask]
-        
-        q_m = -rho_m           
-        p_m = (z_m*(x_m+y_m+q_m) - x_m*y_m) / (z_m + q_m) 
+
+        q_m = -rho_m
+        p_m = (z_m*(x_m+y_m+q_m) - x_m*y_m) / (z_m + q_m)
         aa = (x_m*y_m + p_m*q_m)
         bb = p_m*q_m
         fac1 = p_m - z_m
         fac2_num = (x_m*y_m*z_m)
         fac2_denom = (x_m*y_m+p_m*q_m)
         fac3 = q_m + z_m
-                                       
+
         rhomask = rho_m > 0
 
         CRF = sp.elliprf(x_m,y_m,z_m)
         CRJ = np.zeros(phi_m.shape)
         if np.any(rhomask):
             CRJ[rhomask] = sp.elliprj(x_m[rhomask],y_m[rhomask],z_m[rhomask],rho_m[rhomask])
-        
-        rhomask = ~rhomask  
+
+        rhomask = ~rhomask
         if np.any(rhomask): # transform for rho<0, https://dlmf.nist.gov/19.20#E14 19.20.14
             CRJ0 = sp.elliprj(x_m[rhomask],y_m[rhomask],z_m[rhomask],p_m[rhomask])
             CRC = sp.elliprc(aa[rhomask],bb[rhomask])
-            
+
             fac2 = 3*np.sqrt(fac2_num[rhomask]/fac2_denom[rhomask])
             CRJ[rhomask] = (fac1[rhomask]*CRJ0 - 3*CRF[rhomask] + fac2*CRC)
             CRJ[rhomask] = CRJ[rhomask] / fac3[rhomask]
@@ -233,7 +233,7 @@ def ellip_pi_arr(n,phi,m):
         F = sphi_m * CRF
         Pi = F + (n_m/3.)*(sphi_m**3)*CRJ
         outarr[nmask] = Pi
-        
+
     return outarr
 
 

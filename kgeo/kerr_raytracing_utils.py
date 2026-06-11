@@ -1,18 +1,17 @@
+import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.special as sp
-import mpmath
-import matplotlib.pyplot as plt
-import h5py
 
 # minimum spin for full formulas to work before taking limits.
-# changed to 1.e-4 to be conservative, 1.e-6 was giving issues on-axis 
+# changed to 1.e-4 to be conservative, 1.e-6 was giving issues on-axis
 MINSPIN = 1.e-4
 
 # small number
 EP = 1.e-12
 
 
-class Geodesics(object):
+class Geodesics:
 
     def __init__(self,a, observer_coords, image_coords, mino_times, affine_times, geo_coords):
         # TODO add some consistency checks
@@ -108,10 +107,10 @@ class Geodesics(object):
             nmax_eq = np.floor(self.n_poloidal[-1])
         else:
             nmax_eq = self.nmax_eq
-            
+
         # adjust numbering by one
         nmax_eq += 1
-        
+
         # horizon
         rplus  = 1 + np.sqrt(1-a**2)
 
@@ -153,13 +152,13 @@ class Geodesics(object):
             nplot = range(nloop)
         else:
             nplot = np.array([nplot]).flatten()
-            
+
         for j in nplot:
             if j==0:
-                mask = (nmax_eq==0) + (nmax_eq==-1)            
+                mask = (nmax_eq==0) + (nmax_eq==-1)
             else:
                 mask = (nmax_eq==j)
-                
+
             if not plot_inside_cc: #TODO make nicer
                 mask *= (r_s[-1] > 10)
             if not plot_outside_cc:
@@ -168,11 +167,11 @@ class Geodesics(object):
 
             color = colors[j]
             if j==-1: color=colors[0]
-            
-            xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask];
+
+            xs = x_s[:,mask];ys = y_s[:,mask];zs = z_s[:,mask]
             rs = r_s[:,mask];tau = tausteps[:,mask]
             #trim = xs.shape[-1]//int(np.floor(ngeoplot*xs.shape[-1]/self.npix))
-            
+
             if ngeoplot is not None:
                 trim = max(int(xs.shape[-1]/ngeoplot), 1)
             else:
@@ -200,15 +199,15 @@ class Geodesics(object):
 
     def savegeos(self,outfile=None,path='./'):
         if outfile is None:
-            fname = path + 'a%0.2f_th%0.2f_geo.h5'%(self.a,self.th_o*180/np.pi)
+            fname = path + f'a{self.a:0.2f}_th{self.th_o*180/np.pi:0.2f}_geo.h5'
         else:
             fname = outfile
         hf = h5py.File(fname,'w')
         hf.create_dataset('spin',data=self.a)
-        
+
         hf.create_dataset('inc',data=self.th_o)
         hf.create_dataset('r_o',data=self.r_o)
-        
+
         hf.create_dataset('alpha',data=self.alpha)
         hf.create_dataset('beta',data=self.beta)
         hf.create_dataset('t',data=self.t_s)
@@ -226,7 +225,7 @@ def loadgeos(infile):
     a = hf['spin'][()]
     r_o = hf['r_o'][()]
     th_o = hf['inc'][()]
-    alpha = hf['alpha'][()] 
+    alpha = hf['alpha'][()]
     beta = hf['beta'][()]
     mino_times = hf['mino'][()]
     affine_times = hf['affine'][()]
@@ -235,10 +234,10 @@ def loadgeos(infile):
     th_s = hf['theta'][()]
     ph_s = hf['phi'][()]
     hf.close()
-    
+
     geos = Geodesics(a, [0,r_o,th_o,0], [alpha,beta], mino_times, affine_times, [t_s,r_s,th_s,ph_s])
     return geos
-    
+
 def angular_turning(a, th_o, lam, eta):
     """Calculate angular turning theta_pm points for a geodisic with conserved (lam,eta)"""
 
@@ -303,10 +302,10 @@ def uplus_uminus(a,th_o,lam,eta):
     # ensure u_plus^2<=1 exactly
     mask = u_plus**2 > 1
     u_plus[mask] = 1
-    
+
     # for geodesics with eta==0, exactly u_minus=0.
     # This breaks some equations for th integrals
-    # bump up u_minus to a small value 
+    # bump up u_minus to a small value
     # TODO ok?
     u_minus[(u_minus==0)*(eta<0)]  =  EP
     u_minus[(u_minus==0)*(eta>=0)] = -EP
@@ -560,13 +559,13 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
         raise Exception("alpha, beta are different lengths!")
-        
+
     # TODO hacky way to handle different shape tau arrays
     if len(tau.shape)==1:
         tau = tau.reshape(1,tau.shape[0])
         alltau = False
     else:
-        alltau = True     
+        alltau = True
     if not(tau.shape[1]==len(alpha)): #TODO
         raise Exception("tau has incompatible shape in n_poloidal_orbits!")
 
@@ -587,7 +586,7 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
         eta_reg = eta[~vortmask]
         tau_reg = tau[:,~vortmask]
 
-                    
+
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
 
         K = sp.ellipk(uratio) # gives NaN for eta<0
@@ -596,10 +595,10 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
 
     # return data
     n_poloidal[:,~vortmask] = npol_reg
-    
+
     if not alltau:
         n_poloidal = n_poloidal[0]
-        
+
     return n_poloidal
 
 def n_equatorial_crossings(a, th_o, alpha, beta, tau):
@@ -622,14 +621,14 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
         tau = tau.reshape(1,tau.shape[0])
         alltau = False
     else:
-        alltau = True     
+        alltau = True
     if not(tau.shape[1]==len(alpha)): #TODO
         raise Exception("tau has incompatible shape in n_poloidal_orbits!")
-        
+
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-    
+
     # output array
     n_equatorial = np.empty(tau.shape)
 
@@ -644,7 +643,7 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
         eta_reg = eta[~vortmask]
         beta_reg = beta[~vortmask]
         tau_reg = tau[:,~vortmask]
-                       
+
         # angular turning points
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
 
@@ -674,13 +673,13 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
             if np.any(betamask):
                 neq_reg[:,betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K)))[:,betamask]
             if np.any(~betamask):
-                neq_reg[:,~betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K)) - 1)[:,~betamask]        
+                neq_reg[:,~betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K)) - 1)[:,~betamask]
     # return data
     n_equatorial[:,~vortmask] = neq_reg
 
     if not alltau:
         n_equatorial = n_equatorial[0]
-            
+
     return n_equatorial
 
 def n_angular_turnings(a, th_o, alpha, beta, tau):
@@ -703,18 +702,18 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         tau = tau.reshape(1,tau.shape[0])
         alltau = False
     else:
-        alltau = True     
+        alltau = True
     if not(tau.shape[1]==len(alpha)): #TODO
         raise Exception("tau has incompatible shape in n_poloidal_orbits!")
-        
+
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
-    
+
     # output array
     n_turning = np.empty(tau.shape)
 
-    # TODO is vortical motion important? ? 
+    # TODO is vortical motion important? ?
     vortmask = (eta<=0)
     n_turning[:,vortmask] = 0
 
@@ -725,7 +724,7 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         eta_reg = eta[~vortmask]
         beta_reg = beta[~vortmask]
         tau_reg = tau[:,~vortmask]
-                       
+
         # angular turning points
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
 
@@ -744,21 +743,21 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         betamask = (beta_reg<=0)
         if np.any(betamask):
             nturn_reg[:,betamask] =  ((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K))[:,betamask] + 0.5
-            
-        if np.any(~betamask):
-            nturn_reg[:,~betamask] = ((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K))[:,~betamask] + 0.5 
 
-        n_turning[:,~vortmask] = nturn_reg     
-        
+        if np.any(~betamask):
+            nturn_reg[:,~betamask] = ((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K))[:,~betamask] + 0.5
+
+        n_turning[:,~vortmask] = nturn_reg
+
     # vorical motion
-    # todo -- really need to check this      
+    # todo -- really need to check this
     if np.any(vortmask):
 
         lam_v = lam[vortmask]
         eta_v = eta[vortmask]
         beta_v = beta[vortmask]
         tau_v = tau[:,vortmask]
-                       
+
         # angular turning points
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_v,eta_v)
 
@@ -772,7 +771,7 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         # these come from eq 70 and are currently not right
         nturn_v = np.empty(tau_v.shape)
 
-        
+
         betamask = (beta_v<=0)
         if np.any(betamask):
             # TODO check everything this is very confusing
@@ -780,17 +779,17 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
             newmask = norbit > 0.5
             norbit[newmask] += 0.5
             nturn_v[:,betamask] = norbit
-                        
+
         if np.any(~betamask):
-            nturn_v[:,~betamask]  =  ((tau_v*np.sqrt(a2u_minus) + F0) / (2*K))[:,~betamask] + 0.5  
-            
+            nturn_v[:,~betamask]  =  ((tau_v*np.sqrt(a2u_minus) + F0) / (2*K))[:,~betamask] + 0.5
+
         n_turning[:, vortmask] = nturn_v
-    
+
     if not alltau:
         n_turning = n_turning[0]
-            
+
     return n_turning
-    
+
 def is_outside_crit(a, th_o, alpha, beta):
     """is the point alpha, beta outside the critical curve?"""
 

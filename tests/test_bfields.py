@@ -1,6 +1,6 @@
 import numpy as np
-from kgeo.bfields import Bfield
 
+from kgeo.bfields import Bfield
 
 _MIDPLANE = np.pi/2.
 

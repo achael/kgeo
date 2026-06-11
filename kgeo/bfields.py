@@ -1,8 +1,10 @@
+import os
+
 import numpy as np
 import scipy.special as sp
 from mpmath import polylog
 from scipy.interpolate import UnivariateSpline
-import os
+
 
 def f(r):
     """BZ monopole f(r) function"""
@@ -30,7 +32,7 @@ fi = UnivariateSpline(rsinterp, fsinterp, k=1,s=0, ext=0)
 fiprime = fi.derivative()
 
 
-class Bfield(object):
+class Bfield:
     """ object for b-field as a function of r, only in equatorial plane for now """
 
     def __init__(self, fieldtype="rad", **kwargs):
@@ -44,7 +46,7 @@ class Bfield(object):
         elif self.fieldtype in ['const_comoving']:
             self.fieldframe = 'comoving'
         else:
-            raise Exception("fieldtype %s not recognized in Bfield!"%self.fieldtype)
+            raise Exception(f"fieldtype {self.fieldtype} not recognized in Bfield!")
 
         self.kwargs = kwargs
 
@@ -112,7 +114,7 @@ class Bfield(object):
         elif self.fieldtype == 'monopoleA':
             (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)
         elif self.fieldtype=='bz_para':
-            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)  
+            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)
             b_components = (B1,B2,B3)
         elif self.fieldtype == 'bz_para':
             (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)
@@ -131,10 +133,10 @@ class Bfield(object):
             B1, B2, B3 = Bfield_from_cache(a, r, self.cached_data)
             b_components = B1, B2, B3
         else:
-            raise Exception("fieldtype %s not recognized in Bfield.bfield_lab!"%self.fieldtype)
-        
+            raise Exception(f"fieldtype {self.fieldtype} not recognized in Bfield.bfield_lab!")
+
         return b_components
-    
+
     #new fcn to return compnenets of lab frame field
     def bfield_lab_comp(self, a, r, th=np.pi/2.):
         a2   = a**2
@@ -154,10 +156,10 @@ class Bfield(object):
         B1, B2, B3 = self.bfield_lab(a, r, th=th)
 
         B0 = np.zeros_like(B1)
-        B0_l = g00*B0 + g03*B3   
-        B1_l = g11*B1              
-        B2_l = g22*B2                
-        B3_l = g33*B3 + g03*B0        
+        B0_l = g00*B0 + g03*B3
+        B1_l = g11*B1
+        B2_l = g22*B2
+        B3_l = g33*B3 + g03*B0
 
         return (B0, B1, B2, B3), (B0_l, B1_l, B2_l, B3_l)
 
@@ -172,7 +174,7 @@ class Bfield(object):
                             -1*self.Cvert*np.ones(r.shape),
                             self.Cph*np.ones(r.shape))
         else:
-            raise Exception("fieldtype %s not recognized in Bfield.bfield_comoving!"%self.fieldtype)
+            raise Exception(f"fieldtype {self.fieldtype} not recognized in Bfield.bfield_comoving!")
 
         return b_components
 
@@ -188,7 +190,7 @@ class Bfield(object):
         elif self.fieldtype=='bz_guess':
             (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
         elif self.fieldtype=='bz_para':
-            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C, shift=self.shift) 
+            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)
         elif self.fieldtype=='power':
             (B1,B2,B3,omega) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
         # added model
@@ -196,8 +198,8 @@ class Bfield(object):
             (B1,B2,B3,omega) = Bfield_gen_power(a, r, th, self.n_I, self.p_val, self.isAbove)
 
         else:
-            raise Exception("self.omega_field not implemented for fieldtype %s'!"%self.fieldtype)
-        
+            raise Exception(f"self.omega_field not implemented for fieldtype {self.fieldtype}'!")
+
         return omega
 
 
@@ -230,13 +232,13 @@ class Bfield(object):
             Sigma = r2 + a2 * cth2
             Pi = (r2+a2)**2 - a2*Delta*sth2
             omegaz = 2*a*r/Pi
-            
+
             E1 = (omega-omegaz)*Pi*np.sin(th)*B2/Sigma
             E2 = -(omega-omegaz)*Pi*np.sin(th)*B1/(Sigma*Delta)
             E3 = np.zeros_like(E2) if hasattr(E2, '__len__') else 0
             e_components = (E1, E2, E3)
         else:
-            raise Exception("self.efield_lab not implemented for fieldtype %s'!"%self.fieldtype)
+            raise Exception(f"self.efield_lab not implemented for fieldtype {self.fieldtype}'!")
 
         return e_components
 
@@ -270,7 +272,7 @@ class Bfield(object):
             sF_out = (sF01, sF02, sF03, sF12, sF13, sF23)
 
         else:
-            raise Exception("self.maxwell not implemented for fieldtype %s'!"%self.fieldtype)
+            raise Exception(f"self.maxwell not implemented for fieldtype {self.fieldtype}'!")
 
         return sF_out
 
@@ -287,7 +289,7 @@ class Bfield(object):
             elif self.fieldtype=='bz_guess':
                 (B1,B2,B3,OmegaF) = Bfield_BZmagic(a, r, th, self.C)
             elif self.fieldtype=='bz_para':
-                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)  
+                (B1,B2,B3,OmegaF) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)
             elif self.fieldtype=='power' :
                 (B1,B2,B3,OmegaF) = Bfield_power(a, r, th, self.pval, C=self.C, usemono=self.usemono)
             # added model
@@ -329,7 +331,7 @@ class Bfield(object):
             F_out = (F01, F02, F03, F12, F13, F23)
 
         else:
-            raise Exception("self.faraday not implemented for fieldtype %s'!"%self.fieldtype)
+            raise Exception(f"self.faraday not implemented for fieldtype {self.fieldtype}'!")
 
         return F_out
 
@@ -400,7 +402,7 @@ class Bfield(object):
         bsq = b0*b0_l + b1*b1_l + b2*b2_l + b3*b3_l
 
         return bsq
-    
+
     def bsq_comp(self, a, r, velocity, th=np.pi/2.):
         r"""returns b^2 in frame u^\mu, making ideal MHD assumption, e^\mu=0"""
         if not isinstance(r, np.ndarray):
@@ -588,7 +590,7 @@ def Bfield_BZmonopole(a, r, th, C=1, secondorder_only=False):
     if secondorder_only: # divergence happens at 2M here, not horizon
         Br = C/r2 + C*a2*(-cth2/(r2*r2) + fr*(0.5 + 1.5*np.cos(2*th))/r2)
         Bth = -C*a2*frp*cth*sth/r2
-        Bph = -C*0.125*a/(r2-2*r) + C*(a**3)*(0.125/((r2-2*r)**2) - (omega2 + 0.25*cth2*fr)/((r2-2*r)))
+        Bph = -C*0.125*a/(r2-2*r) + C*(a**3)*(0.125/((r2-2*r)**2) - (omega2 + 0.25*cth2*fr)/(r2-2*r))
 
     # angular frequency
     spin = np.abs(a)
@@ -617,15 +619,15 @@ def omega_BZpara(th, psi, a, shift=0):
     cth = np.cos(th)
     abscth = np.abs(cth)
     OmegaH = a/(2*rp) #horizon angular velocity
-    
+
     wfunc = sp.lambertw((-psi/rp+2*shift/rp+np.log(4))*np.exp(shift/rp), k=0)
     xfunc = np.exp(-shift/rp+wfunc)
     # num = OmegaH*rp*(rp-shift+rp*wfunc)*(2-xfunc)*xfunc
     # denom = rp*(xfunc*(2-xfunc)*(rp-shift+rp*wfunc)+rp*psi)+a**2*psi*(xfunc-1)**2
-    
+
     num = OmegaH*rp**2*(1+wfunc)*xfunc*(2-xfunc)
     denom = rp**2*(xfunc*(2-xfunc)*(1+wfunc)+psi) + a**2*psi*(1-xfunc)**2
-    
+
     return np.real(num/denom)
 
 def omega_BZpower(th, psi, a, p, usemono=False):
@@ -673,7 +675,7 @@ def Bfield_BZpara(a, r, th, C=1, shift=0):
 
     else:
         OmegaBZ = C*omega_BZpara(th, psi, a, shift=shift)*((argvals>=0).astype('int')) #((argvals>=-1/np.e).astype('int'))
-    
+
     #current
     I = -4*np.pi*psi*OmegaBZ * np.sign(cth)
 
@@ -721,7 +723,7 @@ def Bfield_power(a, r, th, p, C=1, usemono=False):
 
     return (Br, Bth, Bph, OmegaBZ)
 
-# added new model 
+# added new model
 def Bfield_gen_power(a, r, th, n_I, p_val, isAbove):
 
     a2 = a**2
@@ -738,14 +740,14 @@ def Bfield_gen_power(a, r, th, n_I, p_val, isAbove):
     Omega_H = a / (2*rp)
 
     # sgn(cospi/2) is positive when above and negative when below)
-    if isAbove == True:
+    if isAbove:
         I_0 = (a*np.pi*sth2)/(rp*rp + a2*cth2)
         dpsidtheta = sth * ((r/rp)**p_val)
-    
+
     else:
         I_0 = -1 * (a*np.pi*sth2)/(rp*rp + a2*cth2)
         dpsidtheta = -1 * sth * ((r/rp)**p_val)
-        
+
 
     I = I_0 * (r/rp)**(-1*n_I)
     dpsidr = (1 - np.abs(cth))*((p_val*(r**(p_val-1)))/(rp**p_val))
@@ -755,29 +757,29 @@ def Bfield_gen_power(a, r, th, n_I, p_val, isAbove):
     Bth = -1 * (dpsidr / gdet)
     Bph = I / (2*np.pi*Delta*sth2)
 
-    # TODO allow more general choices of \Omega 
+    # TODO allow more general choices of \Omega
     return (Br, Bth, Bph, 0.5 * Omega_H)
-    
+
 
 def load_cache_from_file(filename):
     """
     Load Br,Btheta,Bphi primitive (lab frame) magnetic field components from file
     """
     # load header from file
-    with open(filename, 'r') as f:
+    with open(filename) as f:
         header = f.readline().strip()
         if header[0] != '#':
             header = None
-            raise Exception("file %s does not have a header!" % filename)
+            raise Exception(f"file {filename} does not have a header!")
         else:
             header = [x.strip() for x in header[1:].split(',')]
 
     # load header from file
-    with open(filename, 'r') as f:
+    with open(filename) as f:
         header = f.readline().strip()
         if header[0] != '#':
             header = None
-            raise Exception("file %s does not have a header!" % filename)
+            raise Exception(f"file {filename} does not have a header!")
         else:
             header = [x.strip() for x in header[1:].split(',')]
 

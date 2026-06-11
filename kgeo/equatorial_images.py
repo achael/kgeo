@@ -3,14 +3,15 @@
 # Gralla & Lupsasca 10 section VI C
 # https://arxiv.org/pdf/1910.12873.pdf
 
-import numpy as np
-import scipy.special as sp
-from kgeo.kerr_raytracing_utils import my_cbrt, radial_roots, mino_total, is_outside_crit, uplus_uminus
-from kgeo.equatorial_lensing import r_equatorial, nmax_equatorial, nmax_poloidal
 import time
+
+import numpy as np
+
 from kgeo.bfields import Bfield
-from kgeo.velocities import Velocity
 from kgeo.emissivities import Emissivity
+from kgeo.equatorial_lensing import nmax_equatorial, nmax_poloidal, r_equatorial
+from kgeo.kerr_raytracing_utils import is_outside_crit
+from kgeo.velocities import Velocity
 
 bfield_default = Bfield('rad')
 vel_default = Velocity('zamo')
@@ -24,8 +25,8 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                nmax_only=False,
                emissivity=emis_default,
                bfield=bfield_default,
-               velocity=vel_default, 
-               polarization=False, 
+               velocity=vel_default,
+               polarization=False,
                pathlength=False,
                specind=SPECIND,
                diskangle=DISKANGLE,
@@ -43,7 +44,7 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
         raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
     if not (isinstance(mbar_max,int) and (mbar_max>=0)):
         raise Exception("mbar_max should be an integer >=0!")
-            
+
     # determine pixel grid
     n_alpha = int(np.floor(alpha_max - alpha_min)/psize)
     alphas = np.linspace(alpha_min, alpha_min+n_alpha*psize, n_alpha)
@@ -57,36 +58,36 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
     # create output arrays
     outarr_I = np.zeros((len(alpha_arr), mbar_max+1))
     outarr_Q = np.zeros((len(alpha_arr), mbar_max+1))
-    outarr_U = np.zeros((len(alpha_arr), mbar_max+1))    
+    outarr_U = np.zeros((len(alpha_arr), mbar_max+1))
     outarr_r = np.zeros((len(alpha_arr), mbar_max+1))
     outarr_t = np.zeros((len(alpha_arr), mbar_max+1))
     outarr_g = np.zeros((len(alpha_arr), mbar_max+1))
     outarr_sinthb = np.zeros((len(alpha_arr), mbar_max+1))
-    outarr_n = np.zeros((len(alpha_arr)))
-    outarr_np = np.zeros((len(alpha_arr)))
-    
+    outarr_n = np.zeros(len(alpha_arr))
+    outarr_np = np.zeros(len(alpha_arr))
+
     if pathlength:
         outarr_lp = np.zeros((len(alpha_arr), mbar_max+1))
         outarr_Ie = np.zeros((len(alpha_arr), mbar_max+1))
-        
+
     if nmax_only:
         # maximum number of equatorial crossings
         print('calculating maximal number of equatorial crossings')
         tstart = time.time()
         outarr_n = nmax_equatorial(a, r_o, th_o, alpha_arr, beta_arr)
         outarr_np = nmax_poloidal(a, r_o, th_o, alpha_arr, beta_arr)
-        
+
         print('done',time.time()-tstart)
     else:
         outarr_np = nmax_poloidal(a, r_o, th_o, alpha_arr, beta_arr) # TODO
-            
+
         # loop over image order mbar
         for mbar in range(mbar_max+1):
             print('image %i...'%mbar, end="\r")
             tstart = time.time()
-                  
-            imdat = Iobs(a, r_o, th_o, mbar, 
-                          alpha_arr, beta_arr, 
+
+            imdat = Iobs(a, r_o, th_o, mbar,
+                          alpha_arr, beta_arr,
                           emissivity=emissivity,
                           velocity=velocity,
                           bfield=bfield,
@@ -95,22 +96,22 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
                           specind=specind,
                           diskangle=diskangle,
                           nu_obs=nu_obs)
-        
+
             outarr_I[:,mbar] = imdat[0]
             outarr_Q[:,mbar] = imdat[1]
-            outarr_U[:,mbar] = imdat[2] 
-            outarr_g[:,mbar] = imdat[3]       
+            outarr_U[:,mbar] = imdat[2]
+            outarr_g[:,mbar] = imdat[3]
             outarr_r[:,mbar] = imdat[4]
-            outarr_sinthb[:,mbar] = imdat[5]            
+            outarr_sinthb[:,mbar] = imdat[5]
             outarr_t[:,mbar] = imdat[6]
 
             outarr_n = imdat[8] # TODO
             if pathlength:
                 outarr_lp[:,mbar] = imdat[9]
                 outarr_Ie[:,mbar] = imdat[10]
-                
+
                 outdat = (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g,
-                          outarr_sinthb, outarr_n, outarr_np, 
+                          outarr_sinthb, outarr_n, outarr_np,
                           outarr_lp, outarr_Ie)
             else:
                 outdat = (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g,
@@ -121,7 +122,7 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
 
     return outdat
 
-def Iobs(a, r_o, th_o, mbar, alpha, beta, 
+def Iobs(a, r_o, th_o, mbar, alpha, beta,
          emissivity=emis_default, velocity=vel_default, bfield=bfield_default,
          polarization=False, pathlength=False, specind=SPECIND, diskangle=DISKANGLE, nu_obs=OBSFREQ,
          th_s=np.pi/2):
@@ -143,7 +144,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
     if not (isinstance(mbar,int) and (mbar>=0)):
         raise Exception("mbar should be an integer >=0!")
-                
+
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
@@ -168,8 +169,8 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
 
     if pathlength:
         Ie = np.zeros(alpha.shape)
-        lp = np.zeros(alpha.shape)     
-                 
+        lp = np.zeros(alpha.shape)
+
     # No emission if mbar is too large, if we are in voritcal region,
     # or if source radius is below the horizons
     zeromask = (Nmax<mbar) + (Nmax==-1) + (r_s <= rh)
@@ -178,21 +179,21 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
     if emissivity.emiscut_in > 0:
         zeromask = zeromask + (r_s < emissivity.emiscut_in)
     if emissivity.emiscut_out > 0:
-        zeromask = zeromask + (r_s > emissivity.emiscut_out)    
-        
+        zeromask = zeromask + (r_s > emissivity.emiscut_out)
+
     if np.any(~zeromask):
 
         ###############################
         # get momentum signs
-        ###############################        
+        ###############################
         kr_sign = radial_momentum_sign(a, th_o, alpha[~zeromask], beta[~zeromask], Ir[~zeromask], Imax[~zeromask])
         kth_sign = theta_momentum_sign(th_o, mbar)
 
         ###############################
         # get velocity and redshift
-        ###############################        
-        (u0,u1,u2,u3) = velocity.u_lab(a, r_s[~zeromask],th=th_s)    
-        gg = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s)   
+        ###############################
+        (u0,u1,u2,u3) = velocity.u_lab(a, r_s[~zeromask],th=th_s)
+        gg = calc_redshift(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, u0, u1, u2, u3, th=th_s)
         g[~zeromask] = gg
 
         ###############################
@@ -202,23 +203,23 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         if polarization:
             # TODO: we are currently overwriting pathlength from calc_polquantities in disk images
             # TODO: pathlength from calc_polquantities is directly used in jet model!
-            # TODO: reconcile these  
-            sinthb, kappa, llp1, bsq, kdotnorm = calc_polquantities(a, r_s[~zeromask], 
-                                                                    lam[~zeromask], eta[~zeromask], kr_sign, kth_sign, 
+            # TODO: reconcile these
+            sinthb, kappa, llp1, bsq, kdotnorm = calc_polquantities(a, r_s[~zeromask],
+                                                                    lam[~zeromask], eta[~zeromask], kr_sign, kth_sign,
                                                                     velocity=velocity,
                                                                     bfield=bfield, th=th_s, pathcor='R')
 
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
         else:
-            sinthb = SINTHB   # TODO: calculate this for non-polarized case? More granular control? 
+            sinthb = SINTHB   # TODO: calculate this for non-polarized case? More granular control?
             bsq = bfield.bsq(a, r_s[~zeromask], velocity, th=th_s)
-        
-        sin_thb[~zeromask] = sinthb   
+
+        sin_thb[~zeromask] = sinthb
 
         if emissivity.emistype == 'thermal':
             bsq0 = bfield.bsq(a, emissivity.Rb, velocity, th=th_s)
-            Bmag_vals = np.sqrt(bsq / bsq0) * emissivity.B0 
-        
+            Bmag_vals = np.sqrt(bsq / bsq0) * emissivity.B0
+
 
         ###############################
         # get emissivity in local frame
@@ -228,45 +229,45 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         if emissivity.emistype == 'thermal':
             B0 = np.sqrt(bfield.bsq(a, emissivity.Rb, velocity, th=th_s))
             Bmag_vals = (Bmag_vals / B0) * emissivity.B0
-            
+
         Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, Bmag=Bmag_vals, nu_obs=nu_obs, specind=specind)
-    
+
         # add spectral terms to emissivity if not using a physical one
-        # now moved to inside emissivity.jrest 
+        # now moved to inside emissivity.jrest
         #Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
-        
+
         ###############################
         # observed emission
-        ###############################  
+        ###############################
         if pathlength:
             # TODO: we are currently overwriting pathlength from calc_polquantities in disk images
             # TODO: pathlength from calc_polquantities is directly used in jet model!
-            # TODO: reconcile these  
-            llp = calc_pathlength_equatorial(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask], 
-                                             kr_sign, kth_sign, u0, u1, u2, u3, 
+            # TODO: reconcile these
+            llp = calc_pathlength_equatorial(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
+                                             kr_sign, kth_sign, u0, u1, u2, u3,
                                              th=th_s, diskangle=diskangle)
-            
-            # fluid frame path length llp \propto 1/g            
+
+            # fluid frame path length llp \propto 1/g
             #llp2 = llp1*diskangle*r_s[~zeromask]
             #ldiff = 1-np.abs(llp2)/np.abs(llp)
             #print("ldiff:", np.min(ldiff),np.median(ldiff),np.max(ldiff))
-            
+
             Iemis *= np.abs(llp)
             Iobs[~zeromask] = (gg**3) * Iemis
             Ie[~zeromask] = Iemis
             lp[~zeromask] = llp
-                    
-        else:       
-            Iobs[~zeromask] = (gg**2) * Iemis # * disk thickness h / k^\theta  
+
+        else:
+            Iobs[~zeromask] = (gg**2) * Iemis # * disk thickness h / k^\theta
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs[~zeromask]
             Uobs[~zeromask] = sin2chi*Iobs[~zeromask]
     else:
         print("masked all pixels in Iobs! m=%i"%mbar)
-    
+
     if pathlength:
-        return (Iobs, Qobs, Uobs, g, r_s, sin_thb, Ir, Imax, Nmax, lp, Ie)    
+        return (Iobs, Qobs, Uobs, g, r_s, sin_thb, Ir, Imax, Nmax, lp, Ie)
     else:
         return (Iobs, Qobs, Uobs, g, r_s, sin_thb, Ir, Imax, Nmax)
 
@@ -297,20 +298,20 @@ def radial_momentum_sign(a, th_o, alpha, beta, Ir, Irmax):
 def theta_momentum_sign(th_o, mbar):
     """Determine the sign of the theta component of the photon momentum
        TODO: this works for equatorial crossings. do this based on mino time instead?"""
-    
+
     # checks
     if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
         raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
     if not (isinstance(mbar,int) and (mbar>=0)):
         raise Exception("mbar should be a integer >=0 ")
-    
+
 
     if th_o < 0.5*np.pi:
         sign = -1*np.power(-1, np.mod(mbar,2))
-    elif th_o > 0.5*np.pi:   
+    elif th_o > 0.5*np.pi:
         sign = 1*np.power(-1, np.mod(mbar,2))
     return sign
-             
+
 def calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2):
     """ calculate redshift factor"""
 
@@ -321,7 +322,7 @@ def calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2)
 
     if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
         raise Exception("calc_redshift input arrays are different lengths!")
-    
+
 
     # Metric
     a2 = a**2
@@ -330,14 +331,14 @@ def calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2)
     sth2 = np.sin(th)**2
     Delta = r2 - 2*r + a2
     Sigma = r2 + a2 * cth2
-    
-    # potentials/photon momentum  
+
+    # potentials/photon momentum
     R = (r2 + a2 -a*lam)**2 - Delta*(eta + (lam-a)**2)
     TH = eta + a2*cth2 - lam*lam*cth2/sth2
-    
+
     # redshift
     g = 1 / (1*u0 - lam*u3 - np.sign(kth_sign)*u2*np.sqrt(TH) - np.sign(kr_sign)*u1*np.sqrt(R)/Delta)
-    
+
     return g
 
 def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
@@ -350,10 +351,10 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
     if not isinstance(kr_sign, np.ndarray): kr_sign = np.array([kr_sign]).flatten()
-        
+
     if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
         raise Exception("calc_polquantities input arrays are different lengths!")
-         
+
     # Metric
     a2 = a**2
     r2 = r**2
@@ -376,23 +377,23 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
     g03_up = -(2*a*r)/(Sigma*Delta)
 
     # contravarient and covarient velocity
-    (u0,u1,u2,u3) = velocity.u_lab(a, r,th=th)    
-            
+    (u0,u1,u2,u3) = velocity.u_lab(a, r,th=th)
+
     u0_l = g00*u0 + g03*u3
     u1_l = g11*u1
-    u2_l = g22*u2 
+    u2_l = g22*u2
     u3_l = g33*u3 + g03*u0
-                    
+
     # calculate tetrades
     tetrades = velocity.tetrades(a, r, th=th)
-    ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z)) = tetrades 
-                         
+    ((e0_t,e1_t,e2_t,e3_t),(e0_x,e1_x,e2_x,e3_x),(e0_y,e1_y,e2_y,e3_y),(e0_z,e1_z,e2_z,e3_z)) = tetrades
+
     # B-field defined in the lab frame: transform to fluid-frame quantities
     if bfield.fieldframe=='lab':
-    
+
         # get lab frame B^i
         (B1, B2, B3) = bfield.bfield_lab(a, r, th=th)
-         
+
         #normal vector to jet wall (necessary for path length)
         norm0_l = 0        #dpsidt
         norm1_l = -B2*gdet #dpsidr
@@ -406,16 +407,16 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
         b0 = B1*u1_l + B2*u2_l + B3*u3_l
         b1 = (B1 + b0*u1)/u0
         b2 = (B2 + b0*u2)/u0
-        b3 = (B3 + b0*u3)/u0     
+        b3 = (B3 + b0*u3)/u0
 
         # covarient
         b0_l = g00*b0 + g03*b3
         b1_l = g11*b1
         b2_l = g22*b2
         b3_l = g33*b3 + g03*b0
-            
+
         bsq = b0*b0_l + b1*b1_l + b2*b2_l + b3*b3_l
-        
+
         # transform to comoving frame with tetrads
         Bp_x = e0_x*b0_l + e1_x*b1_l  + e2_x*b2_l + e3_x*b3_l
         Bp_y = e0_y*b0_l + e1_y*b1_l  + e2_y*b2_l + e3_y*b3_l
@@ -424,31 +425,31 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
         norm_x = e0_x*norm0_l + e1_x*norm1_l  + e2_x*norm2_l + e3_x*norm3_l
         norm_y = e0_y*norm0_l + e1_y*norm1_l  + e2_y*norm2_l + e3_y*norm3_l
         norm_z = e0_z*norm0_l + e1_z*norm1_l  + e2_z*norm2_l + e3_z*norm3_l
-     
+
     # B-field defined directly in comoving frame as in Gelles+2021
     elif bfield.fieldframe=='comoving':
         print('comoving!')
         (Bp_x, Bp_y, Bp_z) = bfield.bfield_comoving(a,r)
-    
+
     else:
-        raise Exception("bfield.fluidframe=%s not recognized!"%bfield.fieldframe)
-        
-    # comvoving frame magnitude    
+        raise Exception(f"bfield.fluidframe={bfield.fieldframe} not recognized!")
+
+    # comvoving frame magnitude
     Bp_mag = np.sqrt(Bp_x**2 + Bp_y**2 + Bp_z**2)
 
     #bdiff = 1-bsq/(Bp_mag**2)
     #print("bdiff:", np.min(bdiff),np.median(bdiff),np.max(bdiff))
-    bsq = Bp_mag**2 # this is the comoving field strength, same as above 
-        
+    bsq = Bp_mag**2 # this is the comoving field strength, same as above
+
     norm_mag = np.sqrt(norm_x**2+norm_y**2+norm_z**2)
     norm_x_unit = norm_x/norm_mag
     norm_y_unit = norm_y/norm_mag
     norm_z_unit = norm_z/norm_mag
-    
+
     # photon momentum/wavevector
     R = (r2 + a2 -a*lam)**2 - Delta*(eta + (lam-a)**2)
     TH = eta + a2*cth2 - lam*lam*cth2/sth2
-    
+
     k0_l = -1
     k1_l = kr_sign*np.sqrt(R)/Delta
     k2_l = kth_sign*np.sqrt(TH)
@@ -457,19 +458,19 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
     k0 = g00_up * k0_l + g03_up * k3_l
     k1 = g11_up * k1_l
     k2 = g22_up * k2_l
-    k3 = g33_up * k3_l + g03_up * k0_l   
-            
-    # wavevector in comoving frame  
+    k3 = g33_up * k3_l + g03_up * k0_l
+
+    # wavevector in comoving frame
     kp_x = e0_x*k0_l + e1_x*k1_l  + e2_x*k2_l + e3_x*k3_l
     kp_y = e0_y*k0_l + e1_y*k1_l  + e2_y*k2_l + e3_y*k3_l
-    kp_z = e0_z*k0_l + e1_z*k1_l  + e2_z*k2_l + e3_z*k3_l  
+    kp_z = e0_z*k0_l + e1_z*k1_l  + e2_z*k2_l + e3_z*k3_l
     kp_mag = np.sqrt(kp_x**2 + kp_y**2 + kp_z**2)
     kp_t = kp_mag #k^2=0 normalization for photon; kp_t==1/g
 
     #kp_t_v2 = 1/calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=th)
     #ktdiff = 1-kp_t/(kp_t_v2)
     #print("ktdiff:", np.min(ktdiff),np.median(ktdiff),np.max(ktdiff))
-        
+
     #path length
     kdotnorm = kp_x*norm_x_unit + kp_y*norm_y_unit + kp_z*norm_z_unit
     pathfac = 1.0 #modify for jet wall thickness profile
@@ -478,19 +479,19 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
     elif pathcor == 'Z':
         pathfac = np.abs(r*np.cos(th))
     pathlength = np.abs(kp_t/kdotnorm)*pathfac #add correction to jet thickness
-    
+
     # local polarization vector and emission angle
     f_x = (kp_y*Bp_z - kp_z*Bp_y)/kp_mag
     f_y = (kp_z*Bp_x - kp_x*Bp_z)/kp_mag
-    f_z = (kp_x*Bp_y - kp_y*Bp_x)/kp_mag 
-    sinthb = np.sqrt(f_x**2 + f_y**2 + f_z**2)/Bp_mag   
-    
+    f_z = (kp_x*Bp_y - kp_y*Bp_x)/kp_mag
+    sinthb = np.sqrt(f_x**2 + f_y**2 + f_z**2)/Bp_mag
+
     # polarization four vector
-    f0 = e0_x*f_x + e0_y*f_y + e0_z*f_z      
-    f1 = e1_x*f_x + e1_y*f_y + e1_z*f_z      
-    f2 = e2_x*f_x + e2_y*f_y + e2_z*f_z          
-    f3 = e3_x*f_x + e3_y*f_y + e3_z*f_z      
-    
+    f0 = e0_x*f_x + e0_y*f_y + e0_z*f_z
+    f1 = e1_x*f_x + e1_y*f_y + e1_z*f_z
+    f2 = e2_x*f_x + e2_y*f_y + e2_z*f_z
+    f3 = e3_x*f_x + e3_y*f_y + e3_z*f_z
+
     # penrose-walker constant
     A = k0*f1 - k1*f0 + a*sth2*(k1*f3 - k3*f1)
     B = ((r2+a2)*(k3*f2 - k2*f3) - a*(k0*f2 - k2*f0))*np.sin(th)
@@ -506,11 +507,11 @@ def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
     if not isinstance(kr_sign, np.ndarray): kr_sign = np.array([kr_sign]).flatten()
-        
+
     if not(len(lam)==len(eta)==len(r)==len(kr_sign)):
         raise Exception("calc_polquantities input arrays are different lengths!")
-       
-    # get the redshift g = 1/k_t     
+
+    # get the redshift g = 1/k_t
     gg = calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=th)
     kthat = 1/gg
 
@@ -519,21 +520,21 @@ def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3
     if (isinstance(u2,np.ndarray) and np.any(u2!=0)) or u2!=0:
         raise Exception("calc_pathlength assumes that u2==0!")
     if (isinstance(th,np.ndarray) and np.any(th!=np.pi/2)) or th!=np.pi/2:
-        raise Exception("calc_pathlength assumes that th==pi/2!")    
+        raise Exception("calc_pathlength assumes that th==pi/2!")
     cth2 = np.cos(th)**2
     sth2 = np.sin(th)**2
     a2 = a*a
     TH = eta + a2*cth2 - lam*lam*cth2/sth2
     k2_l = kth_sign*np.sqrt(TH)
     kyhat = -k2_l/r # valid only in equatorial plane
-        
-    # get path length 
+
+    # get path length
     diskheight = diskangle*r
     lp = diskheight * (kthat / kyhat)
-         
+
     return lp
-      
-def calc_evpa(a, th_o, alpha, beta, kappa):    
+
+def calc_evpa(a, th_o, alpha, beta, kappa):
 
     if not (isinstance(a,float) and (0<=np.abs(a)<1)):
         raise Exception("|a| should be a float in range [0,1)")
@@ -544,13 +545,13 @@ def calc_evpa(a, th_o, alpha, beta, kappa):
     if not isinstance(kappa, np.ndarray): kappa = np.array([kappa]).flatten()
     if len(alpha) != len(beta) != len(kappa):
         raise Exception("alpha, beta, kappa are different lengths in calc_QU")
-        
+
     # parallel transport with penrose-walker
     mu = -(alpha + a*np.sin(th_o))
     kappa1 = np.real(kappa)
     kappa2 = np.imag(kappa)
-    
+
     cos2chi = ((beta*kappa1 + mu*kappa2)**2 - (mu*kappa1-beta*kappa2)**2)/((beta**2 + mu**2)*(kappa1**2 + kappa2**2))
-    sin2chi = (2*(beta*kappa1 + mu*kappa2)*(mu*kappa1-beta*kappa2))/((beta**2 + mu**2)*(kappa1**2 + kappa2**2))    
-    
+    sin2chi = (2*(beta*kappa1 + mu*kappa2)*(mu*kappa1-beta*kappa2))/((beta**2 + mu**2)*(kappa1**2 + kappa2**2))
+
     return (cos2chi, sin2chi)
