@@ -4,7 +4,7 @@ source = 'M87'
 MoD = 3.77883459  # this is what was used for M/D in uas for the M87 simulations
 ra = 12.51373 
 dec = 12.39112 
-flux230 = 0.6     # total flux
+flux230 = 1.0     # total flux
 rotation = 90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
 
 def makeim(ivals, qvals, uvals, agrid, saveim=None):
@@ -16,7 +16,7 @@ def makeim(ivals, qvals, uvals, agrid, saveim=None):
     ivals_im = np.real(np.flipud(ivals))
     qvals_im = np.real(np.flipud(qvals))
     uvals_im = np.real(np.flipud(uvals))
-    fluxscale = flux230/np.sum(ivals_im)
+    fluxscale = 1.0#flux230/np.sum(ivals_im)
 
     im = eh.image.Image(ivals_im*fluxscale, psize_rad, ra, dec)
     im.add_qu(qvals_im*fluxscale, uvals_im*fluxscale)

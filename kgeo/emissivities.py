@@ -7,6 +7,8 @@ import time
 from mpmath import polylog
 from scipy.interpolate import RegularGridInterpolator
 import pkg_resources
+from kgeo.bfields import Bfield
+from kgeo.velocities import Velocity
 
 # kgeo path TODO
 KGEOPATH = '/home/achael/RelElectrons/kgeo/kgeo'
@@ -21,25 +23,21 @@ SIGMA_GLM = 0.5
 R_RING = 4.5
 SIGMA_RING = 0.3
 
-# thermal parameters
-OBSFREQ = 230.e9 # observation frequency, Hz
-N0 = 1.e5  # particles/cm^3
-T0 = 5.e10 # Kelvin
-B0 = 5 # Gauss
-ALPHAN = 1
-ALPHAT = 1
-ALPHAB = 1.5
+# Thermal model parameters
+e  = 4.80320425e-10  # statcoul
+me = 9.10938356e-28  # g
+c  = 2.99792458e10   # cm/s
+kB = 1.380649e-16    # erg/K
+h  = 6.62607015e-27  # erg*s
 
-# power law parameters
-GAMMAMIN = 10
-GAMMAMAX = 1.e8
-PINDEX = 2.5
-
+# default observation frequency and spectral index
+OBSFREQ = 230.e9
+SPECIND = 0.0
 
 class Emissivity(object):
     """ object for rest frame emissivity as a function of r, only in equatorial plane for now (theta=np.pi/2) """
-
     def __init__(self, emistype="bpl", **kwargs):
+        #print("Emissivity emistype =", repr(emistype))
 
         self.emistype = emistype
         self.kwargs = kwargs
@@ -47,8 +45,16 @@ class Emissivity(object):
         self.emiscut_in = self.kwargs.get('emiscut_in', 0)
         self.emiscut_out = self.kwargs.get('emiscut_out', 1.e10)
 
-        if self.emistype=='constant':
-            pass
+        if self.emistype=='thermal':
+            self.Rb = float(self.kwargs.get('Rb', 5.0))  
+            self.ne0 = float(self.kwargs['ne0']) 
+            self.Te0 = float(self.kwargs['Te0']) 
+            self.B0 = float(self.kwargs['B0'])
+            self.alpha_n = float(self.kwargs.get('alpha_n', 0.7))
+            self.alpha_T = float(self.kwargs.get('alpha_T', 1.0))
+            self.alpha_B = float(self.kwargs.get('alpha_B', 1.5))
+            self.bfield_model = bool(self.kwargs.get('bfield_model', False))
+
         elif self.emistype=='bpl':
             self.p1 = self.kwargs.get('p1', P1E_230)
             self.p2 = self.kwargs.get('p2', P2E_230)
@@ -60,32 +66,37 @@ class Emissivity(object):
             self.mu_ring = False
             self.gamma_off = self.kwargs.get('gamma_off', GAMMAOFF)
             self.sigma = self.kwargs.get('sigma', SIGMA_GLM)
-        elif self.emistype=='thermal':
-            self.alpha_n = self.kwargs.get('alpha_n', ALPHAN)
-            self.alpha_T = self.kwargs.get('alpha_T', ALPHAT)
-            self.alpha_B = self.kwargs.get('alpha_B', ALPHAB)
-            self.nref = self.kwargs.get('nref', N0)
-            self.Tref = self.kwargs.get('Tref', T0)
-            self.Bref = self.kwargs.get('Bref', B0)
-            self.use_consistent_bfield = self.kwargs.get('use_consistent_bfield', False)
-            self.bfield = self.kwargs.get('bfield',None)
-            self.velocity = self.kwargs.get('velocity',None)
-        elif self.emistype=='powerlaw':
-            self.alpha_n = self.kwargs.get('alpha_n', ALPHAN)
-            self.alpha_B = self.kwargs.get('alpha_B', ALPHAB)
-            self.nref = self.kwargs.get('nref', N0)
-            self.Bref = self.kwargs.get('Bref', B0)
-            self.p =self.kwargs.get('p',PINDEX)
-            self.gammamin = self.kwargs.get('gammamin',GAMMAMIN)
-            self.gammamax = self.kwargs.get('gammamax',GAMMAMAX)
-            self.use_consistent_bfield = self.kwargs.get('use_consistent_bfield', False)
-            self.bfield = self.kwargs.get('bfield',None)
-            self.velocity = self.kwargs.get('velocity',None)
+        elif self.emistype == 'constant':
+            pass
         else:
-            raise Exception("emistype %s not recognized in Emissivity!"%self.veltype)
+            raise Exception("emistype %s not recognized in Emissivity!"%self.emistype)
+        
 
-    def jrest(self, a, r, g=None, sinthetab=None, nu_obs=OBSFREQ):
-        if self.emistype=='constant':
+    # power law disk profiles to define thermal variables
+    def profiles_plaw(self, r):
+        x = np.asarray(r, dtype=float)/self.Rb
+        ne = self.ne0 * np.power(x, -self.alpha_n) # cm^-3
+        Te = self.Te0 * np.power(x, -self.alpha_T) # K 
+        B  = self.B0  * np.power(x, -self.alpha_B) # Gauss
+        return ne, Te, B
+
+    def jrest(self, a, r, g=None, sinthetab=None, Bmag=None, nu_obs=OBSFREQ, specind=SPECIND):
+
+        ## Physical models
+        if self.emistype=='thermal':
+            nu_em = np.asarray(nu_obs) / np.asarray(g)     # emitted frequency
+            ne, Te, B = self.profiles_plaw(r)              # local plasma properties
+
+            # option to overwrite default power law field strength with actual |B| from model 
+            if self.bfield_model == True:
+                B = np.asarray(Bmag, dtype=float)
+                # TODO: change to handle normalization inside emissivities
+                #B = (Bmag / self.Rb) * self.B0
+            
+            j = j_nu_thermal(ne, B, Te, nu_em, sinthetab)
+
+        ## Phenomenological models
+        elif self.emistype=='constant':
             j = np.ones(r.shape)
 
         elif self.emistype=='bpl':
@@ -94,24 +105,15 @@ class Emissivity(object):
         elif self.emistype=='glm' or self.emistype=='ring':
             j = emisGLM(a, r, gamma_off=self.gamma_off, sigma=self.sigma, mu_ring=self.mu_ring)
 
-        elif self.emistype=='thermal':
-            j = emisThermal(a, r, g, sinthetab, nu_obs,
-                alpha_n=self.alpha_n, nref=self.nref,
-                alpha_T=self.alpha_T, Tref=self.Tref,
-                alpha_B=self.alpha_B, Bref=self.Bref,
-                use_consistent_bfield=self.use_consistent_bfield,
-                bfield=self.bfield, velocity=self.velocity)
-
-        elif self.emistype=='powerlaw':
-            j = emisPowerlaw(a, r, g, sinthetab, nu_obs,
-                p=self.p,gammamin=self.gammamin,gammamax=self.gammamax,
-                alpha_n=self.alpha_n, nref=self.nref,
-                alpha_B=self.alpha_B, Bref=self.Bref,
-                use_consistent_bfield=self.use_consistent_bfield,
-                bfield=self.bfield, velocity=self.velocity)
-
         else:
-            raise Exception("emistype %s not recognized in Emissivity.emis!"%self.veltype)
+            raise Exception("emistype %s not recognized in Emissivity.emis!"%self.emistype)
+
+        # add spectral behavior for non-physical emissivities
+        if self.emistype != 'thermal':
+            if g is not None:
+                j *=  (g**specind)
+            if sinthetab is not None:
+                j *= (sinthetab**(1+specind))
 
         return j
 
@@ -135,135 +137,21 @@ def emisGLM(a, r, gamma_off=GAMMAOFF, sigma=SIGMA_GLM, mu_ring=False):
     emis = np.exp(-0.5*(gamma_off+np.arcsinh((r-mu)/sigma))**2) / np.sqrt((r-mu)**2 + sigma**2)
     return emis
 
+# Thermal model function definitions
+def II_fit(x):
+    return 2.5651 * (1.0 + 1.92*x**(-1.0/3.0) + 0.9977*x**(-2.0/3.0)) * np.exp(-1.8899 * x**(1.0/3.0))
 
-def emisThermal(a, r, g, sinthetab, nu_obs,
-                alpha_n=ALPHAN, nref=N0,
-                alpha_T=ALPHAT, Tref=T0,
-                alpha_B=ALPHAB, Bref=B0,
-                use_consistent_bfield=False, bfield=None, velocity=None):
-    """emissivity from thermal electrons following power law distributions, following Desire+24,Dexter+16"""
+# critical freqneucy (in fluid frame)
+def nu_c_fcn(B, Theta_e, sin_thetaB):
+    nu_B = e*B/(2.0*np.pi*me*c)
+    nu_c = 1.5 * nu_B * Theta_e**2 * sin_thetaB
+    return nu_c
+    #return (3.0/(4.0*np.pi)) * (e*B*Theta_e**2)/(me*c) * sin_thetaB
 
-    # TODO check r, g compatible
-
-    # redshifted frequency
-    nuemit = nu_obs/g
-
-    # fluid quantities and emission radius in cgs units
-    r_0 = 5.
-    n = nref*(r/r_0)**(-alpha_n)
-    T = Tref*(r/r_0)**(-alpha_T)
-
-    # magnetic field can either follow simple power law or be based on bfield used for polarization
-    if use_consistent_bfield:
-        if bfield is None:
-            raise Exception("bfield==None with use_consistent_bfield! in emisThermal!")
-        if velocity is None:
-            raise Exception("velocity==None with use_consistent_bfield! in emisThermal!")
-        bmag = np.sqrt(bfield.bsq(a, r, velocity, th=np.pi/2.))
-        bmag_ref = np.sqrt(bfield.bsq(a, r_0, velocity, th=np.pi/2.))
-        B = Bref * bmag/bmag_ref
-
-    else:
-        B = Bref*(r/r_0)**(-alpha_B)
-
-    # dimensionless electron temperature
-    thetae = T * 1.68637005e-10
-
-    # synchrotron critical frequency
-    nu_c = 4.19887e6 * B * thetae * thetae * np.abs(sinthetab)
-
-    # thermal emissivity fitting function (Dexter A18)
-    x = nuemit/nu_c
-    x3 = x**(1./3.)
-    Ii = 2.5651*(1+1.92/x3 + 0.9977/x3/x3)*np.exp(-1.8899*x3)
-
-    # units??
-    #jnu = (2.22152e-30)*n*nuemit*Ii/thetae/thetae
-    jnu = n*nuemit*Ii/thetae/thetae
-
-    return jnu
-
-
-def emisPowerlaw(a, r, g, sinthetab, nu_obs,
-                 p=PINDEX, gammamin=GAMMAMIN, gammamax=GAMMAMAX,
-                 alpha_n=ALPHAN, nref=N0,
-                 alpha_B=ALPHAB, Bref=B0,
-                 use_consistent_bfield=False, bfield=None, velocity=None):
-    """emissivity from nonthermal electrons following power law distributions, following Dexter+16"""
-
-    # TODO check r, g compatible
-
-    # redshifted frequency
-    nuemit = nu_obs/g
-
-    # fluid quantities and emission radius in cgs units
-    r_0 = 5.
-    n = nref*(r/r_0)**(-alpha_n)
-    B = Bref*(r/r_0)**(-alpha_B)
-
-    # magnetic field can either follow simple power law or be based on bfield used for polarization
-    if use_consistent_bfield:
-        if bfield is None:
-            raise Exception("bfield==None with use_consistent_bfield! in emisThermal!")
-        if velocity is None:
-            raise Exception("velocity==None with use_consistent_bfield! in emisThermal!")
-        bmag = np.sqrt(bfield.bsq(a, r, velocity, th=np.pi/2.))
-        bmag_ref = np.sqrt(bfield.bsq(a, r_0, velocity, th=np.pi/2.))
-        B = Bref * bmag/bmag_ref
-
-    else:
-        B = Bref*(r/r_0)**(-alpha_B)
-
-    # synchrotron critical frequency / gamma^2
-    nu_p = 4.19887e6 * B  * np.abs(sinthetab)
-
-    # edge term fitting functions
-    x1 = nuemit / (gammamin*gammamin*nu_p)
-    x2 = nuemit / (gammamax*gammamax*nu_p)
-
-    # TODO implment fitting functions
-    # for now, approximate
-    #Gimin = (2**(0.5*p-1.5)) * (p+7./3.) * sp.gamma(0.25*p + 7./12.) * sp.gamma(0.25*p - 1./12.) / (p+1)
-    #Gimax = 0
-    Gimin = GIfunc(p,x2)
-    Gimax = GIfunc(p,x1)
-
-    # units??
-    alpha = (p-1)/2.
-    nfac = gammamin**(1-p) - gammamax**(1-p)
-    #jnu = (2.22152e-30)*(n/nfac)*(p-1)*nu_p*((nuemit/nu_p)**(-alpha))*(Gimin-Gimax)
-    jnu = (n/nfac)*(p-1)*nu_p*((nuemit/nu_p)**(-alpha))*(Gimin-Gimax)
-
-    return jnu
-
-
-# power law emissivity function from presaved data
-datafile = pkg_resources.resource_stream(__name__, 'synchpl_gxfit.csv')
-synchpldat = np.loadtxt(datafile, dtype=float,delimiter=',')
-#synchpldat = np.loadtxt(KGEOPATH+'/synchpl_gxfit.csv',dtype=float,delimiter=',')
-pvals = np.unique(synchpldat[:,0])
-logxvals = np.unique(synchpldat[:,1])
-gxvals = synchpldat[:,2].reshape((len(pvals), len(logxvals)))
-gxinterp = RegularGridInterpolator((pvals,logxvals),gxvals)
-del gxvals
-
-
-def GIfunc(p,x):
-    if not isinstance(x, np.ndarray): x = np.array([x]).flatten()
-
-    if not(np.min(pvals)<p<np.max(pvals)):
-        raise Exception("p=%f is out of bounds in GIfunc!"%p)
-
-    logx = np.log10(x)
-
-    out = np.empty(x.shape)
-    outmin = (2**(0.5*p-1.5))*(p+7./3.)*sp.gamma(0.25*p + 7./12.)*sp.gamma(0.25*p - 1./12.)/(p+1)
-    outmax = 0
-
-    out[logx<np.min(logxvals)]=outmin
-    out[logx>np.max(logxvals)]=outmax
-
-    interpmask = (logx>=np.min(logxvals)) * (logx<=np.max(logxvals))
-    out[interpmask]=gxinterp((p,logx[interpmask]))
-
-    return out
+# Emissivity j_nu (fluid frame, per unit volume, freq, steradians)
+# cgs units: erg s^-1 cm^-3 Hz^-1 sr^-1
+def j_nu_thermal(ne, B, Te, nu, sin_thetaB):
+    Theta_e = kB*Te/(me*c*c)       # strictly valid only in Theta_e > 3 limit
+    nu_c = nu_c_fcn(B, Theta_e, sin_thetaB)
+    x = nu/np.maximum(nu_c, 1e-40) # strictly valid only in nu > nu_c limit
+    return (ne * e**2 * nu)/(2 * np.sqrt(3) * c * (Theta_e**2)) * II_fit(x)

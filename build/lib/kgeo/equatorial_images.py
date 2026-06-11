@@ -16,7 +16,7 @@ bfield_default = Bfield('rad')
 vel_default = Velocity('zamo')
 emis_default = Emissivity('bpl')
 SPECIND = 1 # default (negative) spectral index
-DISKANGLE = 0.1 # default h/r for equatorial disk (this is the full opening angle, not half-angle)
+DISKANGLE = 0.1 # default h/r for equatorial disk
 SINTHB = np.pi/4. # assumption for sin(thetab) if polarization==False
 OBSFREQ = 230.e9 # default observation frequency
 
@@ -210,30 +210,18 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
 
             (cos2chi, sin2chi) = calc_evpa(a, th_o, alpha[~zeromask], beta[~zeromask], kappa)
         else:
-            sinthb = SINTHB   # TODO: calculate this for non-polarized case? More granular control? 
-            bsq = bfield.bsq(a, r_s[~zeromask], velocity, th=th_s)
+            sinthb = SINTHB
         
         sin_thb[~zeromask] = sinthb   
-
-        if emissivity.emistype == 'thermal':
-            bsq0 = bfield.bsq(a, emissivity.Rb, velocity, th=th_s)
-            Bmag_vals = np.sqrt(bsq / bsq0) * emissivity.B0 
-        
 
         ###############################
         # get emissivity in local frame
         ###############################
-        # normalize b field strength for thermal emissivity:
-        Bmag_vals = np.sqrt(bsq)
-        if emissivity.emistype == 'thermal':
-            B0 = np.sqrt(bfield.bsq(a, emissivity.Rb, velocity, th=th_s))
-            Bmag_vals = (Bmag_vals / B0) * emissivity.B0
-            
-        Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, Bmag=Bmag_vals, nu_obs=nu_obs, specind=specind)
+        Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, nu_obs=nu_obs)
     
         # add spectral terms to emissivity if not using a physical one
-        # now moved to inside emissivity.jrest 
-        #Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
+        # TODO: put this in j_rest? 
+        Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
         
         ###############################
         # observed emission
@@ -257,7 +245,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
             lp[~zeromask] = llp
                     
         else:       
-            Iobs[~zeromask] = (gg**2) * Iemis # * disk thickness h / k^\theta  
+            Iobs[~zeromask] = (gg**2) * Iemis   
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs[~zeromask]

@@ -9,7 +9,7 @@ from kgeo.emissivities import Emissivity
 
 # file label
 label='test'
-save_image = True
+save_image = False
 display_image = True
 
 # source and image parameters
@@ -28,7 +28,7 @@ f2 = 1            # scaling factor for n>=2 flux
 nmax = 2          # maximum subring number
 rotation = 0#-90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
 polarization = True      # make polarized image or not
-pathlength = False        # include disk pathlength factor or not
+pathlength = True        # include disk pathlength factor or not
 specind = 1              # spectral index
 nu_obs = 230.e9          # frequency
 
@@ -41,15 +41,16 @@ r_o = np.inf           # outer radius
 #bfield = Bfield("simple", Cr=0.87, Cvert=0, Cph=0.5)
 #bfield = Bfield("simple_rm1", Cr=0.87, Cvert=0, Cph=0.5) 
 #bfield = Bfield("const_comoving", Cr=0.5, Cvert=0, Cph=0.87) 
-bfield = Bfield("bz_monopole",C=1)
+#bfield = Bfield("bz_monopole",C=1)
 #bfield = Bfield("bz_guess",C=1)
 #bfield = Bfield("simple", Cr=0, Cvert=1, Cph=0)
+bfield = Bfield("gen_power", n_I=0, p_val=0)
 
 # velocity model
 #velocity = Velocity('simfit') # note simfit model will not work for all spins!
 #velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
-velocity = Velocity('subkep', retrograde=False, fac_subkep=0.7)
-#velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.5, beta_r=0.5)
+#velocity = Velocity('subkep', retrograde=False, fac_subkep=0.7)
+velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.75, beta_r=0.75)
 #velocity = Velocity('kep',retrograde=False)
 #velocity = Velocity('driftframe', bfield=bfield, nu_parallel=0)  
 
@@ -57,14 +58,14 @@ velocity = Velocity('subkep', retrograde=False, fac_subkep=0.7)
 #emissivity = Emissivity("ring", r_ring=4, sigma=0.3, emiscut_in=3.5, emiscut_out=4.5)
 #emissivity = Emissivity("ring", r_ring=6, sigma=0.3, emiscut_in=5.5, emiscut_out=6.5)
 #emissivity = Emissivity("glm", sigma=0.5, gamma_off=-1)
-emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
-#emissivity = Emissivity("thermal",alpha_n=1.5,alpha_T=1,alpha_B=1.,nref=1.e4,Tref=5.e11,Bref=5,
-#                        use_consistent_bfield=True,bfield=bfield,velocity=velocity)
-#emissivity = Emissivity("powerlaw",alpha_n=1.5,nref=1.e6,alpha_B=1.,Bref=5,
-#                        p=2.5,gammamin=1,gammamax=10000000,
-#                        use_consistent_bfield=True,bfield=bfield,velocity=velocity)
-                        
+#emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
+
+#emissivity = Emissivity("thermal", ne0=1.e5, Te0=5.e10, B0=10, alpha_n=0.7, alpha_T=1.0, alpha_B=1.5, bfield_model=True)
+emissivity = Emissivity("thermal", ne0=1.e4, Te0=1.e11, B0=10, alpha_n=1.5, alpha_T=0.7, alpha_B=1.5, bfield_model=True)
+
 ################################################################################################################
+plt.close('all')
+
 # generate the equatorial model image arrays
 psize = 2.*amax/npix
 imagedat = make_image(spin,r_o, th_o, nmax, -amax, amax, -amax, amax, psize,
@@ -109,13 +110,16 @@ if polarization:
     
 # make an Image, normalize and save
 psize_rad = psize*MoD*eh.RADPERUAS
+if emissivity.emistype == 'thermal':
+    # for thermal emissivity, can convert to Jy/pixel 
+    to_Jy_per_p = rg * psize_rad * psize_rad / 1e-23  # this factor converts erg s^-1 cm^-3 Hz^-1 sr^-1 * M to Jy/pix
+    imarr*= to_Jy_per_p 
+    if polarization:
+        imarr_U *= to_Jy_per_p 
+        imarr_Q *= to_Jy_per_p 
 
-if emissivity.emistype in ['thermal','powerlaw']:
-    fluxscale = (2.22152e-30)*rg*(1.e23)*(psize_rad**2)  #Jy/pixel
-    fluxscale2 = flux230/np.sum(imarr)
-    print("DENSITY SCALE NEEDED = %.2e cm^-3"%(fluxscale2/fluxscale * emissivity.nref))
-else:
-    fluxscale = flux230/np.sum(imarr)
+fluxscale = flux230/np.sum(imarr)
+print("fluxscale: ", fluxscale)
 
 im = eh.image.Image(imarr*fluxscale, psize_rad, ra, dec, rf=nu_obs)
 #im.imvec[im.imvec==0]=+1.e-60
@@ -128,33 +132,53 @@ if save_image: im.save_fits('./m87_model_%s.fits'%label)
 
 # display image
 if display_image:
+    im.rotate(rotation).display(
+                 cbar_unit=['Tb'],has_cbar=False,label_type='scale',has_title=False,
+                 plotp=polarization,pcut=.001,scale_ticks=True,nvec=20)
     im.blur_circ(10*eh.RADPERUAS,10*eh.RADPERUAS).rotate(rotation).display(
                  cbar_unit=['Tb'],has_cbar=False,label_type='scale',has_title=False,
                  plotp=polarization,pcut=.001,scale_ticks=True,nvec=20)
 
 # make a image of the subring number and save
 narr = np.flipud(outarr_n.reshape(npix,npix))   # number of equatorial crossings
+narr[narr==-2]=-1 # mask out vortical geodesics
 imn = eh.image.Image(narr, psize_rad, ra, dec)
 imn.source = source
 if save_image: imn.save_fits('./m87_model_%s_n.fits'%label)
-
+if display_image: 
+    imn.display(label_type='scale',cfun='jet',has_cbar=False,interp=None)
+    plt.title('Nmax_equatorial')
+    plt.colorbar(label='')
+    
 nparr = np.flipud(outarr_np.reshape(npix,npix)) # fractional number of poloidal orbits
 imnp = eh.image.Image(nparr, psize_rad, ra, dec)
 imnp.source = source
 if save_image:  imnp.save_fits('./m87_model_%s_np.fits'%label)
-
+if display_image: 
+    imnp.display(label_type='jet',cfun='jet',has_cbar=False)
+    plt.title('N_poloidal')
+    plt.colorbar(label='')
+    
 if polarization:
     # make a image of the n=0 sin^theta term and save
-    stharr = np.flipud(outarr_sinthb[:,1].reshape(npix,npix))   # sin(theta)
+    stharr = np.flipud(outarr_sinthb[:,0].reshape(npix,npix))   # sin(theta)
     imsth = eh.image.Image(stharr, psize_rad, ra, dec)
     #imsth = eh.image.Image(stharr**2/np.max(stharr**2), psize_rad, ra, dec)
     imsth.source = source
     if save_image:  imsth.save_fits('./m87_model_%s_sinthb.fits'%label)
+    if display_image: 
+        imsth.rotate(rotation).display(label_type='scale',cfun='Spectral',has_cbar=False)
+        plt.title('sin thetab, n=0')
+        plt.colorbar(label='')
     
     # make a image of the n=0 doppler factor and save
     garr = np.flipud(outarr_g[:,0].reshape(npix,npix))   # number of equatorial crossings
     img = eh.image.Image(garr**3/np.max(garr**3), psize_rad, ra, dec)
     img.source = source
     if save_image:  img.save_fits('./m87_model_%s_g3.fits'%label)
-
+    if display_image: 
+        img.rotate(rotation).display(label_type='scale',cfun='inferno',has_cbar=False)
+        plt.title('g^3, n=0')
+        plt.colorbar(label='')
+    
 

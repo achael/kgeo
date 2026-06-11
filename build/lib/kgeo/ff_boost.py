@@ -18,15 +18,15 @@ def r0min_mono(theta, Omegaf, spin, M): #solves quintic that gets minimum launch
     return np.real(rroots[4])
 
 #stagnation surface for paraboloid
-def r0min_para(psi, Omegaf, spin, M): #does numerical root find
-    bf = kgeo.bfields.Bfield('bz_para')
+def r0min_para(psi, Omegaf, spin, M, shift=0): #does numerical root find
+    bf = kgeo.bfields.Bfield('bz_para', shift=shift)
     def minfunc(R):
-        rsphere = rfromR_para(R, psi, spin)
+        rsphere = rfromR_para(R, psi, spin, shift=shift)
         theta = np.arcsin(R/rsphere)
         return Nderiv(rsphere, theta, spin, Omegaf, M, bf)
     Rguess = 2*rplusfunc(spin, M) #optimal guess
     Rtrue = opt.newton(minfunc, Rguess)
-    rtrue = rfromR_para(Rtrue, psi, spin)
+    rtrue = rfromR_para(Rtrue, psi, spin, shift=shift)
     thetatrue = np.arcsin(Rtrue/rtrue)
     return rtrue, thetatrue
 
@@ -50,19 +50,19 @@ def rplusfunc(spin, M): #returns location of outer event horizon
     return M+np.sqrt(M**2-spin**2)
 
 #psi(r,theta) for BZ paraboloid
-def psiBZpara(r, theta, a): #input should be in terms of M in curved space, or in terms of Omegaf in flat space
+def psiBZpara(r, theta, a, shift=0): #input should be in terms of M in curved space, or in terms of Omegaf in flat space
     rp = rplusfunc(a, 1.0)
     cth = np.abs(np.cos(theta))
-    return r*(1-cth)-2*rp*(1-np.log(2))+rp*(1+cth)*(1-np.log(1+cth)) #use rp as the mass scale
+    return (r+shift)*(1-cth)-2*rp*(1-np.log(2))+rp*(1+cth)*(1-np.log(1+cth)) #use rp as the mass scale
 
 #psi(r,theta) for r^p(1-costheta)
 def psiBZpower(r, theta, p): #input should be in terms of M in curved space, or in terms of Omegaf in flat space
     return r**p*(1-np.abs(np.cos(theta)))
 
 #invert r(R) for fixed psi
-def rfromR_para(R, psi0, a):
+def rfromR_para(R, psi0, a, shift=0):
     def minfunc(Z):
-        return psiBZpara(np.sqrt(R**2+Z**2),np.arctan(R/Z),a)-psi0
+        return psiBZpara(np.sqrt(R**2+Z**2),np.arctan(R/Z),a,shift=shift)-psi0
     Zguess = 3.0
     try:
         Zout = opt.newton(minfunc, Zguess)

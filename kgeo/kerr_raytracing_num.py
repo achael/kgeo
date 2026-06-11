@@ -14,7 +14,7 @@ from scipy.interpolate import interp1d
 
 SPIN = 0.94
 INC = 20*np.pi/180.
-ROUT = 1000 #4.e10 # sgra distance in M
+ROUT = 1000. #4.e10 # sgra distance in M
 NGEO = 1000
 NPIX = 100
 MAXTAUFRAC = (1. - 1.e-10) # NOTE: if we go exactly to tau_tot t and phi diverge on horizon
@@ -89,7 +89,8 @@ def raytrace_num(a=SPIN,
     ph_s = []
     r_s = []
     t_s = []
-    for i in tqdm(range(NPIX)): # TODO parallelize
+    npix = len(alpha)
+    for i in tqdm(range(npix)): # TODO parallelize
         tau_num, x_num = integrate_geo_single(a,th_o,r_o,
                                               alpha[i],beta[i],
                                               tau_tot[i],
