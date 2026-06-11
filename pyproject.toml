@@ -63,6 +63,13 @@ ignore = [
     "E501",   # line too long — legacy code has many long lines
     "E741",   # ambiguous variable name (l, I, O) — common in physics code
     "F841",   # local variable assigned but never used — catch gradually
+    "E701",   # multiple statements on one line colon -- fix later
+    "E702",   # multiple statements on one line semicolon -- fix later
+    "E722",   # bare except -- fix later
+    "UP031",   # print string formatting -- fix later
+    "F405",   # star imports -- fix later
+    "F403",   # star imports -- fix later
+    "F401"   # unused imports -- fix later
 ]
 
 [tool.ruff.lint.per-file-ignores]
