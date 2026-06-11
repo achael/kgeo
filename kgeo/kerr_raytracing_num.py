@@ -42,8 +42,6 @@ def raytrace_num(a=SPIN,
         raise Exception("a should be float in range [0,1)")
     if not (isinstance(th_o,float) and (0<th_o<=np.pi/2.)):
         raise Exception("th_o should be float in range (0,pi/2]")
-    if not isinstance(alpha, np.ndarray): lam = np.array([lam]).flatten()
-    if not isinstance(beta, np.ndarray): eta = np.array([eta]).flatten()
     if len(alpha) != len(beta):
         raise Exception("alpha, beta are different lengths!")
 
@@ -56,6 +54,8 @@ def raytrace_num(a=SPIN,
     # conserved quantities
     lam = -alpha*np.sin(th_o)
     eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    if not isinstance(alpha, np.ndarray): lam = np.array([lam]).flatten()
+    if not isinstance(beta, np.ndarray): eta = np.array([eta]).flatten()
 
     # sign of final angular momentum
     s_o = my_sign(beta)

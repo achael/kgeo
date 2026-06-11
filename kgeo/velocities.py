@@ -59,9 +59,9 @@ class Velocity:
             self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
             self.nu_parallel = self.kwargs.get('nu_parallel', 0)
             self.gammamax = self.kwargs.get('gammamax', None)
-        elif self.veltype=='MHD':
-            self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
-            self.gammamax = self.kwargs.get('gammamax', 100.0)
+        #elif self.veltype=='MHD':
+        #    self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
+        #    self.gammamax = self.kwargs.get('gammamax', 100.0)
 
         else:
 
@@ -88,8 +88,8 @@ class Velocity:
             ucon = u_from_u123(a, r, self.cached_data)
         elif self.veltype=='driftframe':
             ucon = u_driftframe(a, r, bfield=self.bfield, nu_parallel=self.nu_parallel, th=th, gammamax = self.gammamax, retqty=retqty)
-        elif self.veltype=='MHD':
-            ucon = u_MHD(a, r, bfield=self.bfield, th=th, gammamax = self.gammamax)
+        #elif self.veltype=='MHD':
+        #    ucon = u_MHD(a, r, bfield=self.bfield, th=th, gammamax = self.gammamax)
 
         else:
             raise Exception(f"veltype {self.veltype} not recognized in Velocity.u_lab!")
