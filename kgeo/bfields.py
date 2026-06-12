@@ -41,7 +41,8 @@ class Bfield:
 
         if self.fieldtype in ['rad', 'vert', 'tor', 'simple', 'simple_rm1',
                               'monopoleA', 'bz_monopole', 'bz_guess',
-                              'bz_para', 'power', 'get_power', 'fromfile', 'fromdict']:
+                              'bz_para', 'power', 'gen_power', 'fromfile', 'fromdict',
+                              'fluid_file']:
             self.fieldframe = 'lab'
         elif self.fieldtype in ['const_comoving']:
             self.fieldframe = 'comoving'
@@ -82,6 +83,18 @@ class Bfield:
             self.cached_data = load_cache_from_file(self.filename)
         elif self.fieldtype == 'fromdict':
             self.cached_data = self.kwargs.get('data', None)
+        # fluid-frame b^mu tabulated in a file: columns r, b^r, b^phi (BL coords, equatorial)
+        elif self.fieldtype == 'fluid_file':
+            self.filename = self.kwargs.get('file', None)
+            self.velocity = self.kwargs.get('velocity', None)
+            if self.filename is None:
+                raise Exception("fluid_file Bfield needs a 'file' keyword argument!")
+            if self.velocity is None:
+                raise Exception("fluid_file Bfield needs a 'velocity' keyword argument "
+                                "(the same Velocity object used in the image calculation)!")
+            self.cached_data = load_fluid_bfield_file(self.filename)
+            # default False: linear order in H/r (midplane metric)
+            self.cached_data['_surface_metric'] = bool(self.kwargs.get('surface_metric', False))
         # added model
         elif self.fieldtype == 'gen_power':
             self.n_I = self.kwargs.get('n_I', 0)
@@ -131,6 +144,9 @@ class Bfield:
             b_components = (B1, B2, B3)
         elif self.fieldtype in ['fromfile', 'fromdict']:
             B1, B2, B3 = Bfield_from_cache(a, r, self.cached_data)
+            b_components = B1, B2, B3
+        elif self.fieldtype == 'fluid_file':
+            B1, B2, B3 = Bfield_from_fluid_file(a, r, self.cached_data, self.velocity, th=th)
             b_components = B1, B2, B3
         else:
             raise Exception(f"fieldtype {self.fieldtype} not recognized in Bfield.bfield_lab!")
@@ -819,3 +835,139 @@ def Bfield_from_cache(a, r, rb123_cache):
     Bph = np.interp(r, rb123_cache['radii'], rb123_cache['Bph'])
 
     return (Br, Bth, Bph)
+
+
+def load_fluid_bfield_file(filename):
+    """
+    Load fluid-frame magnetic field components tabulated vs radius from a
+    plain text file (whitespace- or comma-separated, no header needed).
+
+    Expected columns, either:
+        4 columns:  r, b^0, b^r, b^phi
+        3 columns:  r, b^r, b^phi      (b^0 derived from u_mu b^mu = 0)
+    (Boyer-Lindquist coordinates, equatorial plane, fluid-frame four-vector b^mu,
+     with b^theta = 0)
+    """
+    try:
+        data = np.loadtxt(filename)
+    except ValueError:
+        data = np.loadtxt(filename, delimiter=',')
+
+    if data.ndim != 2 or data.shape[1] < 3:
+        raise Exception(f"fluid bfield file {filename} must have 3 or 4 columns!")
+
+    radii = data[:, 0]
+    if np.any(np.diff(radii) <= 0):
+        idx = np.argsort(radii)
+        data = data[idx]
+        radii = data[:, 0]
+
+    out = dict(radii=radii)
+    if data.shape[1] >= 4:
+        out.update(b0=data[:, 1], br=data[:, 2], bph=data[:, 3])
+    else:
+        out.update(b0=None, br=data[:, 1], bph=data[:, 2])
+    # optional extra columns of the combined model file
+    if data.shape[1] >= 10:
+        out['hor'] = data[:, 9]            # scale height H/r -> theta = arccos(H/r)
+    if data.shape[1] >= 11:
+        out['beta'] = data[:, 10]          # plasma beta (loaded, available)
+    return out
+
+
+def Bfield_from_fluid_file(a, r, rbrbph_cache, velocity, th=np.pi/2.):
+    """
+    Convert tabulated fluid-frame b^mu = (b^0, b^r, 0, b^phi) to lab-frame
+    'primitive' field B^i = *F^{i0}, which is what the kgeo imaging pipeline expects.
+
+    Uses the ideal-MHD degeneracy inversion:
+        b^0 = -(b^r u_r + b^phi u_phi) / u_0     [from u_mu b^mu = 0]
+        B^i = u^0 b^i - b^0 u^i
+
+    'velocity' must be the same kgeo Velocity object used in the image calculation,
+    so that the forward transform in equatorial_images.py exactly recovers
+    the tabulated fluid-frame components.
+
+    Note: by convention one file corresponds to a single spin; outside the
+    tabulated radius range the components are set to zero.
+    """
+    if not isinstance(r, np.ndarray):
+        r = np.array([r]).flatten()
+
+    radii = rbrbph_cache['radii']
+
+    # interpolate fluid-frame components; zero outside tabulated range
+    br = np.interp(r, radii, rbrbph_cache['br'], left=0., right=0.)
+    bph = np.interp(r, radii, rbrbph_cache['bph'], left=0., right=0.)
+
+    # LINEAR ORDER IN H/r: the Kerr metric depends on theta only through
+    # cos^2(theta) = (H/r)^2 and sin^2(theta) = 1-(H/r)^2, so to first order in
+    # H/r the surface metric equals the midplane metric. Metric operations are
+    # therefore evaluated at th (default pi/2); the scale height enters the
+    # calculation only through the pathlength, where it appears linearly.
+    # (Set surface_metric=True on the Bfield to restore the O((H/r)^2) metric.)
+    if rbrbph_cache.get('hor', None) is not None and rbrbph_cache.get('_surface_metric', False):
+        hor = np.interp(r, radii, rbrbph_cache['hor'], left=0., right=0.)
+        th = np.arccos(np.clip(hor, 0., 1.))
+
+    # BL metric components at theta
+    a2 = a**2
+    r2 = r**2
+    cth2 = np.cos(th)**2
+    sth2 = np.sin(th)**2
+    Sigma = r2 + a2*cth2
+    g00 = -(1.0 - 2.0*r/Sigma)
+    g11 = Sigma/(r2 - 2.0*r + a2)
+    g33 = (r2 + a2 + 2.0*r*a2*sth2/Sigma)*sth2
+    g03 = -2.0*r*a*sth2/Sigma
+
+    # contravariant four-velocity from the velocity model
+    (u0, u1, u2, u3) = velocity.u_lab(a, r, th=th)
+
+    # lower indices
+    u0_l = g00*u0 + g03*u3
+    u1_l = g11*u1
+    u3_l = g33*u3 + g03*u0
+
+    # b^0: ALWAYS derived from orthogonality u_mu b^mu = 0 with the interpolated
+    # u^mu, so field and flow are exactly consistent at every requested radius
+    # (b^theta = 0 in the equatorial plane).
+    b0 = -(br*u1_l + bph*u3_l)/u0_l
+
+    # one-time validation: if the file tabulates b^0, compare it against
+    # orthogonality ON THE TABULATED GRID (interpolation-free), and warn if
+    # the velocity model does not match the model that produced the field.
+    if rbrbph_cache.get('b0', None) is not None and not rbrbph_cache.get('_b0checked', False):
+        rr = radii
+        thg = th
+        if rbrbph_cache.get('hor', None) is not None and rbrbph_cache.get('_surface_metric', False):
+            thg = np.arccos(np.clip(rbrbph_cache['hor'], 0., 1.))
+        a2g = a**2; r2g = rr**2
+        cth2g = np.cos(thg)**2; sth2g = np.sin(thg)**2
+        Sigmag = r2g + a2g*cth2g
+        Deltag = r2g - 2.0*rr + a2g
+        g00g = -(1.0 - 2.0*rr/Sigmag)
+        g11g = Sigmag/Deltag
+        g33g = (r2g + a2g + 2.0*rr*a2g*sth2g/Sigmag)*sth2g
+        g03g = -2.0*rr*a*sth2g/Sigmag
+        (v0, v1, v2, v3) = velocity.u_lab(a, rr, th=thg)
+        v0_l = g00g*v0 + g03g*v3
+        v1_l = g11g*v1
+        v3_l = g33g*v3 + g03g*v0
+        b0g = -(rbrbph_cache['br']*v1_l + rbrbph_cache['bph']*v3_l)/v0_l
+        maskg = np.abs(rbrbph_cache['b0']) > 0
+        if np.any(maskg):
+            relerr = np.max(np.abs(b0g[maskg] - rbrbph_cache['b0'][maskg])
+                            / np.abs(rbrbph_cache['b0'][maskg]))
+            if relerr > 1e-2:
+                print(f"WARNING: tabulated b^0 disagrees with u_mu b^mu = 0 on the "
+                      f"data grid (max rel err {relerr:.2e})! "
+                      f"Check that the Velocity object matches the u^mu of your model.")
+        rbrbph_cache['_b0checked'] = True
+
+    # invert the degeneracy relations: B^i = u^0 b^i - b^0 u^i
+    B1 = u0*br - b0*u1
+    B2 = np.zeros_like(B1)
+    B3 = u0*bph - b0*u3
+
+    return (B1, B2, B3)

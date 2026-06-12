@@ -216,11 +216,6 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
 
         sin_thb[~zeromask] = sinthb
 
-        if emissivity.emistype == 'thermal':
-            bsq0 = bfield.bsq(a, emissivity.Rb, velocity, th=th_s)
-            Bmag_vals = np.sqrt(bsq / bsq0) * emissivity.B0
-
-
         ###############################
         # get emissivity in local frame
         ###############################
@@ -442,9 +437,10 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
     bsq = Bp_mag**2 # this is the comoving field strength, same as above
 
     norm_mag = np.sqrt(norm_x**2+norm_y**2+norm_z**2)
-    norm_x_unit = norm_x/norm_mag
-    norm_y_unit = norm_y/norm_mag
-    norm_z_unit = norm_z/norm_mag
+    norm_mag_safe = np.where(norm_mag > 0, norm_mag, 1.)
+    norm_x_unit = np.where(norm_mag > 0, norm_x/norm_mag_safe, 0.)
+    norm_y_unit = np.where(norm_mag > 0, norm_y/norm_mag_safe, 0.)
+    norm_z_unit = np.where(norm_mag > 0, norm_z/norm_mag_safe, 0.)
 
     # photon momentum/wavevector
     R = (r2 + a2 -a*lam)**2 - Delta*(eta + (lam-a)**2)
@@ -478,13 +474,15 @@ def calc_polquantities(a, r, lam, eta, kr_sign, kth_sign,
         pathfac = np.abs(r*np.sin(th))
     elif pathcor == 'Z':
         pathfac = np.abs(r*np.cos(th))
-    pathlength = np.abs(kp_t/kdotnorm)*pathfac #add correction to jet thickness
+    kdotnorm_safe = np.where(np.abs(kdotnorm) > 0, kdotnorm, 1.)
+    pathlength = np.where(np.abs(kdotnorm) > 0, np.abs(kp_t/kdotnorm_safe), 0.)*pathfac #add correction to jet thickness
 
     # local polarization vector and emission angle
     f_x = (kp_y*Bp_z - kp_z*Bp_y)/kp_mag
     f_y = (kp_z*Bp_x - kp_x*Bp_z)/kp_mag
     f_z = (kp_x*Bp_y - kp_y*Bp_x)/kp_mag
-    sinthb = np.sqrt(f_x**2 + f_y**2 + f_z**2)/Bp_mag
+    Bp_mag_safe = np.where(Bp_mag > 0, Bp_mag, 1.)
+    sinthb = np.where(Bp_mag > 0, np.sqrt(f_x**2 + f_y**2 + f_z**2)/Bp_mag_safe, 0.)
 
     # polarization four vector
     f0 = e0_x*f_x + e0_y*f_y + e0_z*f_z
@@ -517,7 +515,7 @@ def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3
 
     # get the y\propto\theta component of local photon momentum
     # TODO this assumes that u^2 == 0!
-    if (isinstance(u2,np.ndarray) and np.any(u2!=0)) or u2!=0:
+    if np.any(np.asarray(u2) != 0):
         raise Exception("calc_pathlength assumes that u2==0!")
     if (isinstance(th,np.ndarray) and np.any(th!=np.pi/2)) or th!=np.pi/2:
         raise Exception("calc_pathlength assumes that th==pi/2!")
@@ -529,7 +527,12 @@ def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3
     kyhat = -k2_l/r # valid only in equatorial plane
 
     # get path length
-    diskheight = diskangle*r
+    # diskangle may be a constant H/r (full opening angle) or a callable H/r(r)
+    # interpolated from a tabulated scale-height profile
+    if callable(diskangle):
+        diskheight = diskangle(r)*r
+    else:
+        diskheight = diskangle*r
     lp = diskheight * (kthat / kyhat)
 
     return lp
