@@ -20,19 +20,19 @@ from kgeo.velocities import Velocity
 from kgeo.emissivities import Emissivity
 
 # ============================ USER PARAMETERS ============================
-datafile = 'check_case.dat'      # <-- path to YOUR 9-column model file
+datafile = '../../check_case_shockfree.dat'      # <-- path to YOUR 9-column model file
 spin     = 0.94                  # BH spin; MUST match the model file
-th_o_deg = 30.                   # observer inclination in degrees (Sgr A*: low)
+th_o_deg = 0.1#163.0 #30.0                   # observer inclination in degrees (Sgr A*: low)
 nu_obs   = 230.e9                # observing frequency [Hz]
 
-MBH_msun = 4.2e6                 # Sgr A* mass in solar masses (your value)
-D_kpc    = 8.127                 # distance to Sgr A* [kpc] (GRAVITY 2018)
+MBH_msun = 6.5e9 #4.2e6                 # Sgr A* mass in solar masses (your value)
+D_kpc    = 16.8e3  #8.127                 # distance to Sgr A* [kpc] (GRAVITY 2018)
 
-npix     = 256                   # image pixels per side (512+ for production)
+npix     = 1024                   # image pixels per side (512+ for production)
 amax     = 15.                   # half field of view in units of M
 nmax     = 2                     # include photon subrings up to n=2
-Te_scale = 1.0                   # electron temperature = Te_scale * tabulated T
-outfile  = 'sgra_check_case'   # output name stem
+Te_scale = 3.4 #3.675(shock)                   # electron temperature = Te_scale * tabulated T
+outfile  = 'Midplane_M87_check_case_No_shock_Te=Ti_3'   # output name stem
 # =========================================================================
 
 # ---- physical scales set by the BH mass ----
@@ -99,8 +99,11 @@ U_cgs = U * rg_cm
 
 pix_sr   = (psize*thetag)**2                          # pixel solid angle [sr]
 Ftot_Jy  = I_cgs.sum() * pix_sr * 1.e23               # total flux density [Jy]
-print(f"total flux at {nu_obs/1e9:.0f} GHz: {Ftot_Jy:.4f} Jy")
-print(f"(Sgr A* observed ~2.4 Jy at 230 GHz -- use this to calibrate n_e normalization)")
+#print(f"total flux at {nu_obs/1e9:.0f} GHz: {Ftot_Jy:.4f} Jy")
+#print(f"(Sgr A* observed ~2.4 Jy at 230 GHz -- use this to calibrate n_e normalization)")
+
+print(f"total flux at {nu_obs/1e9:.0f} GHz: {Ftot_Jy:.6e} Jy")
+#ax[0].set_title(f'Stokes I, {nu_obs/1e9:.0f} GHz  ({Ftot_Jy:.3e} Jy)')
 
 # ---- plots ----
 ext_uas = amax*thetag_uas
@@ -108,7 +111,7 @@ extent  = [-ext_uas, ext_uas, -ext_uas, ext_uas]
 
 fig, ax = plt.subplots(1, 3, figsize=(15.5, 5))
 ax[0].imshow(I_cgs, origin='lower', extent=extent, cmap='afmhot')
-ax[0].set_title(f'Stokes I, {nu_obs/1e9:.0f} GHz  ({Ftot_Jy:.2f} Jy)')
+ax[0].set_title(f'Stokes I, {nu_obs/1e9:.0f} GHz  ({Ftot_Jy:.3e} Jy)')
 ax[0].set_xlabel(r'$\alpha$ [$\mu$as]'); ax[0].set_ylabel(r'$\beta$ [$\mu$as]')
 
 P = np.sqrt(Q_cgs**2 + U_cgs**2)
@@ -133,4 +136,4 @@ ax[2].set_xlabel(r'$\alpha$ [$\mu$as]')
 plt.tight_layout()
 plt.savefig(f'{outfile}.png', dpi=150, bbox_inches='tight')
 print(f"saved {outfile}.png")
-plt.show()
+#plt.show()
