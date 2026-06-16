@@ -17,7 +17,8 @@ BFIELD_DEFAULT = Bfield('bz_para')
 # used in testing
 _allowed_velocity_models = [
     'zamo', 'infall', 'kep', 'cunningham', 'subkep', 'cunningham_subkep',
-    'general', 'gelles', 'simfit', 'fromfile', 'fromdict', 'driftframe'
+    'general', 'gelles', 'simfit', 'fromfile', 'fromdict', 'driftframe',
+    'fluid_file'
 ]
 
 
@@ -55,6 +56,13 @@ class Velocity:
             self.cached_data = load_cache_from_file(self.filename)
         elif self.veltype == 'fromdict':
             self.cached_data = self.kwargs.get('data', None)
+        # four-velocity u^mu tabulated in a file: r, u^0, u^r, u^phi (BL, equatorial)
+        elif self.veltype == 'fluid_file':
+            self.filename = self.kwargs.get('file', None)
+            if self.filename is None:
+                raise Exception("fluid_file Velocity needs a 'file' keyword argument!")
+            self.cached_data = load_fluid_velocity_file(self.filename)
+            self.cached_data['_surface_metric'] = bool(self.kwargs.get('surface_metric', False))
         elif self.veltype == 'driftframe':
             self.bfield = self.kwargs.get('bfield', BFIELD_DEFAULT)
             self.nu_parallel = self.kwargs.get('nu_parallel', 0)
@@ -84,6 +92,8 @@ class Velocity:
             ucon = u_gelles(a, r, beta=self.gelles_beta, chi=self.gelles_chi)
         elif self.veltype == 'simfit':
             ucon = u_grmhd_fit(a, r, ell_isco=self.ell_isco, vr_isco=self.vr_isco, p1=self.p1, p2=self.p2, dd=self.dd)
+        elif self.veltype == 'fluid_file':
+            ucon = u_from_fluid_file(a, r, self.cached_data)
         elif self.veltype in ['fromfile', 'fromdict']:
             ucon = u_from_u123(a, r, self.cached_data)
         elif self.veltype=='driftframe':
@@ -976,3 +986,86 @@ def invmetric(r, a, theta, M):
 
     return np.swapaxes(ginvmunu, 0, -1) if hasattr(r, 'shape') else ginvmunu
 
+
+
+def load_fluid_velocity_file(filename):
+    """
+    Load contravariant four-velocity components u^0, u^r, u^phi tabulated vs
+    radius from a plain text file (whitespace- or comma-separated, no header).
+
+    Accepted column layouts:
+        4 columns:   r, u^0, u^r, u^phi
+        7+ columns:  r, b^0, b^r, b^phi, u^0, u^r, u^phi, [n_e, T_e, ...]
+                     (combined model file, columns 5-7 are used; the same file
+                     can be passed to Bfield('fluid_file') and
+                     Emissivity('thermal_file'))
+    (Boyer-Lindquist coordinates, equatorial plane, u^theta = 0,
+     geometrized units G=c=1 with r in units of M, u_mu u^mu = -1)
+    """
+    try:
+        data = np.loadtxt(filename)
+    except ValueError:
+        data = np.loadtxt(filename, delimiter=',')
+
+    if data.ndim != 2 or data.shape[1] < 4:
+        raise Exception(f"fluid velocity file {filename} must have >=4 columns!")
+
+    radii = data[:, 0]
+    if np.any(np.diff(radii) <= 0):
+        idx = np.argsort(radii)
+        data = data[idx]
+        radii = data[:, 0]
+
+    if data.shape[1] >= 7:
+        out = dict(radii=radii, u0=data[:, 4], ur=data[:, 5], uph=data[:, 6])
+    else:
+        out = dict(radii=radii, u0=data[:, 1], ur=data[:, 2], uph=data[:, 3])
+    if data.shape[1] >= 10:
+        out['hor'] = data[:, 9]            # scale height H/r
+    if data.shape[1] >= 11:
+        out['beta'] = data[:, 10]          # plasma beta
+    return out
+
+
+def u_from_fluid_file(a, r, cache, th=np.pi/2.):
+    """
+    Four-velocity linearly interpolated from a tabulated file.
+    By convention one file corresponds to a single spin.
+    Performs a one-time check of the normalization u_mu u^mu = -1,
+    which catches both unit errors and spin mismatches.
+    """
+    if not isinstance(r, np.ndarray):
+        r = np.array([r]).flatten()
+
+    radii = cache['radii']
+    rcl = np.clip(r, radii[0], radii[-1])  # clamp outside the tabulated range
+    u0 = np.interp(rcl, radii, cache['u0'])
+    u1 = np.interp(rcl, radii, cache['ur'])
+    u2 = np.zeros_like(u0)
+    u3 = np.interp(rcl, radii, cache['uph'])
+
+    # one-time normalization check on the tabulated grid itself,
+    # at theta(r) = arccos(H/r) if the scale height is tabulated
+    if not cache.get('_checked', False):
+        rr = radii
+        thg = th    # linear order in H/r: midplane metric (corrections are O((H/r)^2))
+        if cache.get('hor', None) is not None and cache.get('_surface_metric', False):
+            thg = np.arccos(np.clip(cache['hor'], 0., 1.))
+        a2 = a**2; r2 = rr**2
+        cth2 = np.cos(thg)**2; sth2 = np.sin(thg)**2
+        Delta = r2 - 2*rr + a2
+        Sigma = r2 + a2*cth2
+        g00 = -(1 - 2*rr/Sigma)
+        g11 = Sigma/Delta
+        g33 = (r2 + a2 + 2*rr*a2*sth2/Sigma)*sth2
+        g03 = -2*rr*a*sth2/Sigma
+        norm = (g00*cache['u0']**2 + 2*g03*cache['u0']*cache['uph']
+                + g11*cache['ur']**2 + g33*cache['uph']**2)
+        err = np.max(np.abs(norm + 1))
+        if err > 1e-3:
+            print(f"WARNING: tabulated u^mu normalization u.u = -1 violated "
+                  f"(max |u.u + 1| = {err:.2e}) for spin a={a}! "
+                  f"Check units (must be G=c=1, r in M) and the spin value.")
+        cache['_checked'] = True
+
+    return (u0, u1, u2, u3)
