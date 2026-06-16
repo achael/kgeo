@@ -35,7 +35,6 @@ latfinals = geos.geo_coords[2][-1].reshape(imsize)
 rfinals = geos.geo_coords[1][-1].reshape(imsize)
 
 # get inner shadow alpha, betas
-
 varphis = np.linspace(-180,179,100)*np.pi/180.
 (_, rhos_is, alphas_is, betas_is) = rho_of_req(spin, inc, rh, mbar=0, varphis=varphis)
 

@@ -2,6 +2,7 @@
 import numpy as np
 import ehtim as eh
 import matplotlib.pyplot as plt
+from kgeo.equatorial_lensing import rho_of_req
 from kgeo.equatorial_images import make_image
 from kgeo.bfields import Bfield
 from kgeo.velocities import Velocity
@@ -20,7 +21,7 @@ MoD = 3.82 #3.77883459  # this is what was used for M/D in uas for the M87 simul
 ra = 12.51373 
 dec = 12.39112 
 flux230 = 0.6     # total flux
-npix = 512        # number of pixels
+npix = 1024        # number of pixels
 amax = 15         # maximum alpha,beta in R
 f0 = 1            # scaling factor for n=0 flux
 f1 = 1            # scaling factor for n=1 flux
@@ -41,10 +42,10 @@ r_o = np.inf           # outer radius
 #bfield = Bfield("simple", Cr=0.87, Cvert=0, Cph=0.5)
 #bfield = Bfield("simple_rm1", Cr=0.87, Cvert=0, Cph=0.5) 
 #bfield = Bfield("const_comoving", Cr=0.5, Cvert=0, Cph=0.87) 
-#bfield = Bfield("bz_monopole",C=1)
+bfield = Bfield("bz_monopole",C=1)
 #bfield = Bfield("bz_guess",C=1)
 #bfield = Bfield("simple", Cr=0, Cvert=1, Cph=0)
-bfield = Bfield("gen_power", n_I=0, p_val=0)
+#bfield = Bfield("gen_power", n_I=0, p_val=0)
 
 # velocity model
 #velocity = Velocity('simfit') # note simfit model will not work for all spins!
@@ -58,13 +59,22 @@ velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.75, 
 #emissivity = Emissivity("ring", r_ring=4, sigma=0.3, emiscut_in=3.5, emiscut_out=4.5)
 #emissivity = Emissivity("ring", r_ring=6, sigma=0.3, emiscut_in=5.5, emiscut_out=6.5)
 #emissivity = Emissivity("glm", sigma=0.5, gamma_off=-1)
-#emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
+emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
 
 #emissivity = Emissivity("thermal", ne0=1.e5, Te0=5.e10, B0=10, alpha_n=0.7, alpha_T=1.0, alpha_B=1.5, bfield_model=True)
-emissivity = Emissivity("thermal", ne0=1.e4, Te0=1.e11, B0=10, alpha_n=1.5, alpha_T=0.7, alpha_B=1.5, bfield_model=True)
+#emissivity = Emissivity("thermal", ne0=1.e4, Te0=1.e11, B0=10, alpha_n=1.5, alpha_T=0.7, alpha_B=1.5, bfield_model=True)
 
 ################################################################################################################
 plt.close('all')
+rh = 1 + np.sqrt(1-spin**2)
+
+# get inner shadow alpha, betas
+varphis = np.linspace(-180,179.0,200)*np.pi/180.
+(_, rhos_is, alphas_is, betas_is) = rho_of_req(spin, th_o, rh, mbar=0, varphis=varphis)
+
+# get critical curve alpha,betas
+varphis = np.linspace(-180,179.9,200)*np.pi/180.
+(_, rhos_c, alphas_c, betas_c) = rho_of_req(spin, th_o, rh, mbar=100, varphis=varphis) 
 
 # generate the equatorial model image arrays
 psize = 2.*amax/npix
@@ -75,7 +85,7 @@ imagedat = make_image(spin,r_o, th_o, nmax, -amax, amax, -amax, amax, psize,
                       
 
 
-# mask nans and add up the subrings
+# mask nans and add up the subring image contributions
 if pathlength:
     (outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g, outarr_sinthb, outarr_n, outarr_np,outarr_lp, outarr_Ie) = imagedat
 else:
@@ -120,25 +130,48 @@ if emissivity.emistype == 'thermal':
 
 fluxscale = flux230/np.sum(imarr)
 print("fluxscale: ", fluxscale)
-
 im = eh.image.Image(imarr*fluxscale, psize_rad, ra, dec, rf=nu_obs)
 #im.imvec[im.imvec==0]=+1.e-60
-
 if polarization:
     im.add_qu(imarr_Q*fluxscale, imarr_U*fluxscale)
 
 im.source = source
 if save_image: im.save_fits('./m87_model_%s.fits'%label)
 
+
 # display image
 if display_image:
+    # unblurred image
     im.rotate(rotation).display(
                  cbar_unit=['Tb'],has_cbar=False,label_type='scale',has_title=False,
                  plotp=polarization,pcut=.001,scale_ticks=True,nvec=20)
+    plt.gca().set_title('image')
+
+
+    if rotation==0:
+        # plot critical curve
+        alpha_plot_c = alphas_c*MoD*eh.RADPERUAS/im.psize + im.fovx()/2./im.psize
+        beta_plot_c = -betas_c*MoD*eh.RADPERUAS/im.psize + im.fovy()/2./im.psize
+        plt.plot(alpha_plot_c,beta_plot_c,'c-')
+        
+        # plot inner shadow
+        alpha_plot_is = alphas_is*MoD*eh.RADPERUAS/im.psize + im.fovx()/2./im.psize
+        beta_plot_is = -betas_is*MoD*eh.RADPERUAS/im.psize + im.fovy()/2./im.psize
+        plt.plot(alpha_plot_is,beta_plot_is,'m-')
+    
+    # blurred image
     im.blur_circ(10*eh.RADPERUAS,10*eh.RADPERUAS).rotate(rotation).display(
                  cbar_unit=['Tb'],has_cbar=False,label_type='scale',has_title=False,
-                 plotp=polarization,pcut=.001,scale_ticks=True,nvec=20)
-
+                 plotp=polarization,pcut=.001,scale_ticks=True,nvec=20,
+                 beamparams=[10*eh.RADPERUAS,10*eh.RADPERUAS,0])
+    plt.gca().set_title('blurred image')
+    if rotation==0:
+        # plot critical curve
+        plt.plot(alpha_plot_c,beta_plot_c,'c-')
+        
+        # plot inner shadow
+        plt.plot(alpha_plot_is,beta_plot_is,'m-')
+    
 # make a image of the subring number and save
 narr = np.flipud(outarr_n.reshape(npix,npix))   # number of equatorial crossings
 narr[narr==-2]=-1 # mask out vortical geodesics
@@ -147,16 +180,22 @@ imn.source = source
 if save_image: imn.save_fits('./m87_model_%s_n.fits'%label)
 if display_image: 
     imn.display(label_type='scale',cfun='jet',has_cbar=False,interp=None)
-    plt.title('Nmax_equatorial')
+    plt.title(r'$N_{max,eq}$')
     plt.colorbar(label='')
-    
+    if rotation==0:
+        # plot critical curve
+        plt.plot(alpha_plot_c,beta_plot_c,'c-')
+        
+        # plot inner shadow
+        plt.plot(alpha_plot_is,beta_plot_is,'m-')
+         
 nparr = np.flipud(outarr_np.reshape(npix,npix)) # fractional number of poloidal orbits
 imnp = eh.image.Image(nparr, psize_rad, ra, dec)
 imnp.source = source
 if save_image:  imnp.save_fits('./m87_model_%s_np.fits'%label)
 if display_image: 
     imnp.display(label_type='jet',cfun='jet',has_cbar=False)
-    plt.title('N_poloidal')
+    plt.title(r'$N_{poloidal}$')
     plt.colorbar(label='')
     
 if polarization:
@@ -168,7 +207,7 @@ if polarization:
     if save_image:  imsth.save_fits('./m87_model_%s_sinthb.fits'%label)
     if display_image: 
         imsth.rotate(rotation).display(label_type='scale',cfun='Spectral',has_cbar=False)
-        plt.title('sin thetab, n=0')
+        plt.title(r'$\sin \theta_B, n=0$')
         plt.colorbar(label='')
     
     # make a image of the n=0 doppler factor and save
@@ -178,7 +217,7 @@ if polarization:
     if save_image:  img.save_fits('./m87_model_%s_g3.fits'%label)
     if display_image: 
         img.rotate(rotation).display(label_type='scale',cfun='inferno',has_cbar=False)
-        plt.title('g^3, n=0')
+        plt.title(r'$g^3, n=0$')
         plt.colorbar(label='')
     
 
