@@ -1,11 +1,47 @@
-cff-version: 1.0.0
+cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-authors:
-- family-names: "Chael"
-  given-names: "Andrew"
-  orcid: "https://orcid.org/0000-0003-2966-6220"
+type: software
 title: "kgeo"
-version: 1.0.0
-doi: 
-date-released: 2022-06-07
+abstract: >-
+  Analytic raytracing of null geodesics in the Kerr metric, and images of
+  simple astrophysical black hole models, using the formalism of
+  Gralla & Lupsasca (2020).
+authors:
+  - family-names: "Chael"
+    given-names: "Andrew"
+    orcid: "https://orcid.org/0000-0003-2966-6220"
+doi: 10.5281/zenodo.8092968
+license: GPL-3.0
 url: "https://github.com/achael/kgeo"
+repository-code: "https://github.com/achael/kgeo"
+keywords:
+  - astronomy
+  - black holes
+  - Kerr geodesics
+  - raytracing
+  - EHT
+references:
+  - type: article
+    title: "The Null Geodesics of the Kerr Exterior"
+    authors:
+      - family-names: "Gralla"
+        given-names: "Samuel E."
+      - family-names: "Lupsasca"
+        given-names: "Alexandru"
+    journal: "Physical Review D"
+    volume: 101
+    start: "044032"
+    year: 2020
+    doi: 10.1103/PhysRevD.101.044032
+  - type: article
+    title: "Lensing by Kerr Black Holes"
+    authors:
+      - family-names: "Gralla"
+        given-names: "Samuel E."
+      - family-names: "Lupsasca"
+        given-names: "Alexandru"
+    journal: "Physical Review D"
+    volume: 101
+    start: "044031"
+    year: 2020
+    doi: 10.1103/PhysRevD.101.044031

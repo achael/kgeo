@@ -14,15 +14,35 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - run: git fetch origin ${{ github.base_ref }}
       - uses: astral-sh/ruff-action@v3
         with:
           version: "0.15"
           args: "--version"
+      # PRs lint against the target branch; pushes lint against the previous
+      # tip of the pushed branch (github.base_ref is empty on push events).
+      - name: Determine lint base
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            git fetch origin "$BASE_REF"
+            BASE="origin/$BASE_REF"
+          elif [ -n "$BEFORE" ] && ! echo "$BEFORE" | grep -qE '^0+$' \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            BASE="$BEFORE"
+          else
+            # new branch or force push: fall back to the last commit
+            BASE="HEAD~1"
+          fi
+          echo "LINT_BASE=$BASE" >> "$GITHUB_ENV"
       - name: Ruff check (changed files only)
         run: |
-          FILES=$(git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD -- '*.py' || true)
+          echo "Linting Python files changed since $LINT_BASE"
+          FILES=$(git diff --name-only --diff-filter=ACMR "$LINT_BASE"...HEAD -- '*.py')
           if [ -n "$FILES" ]; then
+            echo "$FILES"
             echo "$FILES" | xargs ruff check
           else
             echo "No Python files changed"
@@ -32,6 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.8", "3.11", "3.12"]
     steps:
@@ -50,3 +71,15 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           fail_ci_if_error: false
+
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check --strict dist/*
