@@ -216,11 +216,6 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
 
         sin_thb[~zeromask] = sinthb
 
-        if emissivity.emistype == 'thermal':
-            bsq0 = bfield.bsq(a, emissivity.Rb, velocity, th=th_s)
-            Bmag_vals = np.sqrt(bsq / bsq0) * emissivity.B0
-
-
         ###############################
         # get emissivity in local frame
         ###############################
@@ -258,7 +253,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
             lp[~zeromask] = llp
 
         else:
-            Iobs[~zeromask] = (gg**2) * Iemis # * disk thickness h / k^\theta
+            Iobs[~zeromask] = (gg**2) * Iemis 
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs[~zeromask]
