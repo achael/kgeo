@@ -18,10 +18,18 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 
+def _sincos(th):
+    """sin, cos of a scalar angle, exact at 0, pi/2, pi (np.sin(np.pi) = 1.2e-16
+    would give a tiny nonzero lambda on the axis, which makes the ODE stiff)"""
+    exact = {0.: (0., 1.), np.pi/2: (1., 0.), np.pi: (0., -1.)}
+    return exact.get(float(th), (np.sin(th), np.cos(th)))
+
+
 def conserved(a, th_o, alpha, beta):
     """lambda, eta for screen coordinates (alpha, beta) (GL19b eq 55)"""
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    sin_o, cos_o = _sincos(th_o)
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
     return lam, eta
 
 
