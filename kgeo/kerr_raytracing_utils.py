@@ -62,7 +62,6 @@ class Geodesics:
     @property
     def nmax_eq(self): # number of equatorial crossings
         nmax_eq = n_equatorial_crossings(self.a, self.th_o, self.alpha, self.beta, self.tautot)
-        #nmax_eq = nmax_equatorial(self.a, self.r_o, self.th_o, self.alpha, self.beta)
         return nmax_eq
 
     # geodeiscs
@@ -602,7 +601,7 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
     return n_poloidal
 
 def n_equatorial_crossings(a, th_o, alpha, beta, tau):
-    """ the fractional number of equatorial crossings
+    """ the integer number of equatorial crossings
         equation only applies for normal geodesics eta>0"""
 
     # checks
@@ -750,7 +749,7 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         n_turning[:,~vortmask] = nturn_reg
 
     # vorical motion
-    # todo -- really need to check this
+    # TODO -- really need to check this
     if np.any(vortmask):
 
         lam_v = lam[vortmask]
@@ -775,13 +774,13 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         betamask = (beta_v<=0)
         if np.any(betamask):
             # TODO check everything this is very confusing
-            norbit = ((tau_v*np.sqrt(a2u_minus) - F0) / (2*K))[:,betamask] + 0.5
-            newmask = norbit > 0.5
-            norbit[newmask] += 0.5
-            nturn_v[:,betamask] = norbit
+            norbit = ((tau_v*np.sqrt(a2u_minus) - F0) / (K))[:,betamask] + 0.5
+ #           newmask = norbit > 0.5
+ #           norbit[newmask] += 0.5
+ #           nturn_v[:,betamask] = norbit
 
         if np.any(~betamask):
-            nturn_v[:,~betamask]  =  ((tau_v*np.sqrt(a2u_minus) + F0) / (2*K))[:,~betamask] + 0.5
+            nturn_v[:,~betamask]  =  ((tau_v*np.sqrt(a2u_minus) + F0) / (K))[:,~betamask] + 0.5
 
         n_turning[:, vortmask] = nturn_v
 
@@ -864,21 +863,3 @@ def my_sign(x):
 
 
 
-# def intersect_plane(th_n, ph_n, r_s, th_s, ph_s):
-#
-#     nint = np.zeros(r_s.shape[-1])
-#     for i in range(r_s.shape[-1]): # TODO speed up #TODO right indexing?
-#         r = r_s[:,i];th=th_s[:,i];ph=ph_s[:,i]
-#
-#         # find where geodesic passes through plane with normal at th_n, ph_n through origin.
-#         # NOTE: pass in a single geodesic (for now)
-#
-#         xn = np.array([np.cos(ph_n)*np.sin(th_n),np.sin(ph_n)*np.sin(th_n),np.cos(th_n)])
-#         xo = np.array([r*np.cos(th)*np.sin(th),r*np.sin(th)*np.cos(th),r*np.cos(th)]).T
-#
-#         d = xo[1:] - xo[:-1] # vector between geodeisc points
-#         t = np.dot(-xo[:-1],xn)/np.dot(d,xn)
-#         intersect = (0 < t) * (t < 1)
-#         nintersect = np.sum(intersect)
-#         print(xn)
-#         nint[i] = nintersect
