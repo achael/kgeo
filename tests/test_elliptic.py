@@ -1,0 +1,61 @@
+import itertools
+
+import mpmath as mp
+import numpy as np
+import scipy.special as sp
+
+from kgeo.scipy_ellip_binding import ellip_pi, ellip_pi_arr
+
+# |phi| > pi/2 and > pi exercise the periodicity reductions; tiny phi the phi->0 limit
+_PHIS = [-215., -14.3, -7.7, -4.1, -np.pi, -2.37, -np.pi/2, -0.1, 1e-11,
+         0.026, 1.2, np.pi/2, 2.37, np.pi, 4.1, 6., 14.3, 215.]
+
+
+def _mp_ellippi(n, phi, m):
+    return float(mp.re(mp.ellippi(n, phi, m)))
+
+
+def test_ellip_pi_matches_mpmath():
+    """Pi(n; phi|m) for n < 1, m < 1 (the real domain for any phi) against mpmath."""
+    ns = [-50., -2., -0.5, 0., 0.3, 0.8, 0.95, 0.999]
+    ms = [-1e6, -5., -0.33, 0., 0.5, 0.9, 0.999]
+    args = np.array(list(itertools.product(ns, _PHIS, ms)))
+    n, phi, m = args.T
+    expected = np.array([_mp_ellippi(*arg) for arg in args])
+    np.testing.assert_allclose(ellip_pi_arr(n, phi, m), expected, rtol=1e-12, atol=0)
+
+
+def test_ellip_pi_n_above_one_is_principal_value():
+    """For n sin^2(phi) > 1 (rho < 0 branch) the result is the Cauchy principal value,
+    i.e. the real part of the analytic continuation."""
+    args = [(1.5, 1.2, 0.5), (4., 0.8, -3.), (2., 1.5, 0.3), (1.2, 1.4, -0.33), (3., 0.7, 0.9)]
+    n, phi, m = np.array(args).T
+    assert np.all(n*np.sin(phi)**2 > 1)
+    expected = np.array([_mp_ellippi(*arg) for arg in args])
+    np.testing.assert_allclose(ellip_pi_arr(n, phi, m), expected, rtol=1e-12, atol=0)
+
+
+def test_ellip_pi_broadcasting():
+    """1-D parameters n, m broadcast against a 2-D phi along the last axis,
+    as in kgeo's (ntau, npix) calls."""
+    n = np.array([0.3, -2., 0.8])
+    m = np.array([0.5, -5., 0.])
+    phi = np.array([[0.1, 2.37, -7.7], [4.1, -0.026, 14.3]])
+    out = ellip_pi_arr(n, phi, m)
+    assert out.shape == phi.shape
+    expected = [[_mp_ellippi(n[j], phi[i, j], m[j]) for j in range(3)] for i in range(2)]
+    np.testing.assert_allclose(out, expected, rtol=1e-12, atol=0)
+
+
+def test_ellip_pi_scalar_matches_array():
+    for n, phi, m in [(0.8, 4.1, -0.33), (-2., -14.3, 0.5), (0.3, 1.2, 0.9), (0.95, -2.37, -5.)]:
+        assert np.isclose(ellip_pi(n, phi, m), ellip_pi_arr(n, phi, m)[0], rtol=1e-14, atol=0)
+
+
+def test_ellip_pi_special_values():
+    phi = np.array([-7.7, -1.2, 0.3, 2.37, 14.3])
+    m = np.array([-5., 0.5, -0.33, 0.9, 0.])
+    # Pi(0; phi|m) = F(phi|m),  Pi(0; phi|0) = phi,  Pi(n; 0|m) = 0
+    np.testing.assert_allclose(ellip_pi_arr(np.zeros(5), phi, m), sp.ellipkinc(phi, m), rtol=1e-13)
+    np.testing.assert_allclose(ellip_pi_arr(np.zeros(5), phi, np.zeros(5)), phi, rtol=1e-13)
+    assert np.all(ellip_pi_arr(np.array([0.3, -2., 0.8]), np.zeros(3), np.array([0.5, 0., -5.])) == 0)
