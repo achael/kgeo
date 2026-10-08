@@ -253,7 +253,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
             lp[~zeromask] = llp
 
         else:
-            Iobs[~zeromask] = (gg**2) * Iemis 
+            Iobs[~zeromask] = (gg**2) * Iemis
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs[~zeromask]
