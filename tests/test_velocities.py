@@ -2,6 +2,8 @@ import numpy as np
 
 from kgeo.velocities import Velocity, _allowed_velocity_models
 
+from helpers import DATA_DIR
+
 _MIDPLANE = np.pi/2.
 
 
@@ -57,7 +59,7 @@ def test_velocity_fromfile():
     """
     Check that the 'fromfile' velocity model produces expected four-velocities.
     """
-    v = Velocity('fromfile', file='tests/data/a0p6_inflow.csv')
+    v = Velocity('fromfile', file=str(DATA_DIR / 'a0p6_inflow.csv'))
     tests = {
         # radius, theta -> ucon0, ucon1, ucon2, ucon3
         (2.15708, _MIDPLANE): [5.0056, -0.54416, 0.0, 0.75899],

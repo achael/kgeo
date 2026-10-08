@@ -1,6 +1,6 @@
 import numpy as np
 
-import kgeo
+from kgeo.kerr_raytracing_ana import raytrace_ana
 
 
 def _interp_signed(x0, x, z):
@@ -22,7 +22,7 @@ def _get_txyz_coords(bhspin, inc, alpha, beta):
                   image_coords=[alpha, beta],
                   plotdata=False)
 
-    kgeo_g = kgeo.kgeo.kerr_raytracing_ana.raytrace_ana(**kwargs)
+    kgeo_g = raytrace_ana(**kwargs)
     kgeo_g = np.array(kgeo_g.geo_coords)[:, :, 0]
 
     kgeo_t = kgeo_g[0]

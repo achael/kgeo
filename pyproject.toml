@@ -77,6 +77,17 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["kgeo"]
+known-local-folder = ["geodesic_ode", "helpers"]  # tests/ helper modules
+
+# --- pytest ---
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]  # test the repo's kgeo even if another copy is installed
+addopts = "-m 'not slow'"
+markers = [
+    "slow: long-running tests, deselected by default (run with: pytest -m slow)",
+]
 
 # --- coverage ---
 

@@ -2,6 +2,8 @@ import numpy as np
 
 from kgeo.bfields import Bfield
 
+from helpers import DATA_DIR
+
 _MIDPLANE = np.pi/2.
 
 
@@ -30,7 +32,7 @@ def test_bfield_fromfile():
     """
     Check that the 'fromfile' Bfield model produces expected lab frame magnetic fields.
     """
-    b = Bfield('fromfile', file='tests/data/a0p6_inflow.csv')
+    b = Bfield('fromfile', file=str(DATA_DIR / 'a0p6_inflow.csv'))
     tests = {
         # radius, theta -> Br, Bth, Bph
         (2.15708, _MIDPLANE): [0.84877, 0.0, -0.53419],

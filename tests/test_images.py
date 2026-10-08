@@ -5,6 +5,8 @@ from kgeo.emissivities import Emissivity
 from kgeo.equatorial_images import make_image
 from kgeo.velocities import Velocity
 
+from helpers import DATA_DIR
+
 
 def _get_evpa_kgeo(Q, U):
     """
@@ -67,7 +69,7 @@ def test_lowspin_keplerian():
     """
     n0_limits = [-10, -3, 3, 10, -10, -3, 3, 6]
     n1_limits = [-6.05, -5.25, 5.25, 6, -6, -5.1, 5.1, 6]
-    ipole_ploc, n0_a, n0_b, n1_a, n1_b = np.loadtxt('tests/data/lowspin_keplerian.csv', delimiter=',', unpack=True)
+    ipole_ploc, n0_a, n0_b, n1_a, n1_b = np.loadtxt(DATA_DIR / 'lowspin_keplerian.csv', delimiter=',', unpack=True)
     _, evpa_n0, evpa_n1 = _get_kgeo_image(0.01, 0.1, 1.0, 1.0, 1.0, 800)
 
     mask_n0_a = (ipole_ploc > n0_limits[0]) & (ipole_ploc < n0_limits[1])
@@ -88,7 +90,7 @@ def test_midspin_inclined_keplerian():
     """
     n0_limits = [-10, -4.3125, 5., 10., -10, -1.2, 4.2, 10]
     n1_limits = [-5.3, -4.4, 5.7, 6.8, -10, -5, 5.1, 5.4]
-    ipole_ploc, n0_a, n0_b, n1_a, n1_b = np.loadtxt('tests/data/midspin_inclined_keplerian.csv', delimiter=',', unpack=True)
+    ipole_ploc, n0_a, n0_b, n1_a, n1_b = np.loadtxt(DATA_DIR / 'midspin_inclined_keplerian.csv', delimiter=',', unpack=True)
     _, evpa_n0, evpa_n1 = _get_kgeo_image(0.42, 60., 1.0, 1.0, 1.0, 800)
 
     mask_n0_a = (ipole_ploc > n0_limits[0]) & (ipole_ploc < n0_limits[1])
@@ -110,7 +112,7 @@ def test_midspin_inclined_subkep():
     """
     n0_limits = [-10, -2.7, 4, 10, -10, -1.8, 3.8, 10]
     n1_limits = [-5., -4, 5.8, 7., -8, -4.7, 5., 5.3]
-    ipole_ploc, n0_a, n0_b, n1_a, n1_b = np.loadtxt('tests/data/midspin_inclined_subkep.csv', delimiter=',', unpack=True)
+    ipole_ploc, n0_a, n0_b, n1_a, n1_b = np.loadtxt(DATA_DIR / 'midspin_inclined_subkep.csv', delimiter=',', unpack=True)
     _, evpa_n0, evpa_n1 = _get_kgeo_image(0.7, 45., 0.6, 0.7, 0.8, 800)
 
     mask_n0_a = (ipole_ploc > n0_limits[0]) & (ipole_ploc < n0_limits[1])
