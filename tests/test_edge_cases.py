@@ -72,9 +72,7 @@ def test_eta_zero(a, th_o, alpha, beta, angle_tol):
     _assert_matches_ode(a, th_o, alpha, beta, angle_tol=angle_tol)
 
 
-@xfail_until("B3", "k = u_+/u_- -> -inf, m = k/(k-1) -> 1 and 1-m loses digits: error ~ eps/|eta| "
-                   "(1e-7 at |eta| = 1e-9, up to 2 rad at 1e-12)")
-@pytest.mark.parametrize("deta", [1e-9, 1e-12, -1e-12, -1e-9])
+@pytest.mark.parametrize("deta", [1e-9, 1e-12, 1e-14, -1e-14, -1e-12, -1e-9])
 @pytest.mark.parametrize("a, th_o, alpha", [(0.5, 0.3, 0.2), (0.94, 2.2, 0.3)])
 def test_eta_near_zero(a, th_o, alpha, deta):
     """Rays just inside/outside the vortical region (beta != 0), eta ~ deta."""
@@ -82,13 +80,12 @@ def test_eta_near_zero(a, th_o, alpha, deta):
     _assert_matches_ode(a, th_o, alpha, beta)
 
 
-@xfail_until("B3", "m = k/(k-1) -> 1 near eta = 0 loses digits (phi errors up to 2 rad at |eta| = 1e-12)")
 @pytest.mark.parametrize("deta", [1e-12, -1e-12])
 @pytest.mark.parametrize("a, th_o, sign", [(0.5, 0.3, 1), (0.94, 1.2, 1), (0.94, 2.2, -1)])
 def test_eta_near_zero_beta_zero(a, th_o, sign, deta):
     """Approach eta = 0 along the beta = 0 row, through alpha = +-a (the ends of the
     vortical region's boundary). 1e-6 tolerance: these rays also carry the beta = 0
-    error (~1e-7, B4); at |eta| = 1e-9 the eta error is below that, so only 1e-12 here.
+    error (~1e-7, B4).
     r (independent of u_-) is ~1e-10 off near the horizon here, so rtol = 1e-9."""
     alpha = sign*a*np.sqrt(1 + deta/(a*np.cos(th_o))**2)
     _assert_matches_ode(a, th_o, alpha, 0.0, angle_tol=1e-6, rtol=1e-9)

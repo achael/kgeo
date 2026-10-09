@@ -236,6 +236,61 @@ def ellip_pi_arr(n,phi,m):
 
     return outarr
 
+def ellipj_m1(u, m1, niter=16):
+    """Jacobi elliptic functions (sn, cn, dn, am) of u for parameter m = 1 - m1, 0 <= m1 <= 1,
+       taking the complementary parameter m1 as input (same outputs as scipy.special.ellipj).
+       Accurate as m -> 1, where scipy.special.ellipj loses dn at |u| ~ K (e.g. 1e-8 relative
+       error for m1 = 1e-9, 2e-4 for m1 = 1e-13).
+       Implemented with the AGM / descending Landen transformation (Numerical Recipes sncndn).
+    """
+
+    u = np.asarray(u, dtype=float)
+    m1 = np.broadcast_to(np.asarray(m1, dtype=float), u.shape)
+
+    # AGM sequence of (1, sqrt(m1))
+    a = np.ones(u.shape)
+    emc = m1.copy()
+    ems = []
+    ens = []
+    for i in range(niter):
+        ems.append(a.copy())
+        emc = np.sqrt(emc)
+        ens.append(emc.copy())
+        c = 0.5*(a + emc)
+        emc = emc*a
+        a = c
+
+    # back-substitution
+    uu = u*c
+    sn = np.sin(uu)
+    cn = np.cos(uu)
+    dn = np.ones(u.shape)
+    nz = (sn != 0)
+    aa = np.where(nz, cn/np.where(nz, sn, 1), 0.)
+    cc = c*aa
+    for b, en in zip(reversed(ems), reversed(ens)):
+        aa = aa*cc
+        cc = cc*dn
+        dn = (en + aa)/(b + aa)
+        aa = cc/b
+    s = 1/np.sqrt(cc*cc + 1)
+    sn = np.where(nz, np.where(sn >= 0, s, -s), sn)
+    cn = np.where(nz, cc*sn, cn)
+    dn = np.where(nz, dn, 1.)  # sn = 0 only at u = 2jK, where dn = 1
+
+    # m = 1 exactly: sn = tanh, cn = dn = sech
+    m1zero = (m1 == 0)
+    sn = np.where(m1zero, np.tanh(u), sn)
+    cn = np.where(m1zero, 1/np.cosh(u), cn)
+    dn = np.where(m1zero, 1/np.cosh(u), dn)
+
+    # amplitude: am = atan2(sn, cn) + 2 pi j, with j fixed by |am - pi u/(2K)| < pi/2
+    K = sp.ellipkm1(m1)
+    ph = np.arctan2(sn, cn)
+    am = ph + 2*np.pi*np.round((0.5*np.pi*u/K - ph)/(2*np.pi))
+
+    return (sn, cn, dn, am)
+
 
 
 def test_ellip_pi(n = .8, m=-.33):

@@ -2,9 +2,10 @@ import itertools
 
 import mpmath as mp
 import numpy as np
+import pytest
 import scipy.special as sp
 
-from kgeo.scipy_ellip_binding import ellip_pi, ellip_pi_arr
+from kgeo.scipy_ellip_binding import ellip_pi, ellip_pi_arr, ellipj_m1
 
 # |phi| > pi/2 and > pi exercise the periodicity reductions; tiny phi the phi->0 limit
 _PHIS = [-215., -14.3, -7.7, -4.1, -np.pi, -2.37, -np.pi/2, -0.1, 1e-11,
@@ -59,3 +60,43 @@ def test_ellip_pi_special_values():
     np.testing.assert_allclose(ellip_pi_arr(np.zeros(5), phi, m), sp.ellipkinc(phi, m), rtol=1e-13)
     np.testing.assert_allclose(ellip_pi_arr(np.zeros(5), phi, np.zeros(5)), phi, rtol=1e-13)
     assert np.all(ellip_pi_arr(np.array([0.3, -2., 0.8]), np.zeros(3), np.array([0.5, 0., -5.])) == 0)
+
+
+@pytest.mark.parametrize("m", [0., 0.3, 0.9, 0.999])
+def test_ellipj_m1_matches_scipy(m):
+    """Away from m = 1, where scipy.special.ellipj is accurate: same sn, cn, dn, am,
+    including u = 0, negative u and many periods."""
+    u = np.concatenate([np.linspace(-40, 40, 2001), [0.]])
+    for new, ref in zip(ellipj_m1(u, 1 - m), sp.ellipj(u, m)):
+        np.testing.assert_allclose(new, ref, rtol=0, atol=1e-13)
+
+
+@pytest.mark.parametrize("m1", [1e-6, 1e-9, 1e-13, 1e-16])
+def test_ellipj_m1_near_m_one(m1):
+    """Near m = 1, where scipy.special.ellipj loses dn at |u| ~ K: sn, dn (relative) and
+    cn (absolute; it vanishes at K) against mpmath; am via (sin am, cos am) = (sn, cn).
+    (F(am|m) = u would be ill-conditioned: dF/dphi = 1/dn ~ 1/sqrt(m1) near K.)"""
+    with mp.workdps(40):
+        m = mp.mpf(1) - mp.mpf(m1)
+        K = float(mp.ellipk(m))
+        u = np.array([0.3, 0.5*K, 0.9*K, K, 1.7*K, 3.3*K, -2.2*K])
+        sn, cn, dn, am = ellipj_m1(u, m1)
+        for i, ui in enumerate(u):
+            sn_ref, cn_ref = float(mp.ellipfun('sn', ui, m=m)), float(mp.ellipfun('cn', ui, m=m))
+            assert abs(sn[i]/sn_ref - 1) < 1e-13
+            assert abs(cn[i] - cn_ref) < 1e-13
+            assert abs(dn[i]/float(mp.ellipfun('dn', ui, m=m)) - 1) < 1e-13
+            assert abs(np.sin(am[i]) - sn_ref) < 1e-13 and abs(np.cos(am[i]) - cn_ref) < 1e-13
+
+
+@pytest.mark.parametrize("m1", [0.5, 1e-6, 1e-13, 0.])
+def test_ellipj_m1_amplitude_branch(m1):
+    """am is continuous and non-decreasing (dam/du = dn > 0; it saturates at +-pi/2 for
+    m = 1) across many periods, so the 2 pi branch is right (a wrong branch is a 2 pi
+    jump); at m = 1 (m1 = 0), am = gd(u) = arctan(sinh u)."""
+    u = np.linspace(-60, 60, 200001)
+    am = ellipj_m1(u, m1)[3]
+    assert np.all(np.diff(am) >= 0)
+    assert np.all(np.diff(am) < 1)
+    if m1 == 0:
+        np.testing.assert_allclose(am, np.arctan(np.sinh(u)), rtol=0, atol=1e-14)

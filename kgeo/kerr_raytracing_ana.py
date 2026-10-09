@@ -29,6 +29,7 @@ from kgeo.kerr_raytracing_utils import (
     obs_trig,
     radial_roots,
 )
+from kgeo.scipy_ellip_binding import ellipj_m1
 
 SPIN = 0.94
 INC = 20*np.pi/180.
@@ -258,7 +259,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             if np.any(~maskk):
                 Gt_o[~maskk] = 2*up*pref* (sp.ellipeinc(elliparg,k) - F)[~maskk]/(2*k[~maskk]) # GL 19a, 31
 
-        # compute the amplitude Phi_tau, GL 19a, 45
+        # compute the amplitude Phi_tau, GL 19a, equation 46
         snarg = np.sqrt(-a2um)*(-tausteps[:,mask] + s*Gth_o)
         snarg = snarg.astype(float)
 
@@ -276,13 +277,23 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         # https://functions.wolfram.com/EllipticFunctions/JacobiAmplitude/introductions/JacobiPQs/ShowAll.html
         # TODO test accuracy more
         if np.any(~jmask):
-            m = (k/(k-1)) # real, in (0,1) since k<0
-            m = np.outer(np.ones(snarg.shape[0]),m)[~jmask]
-            ellipfuns = sp.ellipj(snarg[~jmask]/np.sqrt(1-m), m)
+            #m = (k/(k-1)) # real, in [0,1) since k<=0
+            #m = np.outer(np.ones(snarg.shape[0]),m)[~jmask]
+            #ellipfuns = sp.ellipj(snarg[~jmask]/np.sqrt(1-m), m) #scale snarg by sqrt(1-m) to use identities
+
+            # m = k/(k-1) -> 1 as eta -> 0 (k = u_plus/u_minus -> -inf):
+            # m -> 1 causes issues in ellipj, so in new version we work with 1-m = 1/(1-k)
+            m1 = 1/(1-k) # 1-m, real, in (0,1] since k<=0
+            m1 = np.outer(np.ones(snarg.shape[0]),m1)[~jmask]
+            ellipfuns = ellipj_m1(snarg[~jmask]/np.sqrt(m1), m1) #scale snarg by sqrt(1-m) to use identities
+
             #sn(sqrt(1-m)x | k) = sqrt(1-m)*sn(x|m)/dn(x|m)
-            sinPhi_tau[~jmask] = np.sqrt(1-m) * ellipfuns[0]/ellipfuns[2]
+            #sinPhi_tau[~jmask] = np.sqrt(1-m) * ellipfuns[0]/ellipfuns[2]
+            sinPhi_tau[~jmask] = np.sqrt(m1) * ellipfuns[0]/ellipfuns[2]
+
             #am(sqrt(1-m)x | k) = pi/2 - am(K(m) - x | m for m <=1
-            Phi_tau[~jmask] = 0.5*np.pi-sp.ellipj(sp.ellipk(m) - snarg[~jmask]/np.sqrt(1-m), m)[3]
+            #Phi_tau[~jmask] = 0.5*np.pi-sp.ellipj(sp.ellipk(m) - snarg[~jmask]/np.sqrt(1-m), m)[3]
+            Phi_tau[~jmask] = 0.5*np.pi - ellipj_m1(sp.ellipkm1(m1) - snarg[~jmask]/np.sqrt(m1), m1)[3]
 
         # solution for theta_o, GL19a 49
         th_s[:,mask] = (np.arccos(-s*np.sqrt(up)*sinPhi_tau)).astype(float)
@@ -324,51 +335,61 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         prefA = 1/np.sqrt(a2um) # u_minus>0 always for eta<0
         prefB = prefA / (1.-um)
         prefC = np.sqrt(um/a**2)
-        Nu_o = np.arcsin(np.sqrt((np.cos(th_o)**2 - um)/(up-um))) # GL19a, 59
+        Up_o = np.arcsin(np.sqrt((np.cos(th_o)**2 - um)/(up-um))) # GL19a, 59
         k = 1 - uratio # again, k<0 always since for eta<0 up>um>0
         upm = (up-um)/(1.-um)
 
         # "G-terms" at observer
-        Gth_o = -h*prefA * sp.ellipkinc(Nu_o, k) #GL19a 56
+        Gth_o = -h*prefA * sp.ellipkinc(Up_o, k) #GL19a 56
         if do_phi_and_t:
-            Gph_o = -h*prefB * ellippi_arr(upm,Nu_o,k) #GL19a 57
-            Gt_o  = -h*prefC * sp.ellipeinc(Nu_o,k) #GL19a 58
+            Gph_o = -h*prefB * ellippi_arr(upm,Up_o,k) #GL19a 57
+            Gt_o  = -h*prefC * sp.ellipeinc(Up_o,k) #GL19a 58
 
-        # compute the amplitude Nu_tau
+        # compute the amplitude Up_tau, GL19a equation 66
         snarg = np.sqrt(a2um)*(-tausteps[:,mask] + s*Gth_o)
         snarg = snarg.astype(float)
 
-        sinNu_tau = np.zeros(snarg.shape)
-        Nu_tau = np.zeros(snarg.shape)
+        sinUp_tau = np.zeros(snarg.shape)
+        Up_tau = np.zeros(snarg.shape)
 
         # for very small arguments, use lim_x->0 sn(x,k)= lim_x->0 am(x,k)= x
         jmask = np.abs(snarg) < EP # TODO what value cutoff?
         if np.any(jmask):
-            sinNu_tau[jmask] = snarg[jmask]
-            Nu_tau[jmask] = snarg[jmask]
+            sinUp_tau[jmask] = snarg[jmask]
+            Up_tau[jmask] = snarg[jmask]
 
         # for other arguments use some elliptic function identities
         # https://functions.wolfram.com/EllipticFunctions/JacobiAmplitude/introductions/JacobiPQs/ShowAll.html
         # TODO test accuracy more
         if np.any(~jmask):
-            m = (k/(k-1)) # real, in (0,1) since k<0
-            m = np.outer(np.ones(snarg.shape[0]),m)[~jmask]
-            ellipfuns = sp.ellipj(snarg[~jmask]/np.sqrt(1-m), m)
-            #sn(sqrt(1-m)x | k) = sqrt(1-m)*sn(x|m)/dn(x|m)
-            sinNu_tau[~jmask] = np.sqrt(1-m) * ellipfuns[0]/ellipfuns[2]
-            #am(sqrt(1-m)x | k) = pi/2 - am(K(m) - x | m for m <=1
-            Nu_tau[~jmask] = 0.5*np.pi-sp.ellipj(sp.ellipk(m) - snarg[~jmask]/np.sqrt(1-m), m)[3]
+            #m = (k/(k-1)) # real, in [0,1) since k<=0
+            #m = np.outer(np.ones(snarg.shape[0]),m)[~jmask]
+            #ellipfuns = sp.ellipj(snarg[~jmask]/np.sqrt(1-m), m) #scale snarg by sqrt(1-m) to use identities
 
-        # solution for theta_o, GL19a 49
-        th_s[:,mask] = (np.arccos(h*np.sqrt(um + (up-um)*sinNu_tau**2))).astype(float)
+            # m = k/(k-1) -> 1 as eta -> 0 (k = 1 - u_plus/u_minus -> -inf):
+            # m -> 1 causes issues in ellipj, so in new version we work with 1-m = 1/(1-k) = u_minus/u_plus
+            m1 = 1/(1-k) # 1-m, real, in (0,1] since k<=0
+            m1 = np.outer(np.ones(snarg.shape[0]),m1)[~jmask]
+            ellipfuns = ellipj_m1(snarg[~jmask]/np.sqrt(m1), m1) #scale snarg by sqrt(1-m) to use identities
+
+            #sn(sqrt(1-m)x | k) = sqrt(1-m)*sn(x|m)/dn(x|m)
+            #sinUp_tau[~jmask] = np.sqrt(1-m) * ellipfuns[0]/ellipfuns[2]
+            sinUp_tau[~jmask] = np.sqrt(m1) * ellipfuns[0]/ellipfuns[2]
+
+            #am(sqrt(1-m)x | k) = pi/2 - am(K(m) - x | m for m <=1
+            #Up_tau[~jmask] = 0.5*np.pi-sp.ellipj(sp.ellipk(m) - snarg[~jmask]/np.sqrt(1-m), m)[3]
+            Up_tau[~jmask] = 0.5*np.pi - ellipj_m1(sp.ellipkm1(m1) - snarg[~jmask]/np.sqrt(m1), m1)[3]
+
+        # solution for theta_o, GL19a 69
+        th_s[:,mask] = (np.arccos(h*np.sqrt(um + (up-um)*sinUp_tau**2))).astype(float)
 
         if do_phi_and_t:
 
             # G_phi integral, GL19a 67
-            G_ph[:,mask] = (prefB * ellippi_arr(upm,Nu_tau,k) - s*Gph_o).astype(float)
+            G_ph[:,mask] = (prefB * ellippi_arr(upm,Up_tau,k) - s*Gph_o).astype(float)
 
             # G_t integral, GL19a, 68
-            G_t[:,mask] = (prefC * sp.ellipeinc(Nu_tau,k) - s*Gt_o).astype(float)
+            G_t[:,mask] = (prefC * sp.ellipeinc(Up_tau,k) - s*Gt_o).astype(float)
 
     return (th_s, G_ph, G_t)
 
