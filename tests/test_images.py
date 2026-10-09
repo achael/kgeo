@@ -124,10 +124,3 @@ def test_midspin_inclined_subkep():
     assert np.allclose(n0_b[mask_n0_b], evpa_n0[mask_n0_b, 400], rtol=2.e-2)
     assert np.allclose(n1_a[mask_n1_a], evpa_n1[400, mask_n1_a], rtol=1.e-2)
     assert np.allclose(n1_b[mask_n1_b], evpa_n1[mask_n1_b, 400], rtol=1.e-2)
-
-
-if __name__ == "__main__":
-
-    test_lowspin_keplerian()
-    test_midspin_inclined_keplerian()
-    test_midspin_inclined_subkep()

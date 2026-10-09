@@ -42,8 +42,3 @@ def test_emissivity():
         emissivity = Emissivity(model, **kwargs)
         radius = np.array(radius)
         assert np.isclose(emissivity.jrest(bhspin, radius), answer, rtol=1e-4)
-
-
-if __name__ == "__main__":
-
-    test_emissivity()

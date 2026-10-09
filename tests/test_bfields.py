@@ -65,10 +65,3 @@ def test_bfield_bz_monopole():
         b = Bfield('bz_monopole', C=C)
         Bfield_out = np.squeeze(b.bfield_lab(bhspin, radius, th=theta))
         assert np.allclose(Bfield_expected, Bfield_out, rtol=1.e-3, atol=1.e-15)
-
-
-if __name__ == "__main__":
-
-    test_bfield_bz_guess()
-    test_bfield_fromfile()
-    test_bfield_bz_monopole()

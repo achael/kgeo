@@ -74,8 +74,3 @@ def test_midplane_intersections():
         bhspin, inc, alpha, beta = key
         x0, y0 = _get_midplane_crossing(bhspin, inc, alpha, beta)
         assert np.allclose([x0, y0], value, rtol=1e-3)
-
-
-if __name__ == "__main__":
-
-    test_midplane_intersections()
