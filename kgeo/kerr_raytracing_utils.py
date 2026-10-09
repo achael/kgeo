@@ -557,10 +557,13 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
 
     return Imax_out
 
-
 def n_poloidal_orbits(a, th_o, alpha, beta, tau):
-    """the number of poloidal orbits as a function of Mino time tau (GL 19b Eq 35)
-       only applies for normal geodesics eta>0"""
+    """fractional number of poloidal orbits at Mino time tau
+       starting from 0 at the observer.
+       One orbit is a full libration theta_- -> theta_+ -> theta_-
+       so n does not depend on the initial direction.
+       Only defined for ordinary geodesics (eta > 0);
+       vortical geodesics (eta <= 0) never cross the equator and return the flag -2."""
 
     check_spin(a)
     check_inclination(th_o)
@@ -599,12 +602,15 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
 
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
 
+        # GL19b eq 17
         K = sp.ellipk(uratio) # gives NaN for eta<0
+
+        # GL19b eqs 34-36
         npol_reg = (np.sqrt(-a2u_minus.astype(complex))*tau_reg)/(4*K)
         npol_reg = np.real(npol_reg.astype(complex))
 
-    # return data
-    n_poloidal[:,~vortmask] = npol_reg
+        # return data
+        n_poloidal[:,~vortmask] = npol_reg
 
     if not alltau:
         n_poloidal = n_poloidal[0]
@@ -612,8 +618,11 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
     return n_poloidal
 
 def n_equatorial_crossings(a, th_o, alpha, beta, tau):
-    """ the integer number of equatorial crossings
-        equation only applies for normal geodesics eta>0"""
+    """integer index of the last equatorial crossing reached by Mino time tau,
+       i.e. the number of crossings so far minus 1 (-1 if none yet):
+       the largest image order mbar with Ir(mbar) <= tau (GL19b eqs 81-82).
+       Only defined for ordinary geodesics (eta > 0);
+       vortical geodesics (eta <= 0) never cross the equator and return the flag -2."""
 
     # checks
     check_spin(a)
@@ -670,7 +679,7 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
         neq_reg = np.empty(tau_reg.shape)
 
 
-        # TODO is this right for th_o > pi/2 ???
+        # th_o > pi/2 is the mirror image
         if th_o < (np.pi/2.):
             betamask = (beta_reg<=0)
             if np.any(betamask):
@@ -683,8 +692,9 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
                 neq_reg[:,betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K)))[:,betamask]
             if np.any(~betamask):
                 neq_reg[:,~betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K)) - 1)[:,~betamask]
-    # return data
-    n_equatorial[:,~vortmask] = neq_reg
+
+        # return data
+        n_equatorial[:,~vortmask] = neq_reg
 
     if not alltau:
         n_equatorial = n_equatorial[0]
@@ -692,13 +702,17 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
     return n_equatorial
 
 def n_angular_turnings(a, th_o, alpha, beta, tau):
-    """ the fractional number of angular turnings"""
-    #TODO -- go back and review this, particularly for the vortical geodesics
+    """fractional number of polar turning points passed by Mino time tau.
+       Integer values occur exactly at turning points and n grows by 1 per
+       half-libration, so floor(n) is the number of turning points passed.
+       n is not 0 at the observer: n(0) in [0,1) is the fraction of the current half-libration
+       completed since the last turning point behind the observer.
+       A turning point at the observer itself (beta = 0) is not counted.
+       Works for ordinary and vortical geodesics."""
 
     # checks
     check_spin(a)
-    if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-        raise Exception("th_o should be a float in range (0,pi/2]")
+    check_inclination(th_o)
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -722,7 +736,7 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
     # output array
     n_turning = np.empty(tau.shape)
 
-    # TODO is vortical motion important? ?
+    # vortical motion mask
     vortmask = (eta<=0)
     n_turning[:,vortmask] = 0
 
@@ -737,24 +751,30 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         # angular turning points
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_reg,eta_reg)
 
-        # equation 29 for F0
+        # GL19a equation 29 for F0
         # checks on xFarg should be handled in uplus_uminus function
         xFarg = np.cos(th_o)/np.sqrt(u_plus)
         F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
 
-        # equation 33 for K
+        # GL19a equation 33 for K
         K = sp.ellipkinc(0.5*np.pi, uratio)
 
-        # from eq 51
+        # GL 19a eq 51 for number of turning points m
         # Analagous to Equation 81 from GL 2019b for the number of maximual crossings Nmax_eq
         nturn_reg = np.empty(tau_reg.shape)
 
-        betamask = (beta_reg<=0)
-        if np.any(betamask):
-            nturn_reg[:,betamask] =  ((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K))[:,betamask] + 0.5
+        # Tracing back from the observer (increasing kgeo tau, backward in affine time),
+        # dtheta/dtau = -sign(beta) sqrt(Theta), so the ray first moves toward larger theta
+        # (toward theta_+) if beta < 0. F0 has the sign of cos(th_o), and the phase
+        # sqrt(-u_minus a^2) G_theta increases with theta in both hemispheres.
+        # when beta = 0 the observer is at a turning point exactly (not counted): at theta_- for
+        # th_o < pi/2, so the ray moves toward larger theta; at theta_+ for th_o > pi/2
+        thincreasing = (beta_reg<0) + ((beta_reg==0) * (np.cos(th_o) > 0))
+        if np.any(thincreasing):
+            nturn_reg[:,thincreasing] =  ((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K))[:,thincreasing] + 0.5
 
-        if np.any(~betamask):
-            nturn_reg[:,~betamask] = ((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K))[:,~betamask] + 0.5
+        if np.any(~thincreasing):
+            nturn_reg[:,~thincreasing] = ((tau_reg*np.sqrt(-a2u_minus) + F0) / (2*K))[:,~thincreasing] + 0.5
 
         n_turning[:,~vortmask] = nturn_reg
 
@@ -770,27 +790,31 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         # angular turning points
         (u_plus, u_minus, uratio, a2u_minus) = uplus_uminus(a,th_o,lam_v,eta_v)
 
-        # equation 56 for source, assume northern hemisphere h=1 #TODO what if \theta_o < \pi/2
-        Nu = np.arcsin(np.sqrt((np.cos(th_o)**2-u_minus)/(u_plus-u_minus)))
-        F0 = sp.ellipkinc(Nu, 1-uratio)
+        # GL19a equation 56, 59
+        # Upsilon runs from 0 at the turning point nearest the equator (cos^2 = u_minus)
+        # to pi/2 at the one nearest the pole (cos^2 = u_plus);
+        # depends only on cos^2(th_o), so the same in both hemispheres
+        Up = np.arcsin(np.sqrt((np.cos(th_o)**2-u_minus)/(u_plus-u_minus)))
+        F0 = sp.ellipkinc(Up, 1-uratio)
 
         # equation 60 for K
         K = sp.ellipkinc(0.5*np.pi, 1-uratio)
 
-        # these come from eq 70 and are currently not right
+        # GL19a equation 70 for number of turning points n
         nturn_v = np.empty(tau_v.shape)
 
-
-        betamask = (beta_v<=0)
-        if np.any(betamask):
-            # TODO check everything this is very confusing
-            norbit = ((tau_v*np.sqrt(a2u_minus) - F0) / (K))[:,betamask] + 0.5
- #           newmask = norbit > 0.5
- #           norbit[newmask] += 0.5
- #           nturn_v[:,betamask] = norbit
-
-        if np.any(~betamask):
-            nturn_v[:,~betamask]  =  ((tau_v*np.sqrt(a2u_minus) + F0) / (K))[:,~betamask] + 0.5
+        # a half-libration is K in sqrt(u_minus a^2) tau (GL19a eq 60).
+        # Tracing back from the observer (increasing kgeo tau, backward in affine time),
+        # dtheta/dtau = -sign(beta) sqrt(Theta), so the ray first moves toward the
+        # equator-side turning point (Upsilon = 0) if h*beta < 0 (h = sign(cos th_o),
+        # GL19a eq 54), and toward the pole-side one (Upsilon = pi/2) otherwise.
+        # beta = 0: the observer sits on a turning point (not counted) and heads to the other one
+        h = np.sign(np.cos(th_o))
+        towardeq = (h*beta_v < 0) + ((beta_v==0) * (F0 > 0.5*K))
+        if np.any(towardeq):
+            nturn_v[:,towardeq] = ((tau_v*np.sqrt(a2u_minus) - F0) / K)[:,towardeq] + 1
+        if np.any(~towardeq):
+            nturn_v[:,~towardeq] = ((tau_v*np.sqrt(a2u_minus) + F0) / K)[:,~towardeq]
 
         n_turning[:, vortmask] = nturn_v
 
