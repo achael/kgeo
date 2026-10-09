@@ -6,6 +6,11 @@ from helpers import trace
 
 R_O = 1000.
 
+# kgeo's t and sigma carry a constant roundoff offset ~ eps r_o^2 along the whole ray
+# (the observer enters only via the last digits of O(1) elliptic arguments; B8), which
+# varies with numpy/scipy versions. Compare them with an absolute floor of 50 eps r_o^2.
+T_ATOL = 50*np.finfo(float).eps*R_O**2
+
 # generic screen points: two escaping (class I), two captured, one near the origin
 # (vortical for a > 0), and one in the class II patch (a = 0.94, th_o = 1.5).
 # No alpha ~ 0 or eta ~ 0: those are in test_edge_cases.py
@@ -48,9 +53,8 @@ def test_equatorial_reflection(a, th_o):
     np.testing.assert_allclose(south['r'][ok], north['r'][ok], rtol=1e-9)
     np.testing.assert_allclose(np.pi - south['th'][ok], north['th'][ok], rtol=0, atol=1e-9)
     np.testing.assert_allclose(south['ph'][ok], north['ph'][ok], rtol=0, atol=1e-9)
-    # t, sigma start at 0 at the screen, so also allow a small absolute error
-    np.testing.assert_allclose(south['t'][ok], north['t'][ok], rtol=1e-9, atol=1e-9)
-    np.testing.assert_allclose(south['sig'][ok], north['sig'][ok], rtol=1e-9, atol=1e-9)
+    np.testing.assert_allclose(south['t'][ok], north['t'][ok], rtol=1e-9, atol=T_ATOL)
+    np.testing.assert_allclose(south['sig'][ok], north['sig'][ok], rtol=1e-9, atol=T_ATOL)
 
 
 @pytest.mark.parametrize("a", [0.3, 0.94])
@@ -67,8 +71,8 @@ def test_spin_flip(a, th_o):
     np.testing.assert_allclose(neg['r'][ok], pos['r'][ok], rtol=1e-9)
     np.testing.assert_allclose(neg['th'][ok], pos['th'][ok], rtol=0, atol=1e-9)
     np.testing.assert_allclose(-neg['ph'][ok], pos['ph'][ok], rtol=0, atol=1e-9)
-    np.testing.assert_allclose(neg['t'][ok], pos['t'][ok], rtol=1e-9, atol=1e-9)
-    np.testing.assert_allclose(neg['sig'][ok], pos['sig'][ok], rtol=1e-9, atol=1e-9)
+    np.testing.assert_allclose(neg['t'][ok], pos['t'][ok], rtol=1e-9, atol=T_ATOL)
+    np.testing.assert_allclose(neg['sig'][ok], pos['sig'][ok], rtol=1e-9, atol=T_ATOL)
 
 
 @pytest.mark.parametrize("th_o", [0.3, 1.2, 1.5, 2.2])

@@ -4,10 +4,11 @@ Known failures are strict xfails tagged with the plan step that should fix them,
 so each fix must flip its tests to passing (an unexpected pass fails the suite).
 """
 
+import mpmath as mp
 import numpy as np
 import pytest
 
-from geodesic_ode import conserved, integrate_geodesic
+from geodesic_ode import conserved, integrate_geodesic, radial_potential
 from helpers import trace, wrap, xfail_until
 
 R_O = 1000.
@@ -241,3 +242,28 @@ def test_extremal_limit_cancellation(th_o, alpha, beta):
 def test_extremal(th_o, alpha, beta):
     """a = 1: r_+ = r_- = 1 and Delta = (r - 1)^2 has a double root."""
     _assert_matches_ode(1.0, th_o, alpha, beta, angle_tol=1e-8, rtol=1e-8, check_t=True)
+
+
+@xfail_until("B8", "the observer enters only via the last digits of O(1) elliptic arguments: "
+                   "t, sigma carry a constant offset ~eps r_o^2 (7.7e-3 at r_o = 1e7)")
+def test_distant_observer_time():
+    """r_o = 1e7, a = 0, captured ray (no radial turning point): exact t and sigma along
+    the ray from 30-digit quadrature, t(r) = -int_r^r_o r^3/((r-2) sqrt(R)) dr and
+    sigma(r) = -int_r^r_o r^2/sqrt(R) dr (the theta parts vanish at a = 0)."""
+    r_o, th_o, alpha, beta = 1e7, 1.0, 2.0, 3.0
+    geo = trace(0.0, th_o, [alpha], [beta], ngeo=12, r_o=r_o)
+    assert geo['rclass'][0] == 3
+    lam, eta = conserved(0.0, th_o, alpha, beta)
+
+    def integrand_t(y):
+        return y**3/((y - 2)*mp.sqrt(radial_potential(y, 0.0, lam, eta)))
+
+    def integrand_sig(y):
+        return y**2/mp.sqrt(radial_potential(y, 0.0, lam, eta))
+
+    r = geo['r'][1:, 0]                  # tau = 0 (r = r_o) is trivially t = sigma = 0
+    with mp.workdps(30):
+        t_exact = [-float(mp.quad(integrand_t, [mp.mpf(x), r_o])) for x in r]
+        sig_exact = [-float(mp.quad(integrand_sig, [mp.mpf(x), r_o])) for x in r]
+    np.testing.assert_allclose(geo['t'][1:, 0], t_exact, rtol=0, atol=1e-6, err_msg="t")
+    np.testing.assert_allclose(geo['sig'][1:, 0], sig_exact, rtol=0, atol=1e-6, err_msg="sigma")
