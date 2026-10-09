@@ -15,10 +15,13 @@ from scipy.optimize import brentq
 
 from kgeo.kerr_raytracing_ana import r_integrate
 from kgeo.kerr_raytracing_utils import (
+    check_inclination,
+    check_spin,
     is_outside_crit,
     mino_total,
     n_equatorial_crossings,
     n_poloidal_orbits,
+    obs_trig,
     radial_roots,
     uplus_uminus,
 )
@@ -31,12 +34,10 @@ def nmax_equatorial(a, r_o, th_o, alpha, beta):
     """Return the maximum number of equatorial crossings"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_inclination(th_o)
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -44,8 +45,9 @@ def nmax_equatorial(a, r_o, th_o, alpha, beta):
         raise Exception("alpha, beta are different lengths!")
 
     # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # radial roots
     (r1,r2,r3,r4,rclass) = radial_roots(a,lam,eta)
@@ -62,12 +64,10 @@ def nmax_poloidal(a, r_o, th_o, alpha, beta):
     """Return the maximum number of poloidal orbits"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_inclination(th_o)
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -75,8 +75,9 @@ def nmax_poloidal(a, r_o, th_o, alpha, beta):
         raise Exception("alpha, beta are different lengths!")
 
     # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # radial roots
     (r1,r2,r3,r4,rclass) = radial_roots(a,lam,eta)
@@ -99,12 +100,10 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
        Nmax is the maximum number of equatorial crossings"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_inclination(th_o)
     if not (isinstance(mbar,int) and (mbar>=0)):
         raise Exception("mbar should be an integer >=0!")
 
@@ -114,8 +113,9 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
         raise Exception("alpha, beta are different lengths!")
 
     # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # output arrays
     r_s = np.empty(alpha.shape)

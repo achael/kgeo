@@ -2,6 +2,7 @@ import numpy as np
 import scipy.optimize as opt
 
 from kgeo.bfields import Bfield
+from kgeo.kerr_raytracing_utils import check_spin
 
 # simulation fit factors
 ELLISCO =1.; VRISCO = 2
@@ -180,8 +181,7 @@ class Velocity:
 def u_zamo(a, r):
     """velocity for zero angular momentum frame"""
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
     # Metric
@@ -213,8 +213,7 @@ def u_infall(a, r):
     """ velocity for geodesic equatorial infall from infinity"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
     Delta = r**2 + a**2 - 2*r
@@ -230,8 +229,7 @@ def u_infall(a, r):
 def u_kep(a, r, retrograde=False):
     """Cunningham velocity for material on keplerian orbits and infalling inside isco"""
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
     if retrograde:
@@ -285,8 +283,7 @@ def u_kep(a, r, retrograde=False):
 def u_subkep(a, r, fac_subkep=1, retrograde=False):
     """(sub) keplerian velocty and infalling inside isco"""
     # checks
-    if not (isinstance(a,float) and (0 <= np.abs(a) < 1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not (0 <= fac_subkep <= 1):
         raise Exception("fac_subkep should be in the range [0,1]")
     if not isinstance(r, np.ndarray):
@@ -363,8 +360,7 @@ def u_subkep(a, r, fac_subkep=1, retrograde=False):
 def u_gelles(a, r, beta=0.3, chi=-150*(np.pi/180.)):
     """velocity prescription from Gelles+2021, Eq A4"""
     # checks
-    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not isinstance(r, np.ndarray):
         r = np.array([r]).flatten()
 
@@ -396,8 +392,7 @@ def u_grmhd_fit(a, r, ell_isco=ELLISCO, vr_isco=VRISCO, p1=P1, p2=P2, dd=DD):
        might not work for all spins
     """
     # checks
-    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()
 
     # isco radius
@@ -443,8 +438,7 @@ def u_grmhd_fit(a, r, ell_isco=ELLISCO, vr_isco=VRISCO, p1=P1, p2=P2, dd=DD):
 def u_general(a, r, fac_subkep=1, beta_phi=1, beta_r=1, retrograde=False):
     """general velocity model from AART paper, keplerian by default"""
     # checks
-    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not (0 <= fac_subkep <= 1):
         raise Exception("fac_subkep should be in the range [0,1]")
     if not (0 <= beta_phi <= 1):
@@ -520,8 +514,7 @@ def u_driftframe(a,r, bfield=BFIELD_DEFAULT, nu_parallel=0, th=np.pi/2, gammamax
 
     # checks
     nu_parallel = nu_parallel*np.ones_like(r)  #make sure that nu_parallel is an appropriately sized
-    if not (isinstance(a,float) and (0 <= np.abs(a) < 1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if np.any(np.logical_or(nu_parallel > 1, nu_parallel < -1)):
         raise Exception("nu_parallel should be in the range (-1,1)")
     if not isinstance(r, np.ndarray): r = np.array([r]).flatten()

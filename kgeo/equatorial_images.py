@@ -10,7 +10,7 @@ import numpy as np
 from kgeo.bfields import Bfield
 from kgeo.emissivities import Emissivity
 from kgeo.equatorial_lensing import nmax_equatorial, nmax_poloidal, r_equatorial
-from kgeo.kerr_raytracing_utils import is_outside_crit
+from kgeo.kerr_raytracing_utils import check_inclination, check_spin, is_outside_crit, obs_trig
 from kgeo.velocities import Velocity
 
 bfield_default = Bfield('rad')
@@ -36,12 +36,10 @@ def make_image(a, r_o, th_o, mbar_max, alpha_min, alpha_max, beta_min, beta_max,
       and pixel size psize"""
 
     #checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_inclination(th_o)
     if not (isinstance(mbar_max,int) and (mbar_max>=0)):
         raise Exception("mbar_max should be an integer >=0!")
 
@@ -136,12 +134,10 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
        Nmax is the *maximum* number of equatorial crossings"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_inclination(th_o)
     if not (isinstance(mbar,int) and (mbar>=0)):
         raise Exception("mbar should be an integer >=0!")
 
@@ -154,8 +150,9 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
     rh = 1 + np.sqrt(1-a**2)
 
     # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # emission radius & Mino time
     r_s, Ir, Imax, Nmax = r_equatorial(a, r_o, th_o, mbar, alpha, beta)
@@ -270,10 +267,8 @@ def radial_momentum_sign(a, th_o, alpha, beta, Ir, Irmax):
     """Determine the sign of the radial component of the photon momentum"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_spin(a)
+    check_inclination(th_o)
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -295,8 +290,7 @@ def theta_momentum_sign(th_o, mbar):
        TODO: this works for equatorial crossings. do this based on mino time instead?"""
 
     # checks
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_inclination(th_o)
     if not (isinstance(mbar,int) and (mbar>=0)):
         raise Exception("mbar should be a integer >=0 ")
 
@@ -531,10 +525,8 @@ def calc_pathlength_equatorial(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3
 
 def calc_evpa(a, th_o, alpha, beta, kappa):
 
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_spin(a)
+    check_inclination(th_o)
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if not isinstance(kappa, np.ndarray): kappa = np.array([kappa]).flatten()

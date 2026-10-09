@@ -16,7 +16,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.special as sp
 
-from kgeo.kerr_raytracing_utils import EP, MINSPIN, Geodesics, angular_turning, mino_total, my_sign, radial_roots
+from kgeo.kerr_raytracing_utils import (
+    EP,
+    MINSPIN,
+    Geodesics,
+    angular_turning,
+    check_inclination,
+    check_spin,
+    mino_total,
+    my_sign,
+    obs_trig,
+    radial_roots,
+)
 
 SPIN = 0.94
 INC = 20*np.pi/180.
@@ -56,13 +67,11 @@ def raytrace_ana(a=SPIN,
     [alpha, beta] = image_coords
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if (a<0): print("WARNING a<0! Not fully verified!")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_inclination(th_o)
     if (th_o>np.pi/2.): print("WARNING th_o>pi/2! Not fully verified!")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
@@ -73,8 +82,9 @@ def raytrace_ana(a=SPIN,
     print('calculating preliminaries...')
 
     # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # spin zero should have no vortical geodesics
     if(np.abs(a)<MINSPIN and np.any(eta<0)):
@@ -130,13 +140,11 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
     [alpha, beta] = image_coords
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if (a<0): print("WARNING a<0! Not fully verified!")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_inclination(th_o)
     if (th_o>np.pi/2.): print("WARNING th_o>pi/2! Not fully verified!")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
@@ -149,8 +157,9 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
         raise Exception("tau has incompatible shape in coords_at_tau!")
 
     # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # spin zero should have no vortical geodesics
     if(np.abs(a)<MINSPIN and np.any(eta<0)):
@@ -194,10 +203,8 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
 
 def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
                  do_phi_and_t=True):
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
-    if not (isinstance(th_o,float) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    check_spin(a)
+    check_inclination(th_o)
     if not isinstance(s_o, np.ndarray): s_o = np.array([s_o]).flatten()
     if not isinstance(eta, np.ndarray): eta= np.array([eta]).flatten()
     if not isinstance(lam, np.ndarray): lam= np.array([lam]).flatten()
@@ -371,8 +378,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
     # Follow G19a, interchange source <--> observer labels and send tau -> -tau
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
     if not isinstance(lam, np.ndarray): lam  = np.array([lam]).flatten()

@@ -5,6 +5,8 @@ import scipy.special as sp
 from mpmath import polylog
 from scipy.interpolate import UnivariateSpline
 
+from kgeo.kerr_raytracing_utils import check_spin
+
 
 def f(r):
     """BZ monopole f(r) function"""
@@ -441,8 +443,7 @@ def Bfield_simple(a, r, coeffs):
     #|Bvert| falls of as 1/r
     #|Bph| falls of as 1/r
 
-    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
 
     # coefficients for each component
     (arad, avert, ator) = coeffs
@@ -467,8 +468,7 @@ def Bfield_simple_rm1(a, r, coeffs):
     #|Bvert| falls of as 1/r
     #|Bph| falls of as 1/r
 
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
 
     # coefficients for each component
     (arad, avert, ator) = coeffs
@@ -513,8 +513,7 @@ def Bfield_BZmagic(a, r, th, C=1):
     """Guess ratio for Bphi/Br from split monopole
        C is overall sign of monopole"""
 
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
 
     a2 = a**2
     r2 = r**2
@@ -554,8 +553,7 @@ def Bfield_BZmonopole(a, r, th, C=1, secondorder_only=False):
     """perturbative BZ monopole solution.
        C is overall sign of monopole"""
 
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
 
     a2 = a**2
     r2 = r**2
@@ -605,8 +603,7 @@ def Efield_BZmonopole(a, r, th, C=1):
        only up to 2nd order
        C is overall sign of monopole"""
 
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
 
 
     Eth = a*np.sin(th)*(-1./8. + 2./r**3)/(r**2 - 2*r)
@@ -643,8 +640,7 @@ def Bfield_BZpara(a, r, th, C=1, shift=0):
     """perturbative BZ paraboloid solution.
        C is overall sign"""
 
-    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
 
 #    th = np.pi/2. # TODO equatorial plane only
     a2 = a**2
@@ -691,8 +687,7 @@ def Bfield_BZpara(a, r, th, C=1, shift=0):
 def Bfield_power(a, r, th, p, C=1, usemono=False):
     """stream function of the form psi=r^p(1-costheta) with same Bphi as paraboloid (I should already match to leading order)"""
 
-    if not (isinstance(a, float) and (0 <= np.abs(a) < 1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
 
     a2 = a**2
     r2 = r**2

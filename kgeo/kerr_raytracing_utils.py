@@ -51,10 +51,10 @@ class Geodesics:
         return len(self.alpha)
     @property
     def lam(self):
-        return -self.alpha*np.sin(self.th_o)
+        return -self.alpha*obs_trig(self.th_o)[0]
     @property
     def eta(self):
-        return (self.alpha**2 - self.a**2)*np.cos(self.th_o)**2 + self.beta**2
+        return (self.alpha**2 - self.a**2)*obs_trig(self.th_o)[1]**2 + self.beta**2
     @property
     def n_poloidal(self): # fractional number of poloidal orbits
         n_poloidal = n_poloidal_orbits(self.a, self.th_o, self.alpha, self.beta, self.tausteps)
@@ -560,8 +560,9 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
     if not(tau.shape[1]==len(alpha)): #TODO
         raise Exception("tau has incompatible shape in n_poloidal_orbits!")
 
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # output array
     n_poloidal = np.empty(tau.shape)
@@ -615,8 +616,9 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
         raise Exception("tau has incompatible shape in n_poloidal_orbits!")
 
     # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # output array
     n_equatorial = np.empty(tau.shape)
@@ -695,8 +697,9 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         raise Exception("tau has incompatible shape in n_poloidal_orbits!")
 
     # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # output array
     n_turning = np.empty(tau.shape)
@@ -795,8 +798,9 @@ def is_outside_crit(a, th_o, alpha, beta):
     rh = 1 + np.sqrt(1-a**2)
 
     # conserved quantities
-    lam = -alpha*np.sin(th_o)
-    eta = (alpha**2 - a**2)*(np.cos(th_o))**2 + beta**2
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    lam = -alpha*sin_o
+    eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     outarr = np.empty(alpha.shape)
 
