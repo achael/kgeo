@@ -43,20 +43,17 @@ def _vieta_residual(a, lam, eta):
 def test_radial_roots_vieta(a, th_o):
     """r1..r4 are the roots of R(r): sum r_i = 0, sum r_i r_j = A, etc."""
     lam, eta = conserved(a, th_o, ALPHA, BETA)
-    # 1e-9, not machine precision: near the P = 0 curve the Cardano step loses
-    # up to ~7 digits (see test_radial_roots_resolvent_cancellation); tighten after B1
-    assert np.all(_vieta_residual(a, lam, eta) < 1e-9)
+    assert np.all(_vieta_residual(a, lam, eta) < 1e-13)
 
 
-@xfail_until("B1", "Cardano cancellation: omega_minus^3 = -Q/2 - sqrt(...) loses all digits "
-                   "when P ~ 0; use omega_plus*omega_minus = -P/3, preserving root ordering")
 @pytest.mark.parametrize("a, th_o, alpha, beta", [
     (0.94, 1.0, 0.72, -0.36),    # P ~ 1e-5, roots off by ~1e-6
     (0.5, 0.05, -1.24, -1.48),
     (0.5, 1.5, 0.3, -0.1),
 ])
 def test_radial_roots_resolvent_cancellation(a, th_o, alpha, beta):
-    """Screen points near the curve where the resolvent cubic's P vanishes."""
+    """Screen points near the curve where the resolvent cubic's P vanishes: before the
+    omegap*omegam = -P/3 recomputation in radial_roots, the roots here were off by ~1e-6."""
     lam, eta = conserved(a, th_o, np.array([alpha]), np.array([beta]))
     assert _vieta_residual(a, lam, eta)[0] < 1e-13
 

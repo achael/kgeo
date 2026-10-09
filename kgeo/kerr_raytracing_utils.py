@@ -335,21 +335,39 @@ def radial_roots(a, lam, eta):
     rplus  = 1 + np.sqrt(1-a**2)
     rminus = 1 - np.sqrt(1-a**2)
 
-    #GL 19a Eqn 95
+    # solving the depressed quartic with coeffs A,B,C
+    # GL 19a eq 78-81
     A = a**2 - eta - lam**2
     B = 2*(eta + (lam-a)**2) #>0
     C = -(a**2)*eta
+
+    # solving the depressed resolvent cubic with coeffs P,Q
+    # GL 19a eq 84-86
     P = -(A**2)/12. - C
     Q = (-A/3.)*((A**2)/36. - C) - (B**2)/8.
 
+    # Cardano solution for the cubic gives real root xi0 = omegap + omegam - A/3.
+    # GL 19a Eq 87, 90-91
     mDelta3 =  (4*(P**3) + 27*(Q**2)).astype(complex)
     omegap3 = -0.5*Q + np.sqrt(mDelta3/108.)
     omegam3 = -0.5*Q - np.sqrt(mDelta3/108.)
     omegap = my_cbrt(omegap3)
     omegam = my_cbrt(omegam3)
+
+    # When mDelta3 >= 0 omegap,omegam are both real and satisfy omegap*omegam=-P/3
+    # For P ~ 0 the smaller of omegap3, omegam3 is a difference of nearly equal numbers
+    # so we recompute the smaller root from the larger one
+    realmask = (np.real(mDelta3) >= 0)
+    pmask = realmask * (np.abs(omegap) >= np.abs(omegam)) * (omegap != 0)
+    mmask = realmask * (np.abs(omegap) < np.abs(omegam)) * (omegam != 0)
+    omegam[pmask] = -P[pmask]/(3*omegap[pmask])
+    omegap[mmask] = -P[mmask]/(3*omegam[mmask])
+
+    # GL 19a eq 87, 94. Always real and > 0
     xi0 = omegap + omegam - A/3.
     z = np.sqrt(0.5*xi0)
 
+    #GL 19a Eqn 95
     r1 = -z - np.sqrt((-0.5*A - z**2 + 0.25*B/z).astype(complex))
     r2 = -z + np.sqrt((-0.5*A - z**2 + 0.25*B/z).astype(complex))
     r3 =  z - np.sqrt((-0.5*A - z**2 - 0.25*B/z).astype(complex))
