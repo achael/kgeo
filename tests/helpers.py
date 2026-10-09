@@ -15,13 +15,14 @@ from geodesic_ode import conserved
 DATA_DIR = pathlib.Path(__file__).parent / "data"
 
 
-def xfail_until(step, reason):
+def xfail_until(step, reason, strict=True):
     """Mark a known edge-case failure that plan step `step` should fix.
 
-    strict=True: once the fix lands, the unexpected pass fails the suite,
-    so the marker must be removed rather than going stale.
+    strict=True (default): once the fix lands, the unexpected pass fails the suite,
+    so the marker must be removed rather than going stale. Use strict=False only
+    when some cases pass by roundoff luck before the real fix.
     """
-    return pytest.mark.xfail(strict=True, reason=f"[{step}] {reason}")
+    return pytest.mark.xfail(strict=strict, reason=f"[{step}] {reason}")
 
 
 def quiet():

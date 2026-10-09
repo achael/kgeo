@@ -29,7 +29,8 @@ def test_r_equatorial_lands_on_equator(a, th_o, mbar):
 
 
 @xfail_until("B4", "beta = 0: F0 = F(arcsin(cos th_o/sqrt(u_+)) ~ arcsin(1)) loses half the "
-                   "digits, crossings miss the equator by 1e-8..3e-7")
+                   "digits, crossings miss the equator by 1e-8..3e-7 "
+                   "(some cases pass by roundoff since B2)", strict=False)
 @pytest.mark.parametrize("a", [0.3, 0.94])
 @pytest.mark.parametrize("th_o", [0.3, 1.2])
 def test_r_equatorial_beta_zero_row(a, th_o):
@@ -216,7 +217,8 @@ def test_image_edge_on_limit(a):
     assert np.all(_intensity(a, np.pi/2, 0, SYM_ALPHA[row], SYM_BETA[row]) == 0)
 
 
-@xfail_until("B4", "beta = 0 row: turning-point arcsin precision, intensities off by 1e-7..2e-6")
+@xfail_until("B4", "beta = 0 row: turning-point arcsin precision, intensities off by 1e-7..2e-6 "
+                   "(some cases pass by roundoff since B2)", strict=False)
 @pytest.mark.parametrize("a", [0.5, 0.94])
 @pytest.mark.parametrize("mbar", [0, 1])
 def test_image_equatorial_reflection_beta_zero_row(a, mbar):

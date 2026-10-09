@@ -5,7 +5,18 @@ import scipy.special as sp
 
 # minimum spin for full formulas to work before taking limits.
 # changed to 1.e-4 to be conservative, 1.e-6 was giving issues on-axis
-MINSPIN = 1.e-4
+#MINSPIN = 1.e-4
+# theta integrals: with the cancellation-free u_plus, u_minus in uplus_uminus, the full
+# formulas hold down to a ~ 1e-8, below which the dropped O(a^2) terms are under roundoff
+MINSPIN_TH = 1.e-8
+
+# r integrals: below this spin the I_minus term in r_integrate is dropped (its contribution
+# is O(a^2)): its case-3 representation degenerates as r_minus -> r_2 (both -> 0 as a -> 0,
+# r_2 ~ u_plus r_minus); computed accurately down to a ~ 1e-6, NaN by a ~ 1e-7
+MINSPIN_R = 1.e-6
+
+# kept for off_equatorial_lensing.py, which imports MINSPIN for its small-spin eta clamp
+MINSPIN = MINSPIN_TH
 
 # small number
 EP = 1.e-12
@@ -281,14 +292,28 @@ def uplus_uminus(a,th_o,lam,eta):
     if len(lam) != len(eta):
         raise Exception("lam, eta are different lengths!")
 
-    if(np.abs(a)<MINSPIN):  # spin 0 limit
+    if(np.abs(a)<MINSPIN_TH):  # spin 0 limit
         u_plus = eta / (eta + lam*lam)
         u_minus = u_plus
     else:
-        #GL 19b Eqn 11
-        Delta_theta = 0.5*(1 - (eta + lam*lam)/(a*a))
-        u_plus = Delta_theta + np.sqrt(Delta_theta**2 + eta/(a*a))
-        u_minus = Delta_theta - np.sqrt(Delta_theta**2 + eta/(a*a))
+        #GL 19a Eqn 19
+        #Delta_theta = 0.5*(1 - (eta + lam*lam)/(a*a))
+        #u_plus = Delta_theta + np.sqrt(Delta_theta**2 + eta/(a*a))
+        #u_minus = Delta_theta - np.sqrt(Delta_theta**2 + eta/(a*a))
+
+        # roots of a^2 u^2 - (a^2 - eta - lam^2) u - eta = 0, without cancellation:
+        # (the direct form loses digits like eps/a^2 as a -> 0, and eps/|eta| as eta -> 0)
+        # first compute the larger-magnitude root directly,
+        # then compute the other from u_plus*u_minus = -eta/a^2
+        Atheta = a*a - eta - lam*lam #Delta_theta*2*a^2
+        Dtheta = np.sqrt(Atheta**2 + 4*a*a*eta)
+        posmask = Atheta >= 0
+        u_plus = np.empty(eta.shape)
+        u_minus = np.empty(eta.shape)
+        u_plus[posmask] = (Atheta + Dtheta)[posmask]/(2*a*a)
+        u_minus[posmask] = -2*eta[posmask]/(Atheta + Dtheta)[posmask]
+        u_minus[~posmask] = (Atheta - Dtheta)[~posmask]/(2*a*a)
+        u_plus[~posmask] = -2*eta[~posmask]/(Atheta - Dtheta)[~posmask]
 
     # ensure th_o is inside the turning points [th_1,th_4] exactly
     mask = (np.cos(th_o)**2 - u_plus) > 0
@@ -312,7 +337,7 @@ def uplus_uminus(a,th_o,lam,eta):
     u_minus[mask] = np.cos(th_o)**2
 
     # compute ratio
-    if(np.abs(a)<MINSPIN):
+    if(np.abs(a)<MINSPIN_TH):
         uratio = 0. * u_minus
         a2u_minus = -(eta+lam**2)
     else:

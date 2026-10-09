@@ -64,7 +64,8 @@ def test_n_angular_turnings_beta_zero(a, th_o, alpha):
     np.testing.assert_array_equal(np.floor(n)[clear], counted[clear])
 
 
-@xfail_until("B4", "beta = 0: arcsin(1 - O(eps)) in F0 loses half the digits, n(0) ~ 1e-8")
+@xfail_until("B4", "beta = 0: arcsin(1 - O(eps)) in F0 loses half the digits, n(0) ~ 1e-8 "
+                   "(some cases pass by roundoff since B2)", strict=False)
 @pytest.mark.parametrize("a, th_o, alpha", [
     (0.5, 1.0, 4.0), (0.5, np.pi - 1.0, 4.0), (0.94, 0.3, 0.6), (0.94, np.pi - 0.3, 0.6),
 ])

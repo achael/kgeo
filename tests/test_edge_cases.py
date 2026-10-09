@@ -36,7 +36,7 @@ def _assert_matches_ode(a, th_o, alpha, beta, ngeo=40, angle_tol=1e-10, rtol=1e-
 
 
 @xfail_until("B4", "arcsin(cos th_o/sqrt(u_+)) at argument 1 - O(eps) loses half the digits "
-                   "(theta, phi errors 1e-9 to 1e-7)")
+                   "(theta, phi errors 1e-9 to 1e-7; some cases pass by roundoff since B2)", strict=False)
 @pytest.mark.parametrize("a, th_o, alpha", [
     (0.0, 1.2, 5.0),
     (0.3, 1.2, 5.0),
@@ -72,8 +72,8 @@ def test_eta_zero(a, th_o, alpha, beta, angle_tol):
     _assert_matches_ode(a, th_o, alpha, beta, angle_tol=angle_tol)
 
 
-@xfail_until("B2/B3", "u_minus = Delta - sqrt(Delta^2 + eta/a^2) cancels: error ~ eps/|eta| "
-                      "(1e-7 at |eta| = 1e-9, up to 2 rad at 1e-12)")
+@xfail_until("B3", "k = u_+/u_- -> -inf, m = k/(k-1) -> 1 and 1-m loses digits: error ~ eps/|eta| "
+                   "(1e-7 at |eta| = 1e-9, up to 2 rad at 1e-12)")
 @pytest.mark.parametrize("deta", [1e-9, 1e-12, -1e-12, -1e-9])
 @pytest.mark.parametrize("a, th_o, alpha", [(0.5, 0.3, 0.2), (0.94, 2.2, 0.3)])
 def test_eta_near_zero(a, th_o, alpha, deta):
@@ -82,7 +82,7 @@ def test_eta_near_zero(a, th_o, alpha, deta):
     _assert_matches_ode(a, th_o, alpha, beta)
 
 
-@xfail_until("B2/B3", "u_minus cancellation near eta = 0 (phi errors up to 2 rad at |eta| = 1e-12)")
+@xfail_until("B3", "m = k/(k-1) -> 1 near eta = 0 loses digits (phi errors up to 2 rad at |eta| = 1e-12)")
 @pytest.mark.parametrize("deta", [1e-12, -1e-12])
 @pytest.mark.parametrize("a, th_o, sign", [(0.5, 0.3, 1), (0.94, 1.2, 1), (0.94, 2.2, -1)])
 def test_eta_near_zero_beta_zero(a, th_o, sign, deta):

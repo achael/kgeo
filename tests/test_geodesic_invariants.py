@@ -75,6 +75,22 @@ def test_spin_flip(a, th_o):
     np.testing.assert_allclose(neg['sig'][ok], pos['sig'][ok], rtol=1e-9, atol=T_ATOL)
 
 
+@pytest.mark.parametrize("a", [1e-9, 1e-7, 0.99e-6, 1.01e-6, 1e-5, 0.99e-4, 1.01e-4, 1e-3])
+def test_small_spin_matches_ode_oracle(a):
+    """No accuracy valley at small spin: before the cancellation-free u_+- (B2), the full
+    theta formulas lost digits like eps/a^2 just above the old MINSPIN = 1e-4 (phi off by
+    2e-6 at a = 1.01e-4), and the a = 0 limit branch below it dropped O(a^2) terms."""
+    for th_o in [0.3, 1.2, 2.2]:
+        geo = trace(a, th_o, ALPHA[:4], BETA[:4], ngeo=40, r_o=R_O)
+        for i in range(4):
+            ode = integrate_geodesic(a, R_O, th_o, ALPHA[i], BETA[i], geo['tau'][:, i])
+            ok = geo['r'][:, i] > 1 + np.sqrt(1 - a**2) + 0.2
+            msg = f"th_o = {th_o}, ray ({ALPHA[i]}, {BETA[i]})"
+            np.testing.assert_allclose(geo['r'][ok, i], ode['r'][ok], rtol=1e-10, err_msg=msg)
+            np.testing.assert_allclose(geo['th'][ok, i], ode['th'][ok], rtol=0, atol=1e-10, err_msg=msg)
+            np.testing.assert_allclose(geo['ph'][ok, i], ode['ph'][ok], rtol=0, atol=1e-10, err_msg=msg)
+
+
 @pytest.mark.parametrize("th_o", [0.3, 1.2, 1.5, 2.2])
 def test_schwarzschild_orbital_plane(th_o):
     """a = 0: the angular momentum vector is conserved, so each geodesic lies in

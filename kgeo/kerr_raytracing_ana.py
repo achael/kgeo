@@ -18,7 +18,8 @@ import scipy.special as sp
 
 from kgeo.kerr_raytracing_utils import (
     EP,
-    MINSPIN,
+    MINSPIN_R,
+    MINSPIN_TH,
     Geodesics,
     angular_turning,
     check_inclination,
@@ -87,9 +88,9 @@ def raytrace_ana(a=SPIN,
     eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # spin zero should have no vortical geodesics
-    if(np.abs(a)<MINSPIN and np.any(eta<0)):
+    if(np.abs(a)<MINSPIN_TH and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
-        print(f"WARNING: there were eta<0 points for spin {a:f}<MINSPIN!")
+        print(f"WARNING: there were eta<0 points for spin {a:f}<MINSPIN_TH!")
 
     # radial roots and radial motion case
     (r1, r2, r3, r4, rclass) = radial_roots(a, lam, eta)
@@ -162,9 +163,9 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
     eta = (alpha**2 - a**2)*cos_o**2 + beta**2
 
     # spin zero should have no vortical geodesics
-    if(np.abs(a)<MINSPIN and np.any(eta<0)):
+    if(np.abs(a)<MINSPIN_TH and np.any(eta<0)):
         eta[eta<0]=EP # TODO ok?
-        print(f"WARNING: there were eta<0 points for spin {a:f}<MINSPIN!")
+        print(f"WARNING: there were eta<0 points for spin {a:f}<MINSPIN_TH!")
 
     # sign of final angular momentum
     s_o = my_sign(beta)
@@ -228,7 +229,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         s = s_o[mask]
 
         # compute factors up/um and a**2 * um (in zero spin limit)
-        if(np.abs(a)<MINSPIN):
+        if(np.abs(a)<MINSPIN_TH):
             uratio = np.zeros(eta.shape)[mask]
             a2um = -(eta+lam**2)[mask]
         else:
@@ -305,8 +306,8 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
     # vortical motion case
     # most eta=0 exact points are a limit of vortical motion
     if(np.any(eta<=0.)):
-        if(np.abs(a)<MINSPIN):
-            raise Exception("below MINSPIN but there are eta<0 points in th_integrate!")
+        if(np.abs(a)<MINSPIN_TH):
+            raise Exception("below MINSPIN_TH but there are eta<0 points in th_integrate!")
 
         mask = eta<0.
         up = u_plus[mask]
@@ -532,7 +533,8 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
             R1_b_0, R2_b_0 = R1_R2(al0,auxarg,k3)
             R1_a_p, _ = R1_R2(alp,amX3,k3,ret_r2=False)
             R1_b_p, _ = R1_R2(alp,auxarg,k3,ret_r2=False)
-            if np.abs(a)>MINSPIN:
+            #if np.abs(a)>MINSPIN:
+            if np.abs(a)>MINSPIN_R: # I_minus term is O(a^2); its R1 degenerates as r_minus -> r2
                 R1_a_m, _ = R1_R2(alm,amX3,k3,ret_r2=False)
                 R1_b_m, _ = R1_R2(alm,auxarg,k3,ret_r2=False)
             else:
