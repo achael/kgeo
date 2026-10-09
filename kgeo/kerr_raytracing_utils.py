@@ -241,10 +241,8 @@ def angular_turning(a, th_o, lam, eta):
     """Calculate angular turning theta_pm points for a geodisic with conserved (lam,eta)"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
-    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-    #    raise Exception("th_o should be float in range (0,pi/2)")
+    check_spin(a)
+    check_inclination(th_o)
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if len(lam) != len(eta):
@@ -276,10 +274,8 @@ def uplus_uminus(a,th_o,lam,eta):
        including in spin->0 limit"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
-    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-    #    raise Exception("th_o should be a float in range (0,pi/2)")
+    check_spin(a)
+    check_inclination(th_o)
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if len(lam) != len(eta):
@@ -329,8 +325,7 @@ def radial_roots(a, lam, eta):
     """Calculate radial roots r1,r2,r3,r4, for a geodisic with conserved (lam,eta)"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not isinstance(lam, np.ndarray): lam = np.array([lam]).flatten()
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
     if len(lam) != len(eta):
@@ -382,8 +377,7 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
 
     # checks
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float >= 100")
     if not isinstance(eta, np.ndarray): eta = np.array([eta]).flatten()
@@ -550,10 +544,8 @@ def n_poloidal_orbits(a, th_o, alpha, beta, tau):
     """the number of poloidal orbits as a function of Mino time tau (GL 19b Eq 35)
        only applies for normal geodesics eta>0"""
 
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
-    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-    #    raise Exception("th_o should be a float in range (0,pi/2)")
+    check_spin(a)
+    check_inclination(th_o)
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
@@ -605,10 +597,8 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
         equation only applies for normal geodesics eta>0"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
-    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-    #    raise Exception("th_o should be a float in range (0,pi/2]")
+    check_spin(a)
+    check_inclination(th_o)
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -686,8 +676,7 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
     #TODO -- go back and review this, particularly for the vortical geodesics
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
+    check_spin(a)
     if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
         raise Exception("th_o should be a float in range (0,pi/2]")
 
@@ -793,10 +782,10 @@ def is_outside_crit(a, th_o, alpha, beta):
     """is the point alpha, beta outside the critical curve?"""
 
     # checks
-    if not (isinstance(a,float) and (0<=np.abs(a)<1)):
-        raise Exception("|a| should be a float in range [0,1)")
-    #if not (isinstance(th_o,float) and (0<=th_o<=np.pi/2.)):
-    #    raise Exception("th_o should be a float in range (0,pi/2)")
+    check_spin(a)
+    # TODO: re-enable once check_inclination accepts th_o in [0,pi] (B5/B6);
+    # until then it would reject th_o = pi/2, where this function already works
+    #check_inclination(th_o)
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
@@ -860,6 +849,31 @@ def my_sign(x):
     #out[x>0] = 1
     out[x<0] = -1
     return out
+
+def _is_real_scalar(x):
+    # python or numpy int/float, but not bool
+    return isinstance(x, (int, float, np.integer, np.floating)) and not isinstance(x, bool)
+
+def check_spin(a):
+    """raise an exception unless the spin a is a real scalar with |a| < 1"""
+    if not (_is_real_scalar(a) and (0<=np.abs(a)<1)):
+        raise Exception("|a| should be a float in range [0,1)")
+
+def check_inclination(th_o):
+    """raise an exception unless th_o is a real scalar in (0,pi/2) or (pi/2,pi)"""
+    if not (_is_real_scalar(th_o) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
+        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+
+def obs_trig(th_o):
+    """sin(th_o), cos(th_o), exact at th_o = 0, pi/2, pi
+       (np.sin(np.pi) = 1.2e-16 and np.cos(np.pi/2) = 6.1e-17)"""
+    if th_o == 0:
+        return (0., 1.)
+    elif th_o == 0.5*np.pi:
+        return (1., 0.)
+    elif th_o == np.pi:
+        return (0., -1.)
+    return (np.sin(th_o), np.cos(th_o))
 
 
 
