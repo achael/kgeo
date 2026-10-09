@@ -913,11 +913,8 @@ def my_cbrt(x):
     return proot
 
 def my_sign(x):
-    # TODO are these signs right?
     out = np.zeros(x.shape)
-    #out[x==0] = 0
     out[x>=0] = 1
-    #out[x>0] = 1
     out[x<0] = -1
     return out
 

@@ -2,7 +2,7 @@ import numpy as np
 import scipy.optimize as opt
 
 from kgeo.bfields import Bfield
-from kgeo.kerr_raytracing_utils import check_spin
+from kgeo.kerr_raytracing_utils import check_spin, my_sign
 
 # simulation fit factors
 ELLISCO =1.; VRISCO = 2
@@ -249,7 +249,8 @@ def u_kep(a, r, retrograde=False):
 
     iscomask = (r >= ri)
     spin = np.abs(a)
-    asign = np.sign(a)
+    #asign = np.sign(a)
+    asign = my_sign(np.array(a)) # np.sign(0)=0 stopped the disk rotating
     # outside isco
     if np.any(iscomask):
         rr = r[iscomask]
@@ -306,7 +307,8 @@ def u_subkep(a, r, fac_subkep=1, retrograde=False):
 
     iscomask = (r >= ri)
     spin = np.abs(a)
-    asign = np.sign(a)
+    #asign = np.sign(a)
+    asign = my_sign(np.array(a)) # np.sign(0)=0 stopped the disk rotating
     # outside isco)
     if np.any(iscomask):
         rr = r[iscomask]
@@ -864,7 +866,8 @@ def r0min_power(psi, Omegaf, spin, p, M, usemono=False):
 
 #returns location of outer event horizon
 def rplusfunc(spin, M):
-    if M==0 or spin == 0:
+    #if M==0 or spin == 0:
+    if M==0: # flat space; spin == 0 gave r_+ = 0 instead of 2M (cf. Bfield_BZpara)
         return 0
     return M+np.sqrt(M**2-spin**2)
 

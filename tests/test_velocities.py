@@ -109,8 +109,6 @@ def test_velocity_general():
 
 # analytic models with default kwargs (as in test_velocity_usq)
 _MODELS = ['zamo', 'infall', 'kep', 'cunningham', 'subkep', 'cunningham_subkep', 'general', 'gelles']
-_ASIGN = "asign = np.sign(a) = 0 at a = 0"
-
 
 def _ucon(veltype, a, r):
     return np.array(Velocity(veltype).u_lab(a, np.array(r)), dtype=float)
@@ -121,25 +119,18 @@ def _usq(veltype, a, r):
     return u @ _gcov_bl(a, r) @ u
 
 
-@pytest.mark.parametrize("veltype", [
-    pytest.param(m, marks=xfail_until("B2", _ASIGN + ": u^phi = 0 but u^t Keplerian"))
-    if m in ('kep', 'cunningham') else m
-    for m in _MODELS
-])
+@pytest.mark.parametrize("veltype", _MODELS)
 def test_velocity_normalized_schwarzschild(veltype):
     """a = 0 (outside r_+ = 2, incl. inside the ISCO at r = 6): u.u = -1."""
     for r in np.linspace(2.1, 15., 30):
         assert np.isclose(_usq(veltype, 0.0, r), -1., rtol=1e-10), f"r = {r}"
 
 
-@pytest.mark.parametrize("veltype", [
-    pytest.param(m, marks=xfail_until("B2", _ASIGN + ": disk stops rotating at exactly a = 0"))
-    if m in ('kep', 'cunningham', 'subkep', 'cunningham_subkep', 'general') else m
-    for m in _MODELS
-])
+@pytest.mark.parametrize("veltype", _MODELS)
 def test_velocity_continuous_at_zero_spin(veltype):
     """Nothing is singular at a = 0, so u^mu(a = 0) = u^mu(a = 1e-8) to O(1e-8).
-    Catches models that stay normalized but silently stop rotating at a = 0."""
+    Catches models that stay normalized but silently stop rotating at a = 0
+    (kep, cunningham, subkep, cunningham_subkep, general did, via np.sign(0) = 0)."""
     for r in np.linspace(2.1, 15., 30):
         np.testing.assert_allclose(_ucon(veltype, 0.0, r), _ucon(veltype, 1e-8, r),
                                    rtol=1e-6, atol=1e-6, err_msg=f"r = {r}")
@@ -154,10 +145,7 @@ def test_velocity_normalized_extremal(veltype):
         assert np.isclose(_usq(veltype, 1.0, r), -1., rtol=1e-10), f"r = {r}"
 
 
-@pytest.mark.parametrize("spin, M", [
-    pytest.param(0.0, 1.0, marks=xfail_until("B2", "rplusfunc returns 0 when spin == 0")),
-    (0.5, 1.0), (1.0, 1.0), (1.0, 2.0),
-])
+@pytest.mark.parametrize("spin, M", [(0.0, 1.0), (0.5, 1.0), (1.0, 1.0), (1.0, 2.0)])
 def test_rplusfunc_horizon(spin, M):
     """Outer horizon r_+ = M + sqrt(M^2 - a^2) (used by the BZ paraboloid helpers)."""
     assert np.isclose(rplusfunc(spin, M), M + np.sqrt(M**2 - spin**2), rtol=1e-15)
