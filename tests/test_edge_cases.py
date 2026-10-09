@@ -55,14 +55,15 @@ _A_VB, _TH_VB, _ALPHA_VB = 0.5, 0.3, 0.2
 _BETA_VB = np.sqrt(_A_VB**2 - _ALPHA_VB**2)*np.cos(_TH_VB)
 
 
-@xfail_until("B3", "eta = 0: u_minus bumped to -EP, theta off by 0.3-1.2 rad, phi by 0.5-0.8 rad")
 @pytest.mark.parametrize("a, th_o, alpha, beta, angle_tol", [
     # alpha = +-a, beta = 0. 1e-6 tolerance: these also carry the beta = 0 error (B4)
     (0.5, 0.3, 0.5, 0.0, 1e-6),
     (0.5, 0.3, -0.5, 0.0, 1e-6),
     (0.94, 1.2, 0.94, 0.0, 1e-6),
-    # on the boundary of the vortical region, beta != 0
+    # on the boundary of the vortical region, beta != 0; both signs of beta, and the southern reflection
     (_A_VB, _TH_VB, _ALPHA_VB, _BETA_VB, 1e-10),
+    (_A_VB, _TH_VB, _ALPHA_VB, -_BETA_VB, 1e-10),
+    (_A_VB, np.pi - _TH_VB, _ALPHA_VB, -_BETA_VB, 1e-10),
 ])
 def test_eta_zero(a, th_o, alpha, beta, angle_tol):
     """eta = 0: u_- = 0 is a double root of the theta potential and the ray

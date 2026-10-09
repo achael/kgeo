@@ -224,7 +224,8 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
 
     # ordinary motion:
     if(np.any(eta>0.)):
-        mask = eta>=0.
+        #mask = eta>=0.
+        mask = eta>0. # eta = 0 handled separately below
         up = u_plus[mask]
         um = u_minus[mask]
         s = s_o[mask]
@@ -313,6 +314,35 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
 
             Gtout =  Gtout - s*Gt_o
             G_t[:,mask] = Gtout
+
+    # eta = 0, a != 0 (GL19a 24): u_minus = 0 is a double root of GL19a 18, (1-u)Theta = a^2 u (u_plus - u),
+    # so (dcos(th)/dtau)^2 = a^2 cos^2(th) (u_plus - cos^2(th)) is solved by elementary functions:
+    # cos(th) = h*sqrt(u_plus)*sech(psi), psi = psi_o + |a| sqrt(u_plus) tau; the ray asymptotes to the equator
+    # TODO a = 0 (radial ray, B3.3) and lam = 0 (B4)
+    if(np.any(eta==0.)):
+        mask = eta==0.
+        up = u_plus[mask]
+        s = s_o[mask]
+        lamabs = np.abs(lam[mask])
+
+        if th_o <= np.pi/2: h = 1. # sign(cos(th)) GL19a 54, hemisphere
+        else: h = -1
+
+        # sign of psi_o so that dcos(th)/dtau has sign s at tau=0, as in GL19a 49
+        psi_o = -h*s*np.arcsinh(np.sqrt(up - np.cos(th_o)**2)/np.abs(np.cos(th_o)))
+        psi = psi_o + np.sqrt(a**2*up)*tausteps[:,mask]
+
+        # solution for theta_o, solves GL19a 25
+        th_s[:,mask] = (np.arccos(h*np.sqrt(up)/np.cosh(psi))).astype(float)
+
+        if do_phi_and_t:
+            # GL19a 26, 27, with signs flipped since kgeo's tau runs backward from the observer
+            # G_phi = -int dtau/sin^2(th), with sqrt(u_plus/(1-u_plus)) = |a| sqrt(u_plus)/|lam| since 1-u_plus = lam^2/a^2
+            c = np.sqrt(a**2*up)/lamabs
+            G_ph[:,mask] = (-tausteps[:,mask] - (np.arctan(c*np.tanh(psi)) - np.arctan(c*np.tanh(psi_o)))/lamabs).astype(float)
+
+            # G_t = -int cos^2(th) dtau
+            G_t[:,mask] = (-np.sqrt(up/a**2)*(np.tanh(psi) - np.tanh(psi_o))).astype(float)
 
     # vortical motion case
     # most eta=0 exact points are a limit of vortical motion
