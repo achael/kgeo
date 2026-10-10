@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import scipy.special as sp
 
+from kgeo.kerr_raytracing_ana import R1_diff
 from kgeo.scipy_ellip_binding import ellip_pi, ellip_pi_arr, ellip_pi_scaled, ellipj_m1
 
 # |phi| > pi/2 and > pi exercise the periodicity reductions; tiny phi the phi->0 limit
@@ -16,6 +17,7 @@ PI_RTOL = 1e-12            # ellip_pi_arr vs mpmath                             
 PI_SCALAR_RTOL = 1e-14     # ellip_pi (scalar) vs ellip_pi_arr                            [0]
 PI_SPECIAL_RTOL = 1e-13    # Pi(0; phi|m) = F(phi|m), Pi(0; phi|0) = phi                  [4e-16]
 PI_SCALED_ATOL = 1e-12     # ellip_pi_scaled = C Pi(n; phi|m) vs mpmath, |phi| <= 20      [1.4e-13]
+R1_DIFF_TOL = 1e-13        # R1_diff vs quadrature, relative to max(|R1 diff|, 1)          [6e-15]
 ELLIPJ_ATOL = 1e-13        # ellipj_m1 vs scipy away from m = 1                           [5e-14]
 ELLIPJ_M1_TOL = 1e-13      # ellipj_m1 vs mpmath near m = 1: sn, dn relative; cn, am abs  [8e-15]
 GUDERMANNIAN_ATOL = 1e-14  # m = 1: am = arctan(sinh u)                                   [2e-16]
@@ -86,6 +88,25 @@ def test_ellip_pi_scaled_matches_mpmath(one_minus_n):
                     for s, Ci, ni, p, mi in zip(sgn, C, n, phi, m)]
     c = sgn*np.array([float(Ci) for Ci in C])
     np.testing.assert_allclose(ellip_pi_scaled(c, m/n, phi, m), expected, rtol=0, atol=PI_SCALED_ATOL)
+
+
+@pytest.mark.parametrize("al", [-1.5, -1 - 1e-8, -1 - 1e-13, -1., -1 + 1e-13, -1 + 1e-8, -0.5,
+                                0.5, 1 - 1e-10, 1 + 1e-10, 1.5, -40., 40.])
+def test_R1_diff_matches_quadrature(al):
+    """R1(al; phi_a|j) - R1(al; phi_b|j) = int_{phi_b}^{phi_a} dt/((1 + al cos t) sqrt(1 - j sin^2 t)) (GL19a B61),
+    through al = -1 (where each R1 diverges, and B62 cancels) and al^2 < 1 (where B62 is NaN), endpoints on one
+    side of the pole cos t = -1/al; 2-D phi_a with 1-D phi_b, al, j as in r_integrate."""
+    rng = np.random.default_rng(int(1e3*abs(al)) % 2**32)
+    j = rng.uniform(0.05, 0.95, 3)
+    lo = np.arccos(1/abs(al)) + 0.05 if al < -1 else 0.05
+    hi = np.pi - np.arccos(1/al) - 0.05 if al > 1 else np.pi - 0.05
+    phi_b = rng.uniform(lo, hi, 3)
+    phi_a = rng.uniform(lo, hi, (4, 3))
+    with mp.workdps(30):
+        expected = np.array([[float(mp.quad(lambda t: 1/((1 + al*mp.cos(t))*mp.sqrt(1 - j[k]*mp.sin(t)**2)),
+                                            [phi_b[k], phi_a[i, k]])) for k in range(3)] for i in range(4)])
+    out = R1_diff(np.full(3, al), phi_a, phi_b, j)
+    np.testing.assert_allclose((out - expected)/np.maximum(np.abs(expected), 1), 0, rtol=0, atol=R1_DIFF_TOL)
 
 
 def test_ellip_pi_scaled_c_zero():

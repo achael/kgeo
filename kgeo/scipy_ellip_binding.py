@@ -123,13 +123,13 @@ def ellip_pi_arr(n,phi,m):
     donemask = np.zeros(phi.shape).astype(bool)
 
     # limit as phi->0
-    mask1 = np.abs(phi)<=1.e-10
+    mask1 = np.abs(phi)<=1.e-10 #TODO what value cutoff?
     if np.any(mask1):
         outarr[mask1] = phi[mask1]
     donemask += mask1
 
     # limit as m->-infinity
-    mask2 = (m<-1.e14) * ~donemask
+    mask2 = (m<-1.e14) * ~donemask #TODO what value cutoff?
     if np.any(mask2):
         outarr[mask2] = 0.
     donemask += mask2
@@ -157,7 +157,7 @@ def ellip_pi_arr(n,phi,m):
     mask6 = (rho==0) * ~donemask
     if np.any(mask6):
         #outarr[mask6] = np.inf
-        outarr[mask6] = np.sign(phi[mask6])*np.inf
+        outarr[mask6] = np.sign(phi[mask6])*np.inf # Pi is odd in phi
     donemask += mask6
 
     # limit as n->+-infinity

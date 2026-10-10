@@ -636,20 +636,25 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
             # # building blocks of the path integrals
             R1_a_0, R2_a_0 = R1_R2(al0,amX3,k3)
             R1_b_0, R2_b_0 = R1_R2(al0,auxarg,k3)
-            R1_a_p, _ = R1_R2(alp,amX3,k3,ret_r2=False)
-            R1_b_p, _ = R1_R2(alp,auxarg,k3,ret_r2=False)
-            #if np.abs(a)>MINSPIN:
-            if np.abs(a)>MINSPIN_R: # I_minus term is O(a^2); its R1 degenerates as r_minus -> r2
-                R1_a_m, _ = R1_R2(alm,amX3,k3,ret_r2=False)
-                R1_b_m, _ = R1_R2(alm,auxarg,k3,ret_r2=False)
-            else:
-                R1_a_m = np.zeros(R1_a_p.shape)
-                R1_b_m = np.zeros(R1_a_p.shape)
+            #R1_a_p, _ = R1_R2(alp,amX3,k3,ret_r2=False)
+            #R1_b_p, _ = R1_R2(alp,auxarg,k3,ret_r2=False)
+            #if np.abs(a)>MINSPIN_R: # I_minus term is O(a^2); its R1 degenerates as r_minus -> r2
+            #    R1_a_m, _ = R1_R2(alm,amX3,k3,ret_r2=False)
+            #    R1_b_m, _ = R1_R2(alm,auxarg,k3,ret_r2=False)
+            #else:
+            #    R1_a_m = np.zeros(R1_a_p.shape)
+            #    R1_b_m = np.zeros(R1_a_p.shape)
+            # B82 with s = nu_r = 1 is a difference of R1s, stable as alm -> -1 (r2 -> r_minus).
+            # No a = 0 guard needed: there r_minus = r2 = 0, so alm = -1, which R1_diff handles
+            R1_d_p = R1_diff(alp,amX3,auxarg,k3)
+            R1_d_m = R1_diff(alm,amX3,auxarg,k3)
 
             Pi_1 = ((2*rr21*np.sqrt(AA*BB))/(BB**2-AA**2)) * (R1_a_0 - s*R1_b_0) # B81
             Pi_2 = ((2*rr21*np.sqrt(AA*BB))/(BB**2-AA**2))**2 * (R2_a_0 - s*R2_b_0) # B81
-            Pi_p = ((2*rr21*np.sqrt(AA*BB))/(BB*rrp2 - AA*rrp1))*(R1_a_p - s*R1_b_p) # B82
-            Pi_m = ((2*rr21*np.sqrt(AA*BB))/(BB*rrm2 - AA*rrm1))*(R1_a_m - s*R1_b_m) # B82
+            #Pi_p = ((2*rr21*np.sqrt(AA*BB))/(BB*rrp2 - AA*rrp1))*(R1_a_p - s*R1_b_p) # B82
+            #Pi_m = ((2*rr21*np.sqrt(AA*BB))/(BB*rrm2 - AA*rrm1))*(R1_a_m - s*R1_b_m) # B82
+            Pi_p = ((2*rr21*np.sqrt(AA*BB))/(BB*rrp2 - AA*rrp1))*R1_d_p # B82
+            Pi_m = ((2*rr21*np.sqrt(AA*BB))/(BB*rrm2 - AA*rrm1))*R1_d_m # B82
 
             # final integrals
             pref = ((BB*rr2 + AA*rr1)/(BB+AA))
@@ -817,3 +822,45 @@ def R1_R2(al,phi,j,ret_r2=True): #B62 and B65 of GL19a
         R2=np.nan
 
     return (R1,R2)
+
+# TODO added by Claude --> rederive
+def R1_diff(al,phi_a,phi_b,j):
+    """R1(al; phi_a|j) - R1(al; phi_b|j), where R1 is the integral in GL19a B61, for 0 < phi_a, phi_b < pi.
+
+       Near al = -1 each R1 diverges like 1/sqrt(1 + al), but only by a constant that does not depend
+       on phi, so it cancels in the difference that B82 needs.
+
+       For al < 0, splitting 1/(1 + al cos t) as in B62, applying DLMF 19.7.8 to its Pi,
+       and writing F - Pi in Carlson form (DLMF 19.25.14) gives
+         R1(al; phi|j) = const(al) + (j/(3 al^2)) sin^3(phi) R_J(cos^2 phi, Delta^2, 1, 1 + j (1 - al^2) sin^2(phi)/al^2)
+                         - (|al|/D0) [T(W, |al| Delta cot(phi)) + T(W, Delta/sin(phi))],
+       with Delta^2 = 1 - j sin^2(phi), D0 = j + (1-j) al^2, W = (1 - al^2)/D0,
+       and T(W, z) = arctan(sqrt(W) z)/sqrt(W), which is smooth in W (= z at W = 0, an artanh for W < 0).
+       For al > 0, t -> pi - t gives R1(al; phi) = const - R1(-al; pi - phi)."""
+
+    def T(W, z): # = z at W = 0
+        y = np.sqrt(np.abs(W))*z
+        ys = np.where(y==0, 1., y)
+        ay = np.abs(ys)
+        atanc = np.arctan(ys)/ys
+        atanhc = np.where(ay<1, np.arctanh(np.where(ay<1, ys, 0.)), np.arctanh(np.where(ay>1, 1./ys, 0.)))/ys # principal value
+        return z*np.where(y==0, 1., np.where(W>=0, atanc, atanhc))
+
+    b = np.abs(al)
+    D0 = j + (1-j)*b**2
+    W = (1-b**2)/D0
+    nu = -j*(1-b**2)/b**2
+
+    def R1_reg(phi): # R1(-b; phi|j) without its constant
+        def h(ph): # (F(ph|j) - Pi(nu; ph|j))/(1-b^2) in Carlson form, 0 <= ph <= pi/2
+            s, c = np.sin(ph), np.cos(ph)
+            return (j/(3*b**2))*s**3*sp.elliprj(c*c, 1-j*s*s, 1., 1-nu*s*s)
+        hphi = np.where(phi<=0.5*np.pi, h(np.minimum(phi, 0.5*np.pi)), 2*h(0.5*np.pi) - h(np.pi - np.maximum(phi, 0.5*np.pi)))
+        s, c = np.sin(phi), np.cos(phi)
+        Delta = np.sqrt(1-j*s*s)
+        return hphi - (b/D0)*(T(W, b*Delta*c/s) + T(W, Delta/s))
+
+    sgn = np.where(al<0, 1., -1.)
+    phi_a = np.where(al<0, phi_a, np.pi - phi_a)
+    phi_b = np.where(al<0, phi_b, np.pi - phi_b)
+    return sgn*(R1_reg(phi_a) - R1_reg(phi_b))

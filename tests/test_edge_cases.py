@@ -142,6 +142,20 @@ def test_lambda_near_zero(a, th_o, alpha, beta):
     _assert_matches_ode(a, th_o, alpha, beta, angle_tol=SMALL_LAM_ANGLE_ATOL)
 
 
+@pytest.mark.parametrize("dlam", [0., 1e-10, -1e-10, 1e-6, -1e-6])
+@pytest.mark.parametrize("a, th_o, beta", [(1e-5, 1.2, 2.0), (1e-3, 1.2, 2.0), (0.1, 0.3, 2.0),
+                                           (0.5, 1.2, -4.0), (0.94, 1.2, 2.0)])
+def test_r_minus_root(a, th_o, beta, dlam):
+    """Class III rays on and near lam = 2 r_-/a, where R(r_-) = (2 r_- - a lam)^2 = 0, so the root r2 is r_-
+    (about lam = a at small spin): alpha_- -> -1 in I_-, where each R1 diverges and B62 cancels.
+    (Before B4, phi and t were NaN there, or off by up to ~5e-9 at dlam = 1e-6.)"""
+    alpha = -(2*a/(1 + np.sqrt(1 - a**2)) + dlam)/np.sin(th_o)
+    geo = trace(a, th_o, [alpha], [beta], ngeo=40, r_o=R_O)
+    assert geo['rclass'][0] == 3
+    assert np.all(np.isfinite(geo['t'])) and np.all(np.isfinite(geo['ph']))
+    _assert_matches_ode(a, th_o, alpha, beta)
+
+
 @pytest.mark.parametrize("th_o", [0.3, 1.0, 2.2])
 def test_schwarzschild_radial_ray(th_o):
     """a = 0, screen center: lam = eta = 0, a purely radial ray with R = r^4, Theta = 0.
