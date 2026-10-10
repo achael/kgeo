@@ -6,83 +6,84 @@ import scipy.special as sp
 
 halfpi = 0.5*np.pi
 
-def ellip_pi(n,phi,m,precision=1.e-3):
-    """Incomplete Elliptic Integral of the Third Kind Pi(n;phi|m)
-       Convention following Abramowitz & Stegun & Mathematica
-       DIFFERENT from gsl convention.
-       Implemented using CarlsonRJ and CarlsonRF and periodicities to account for full range
-    """
-
-    # real range is m sin^2(phi) < 1, n sin^2 phi < 1
-    # relation to Carlson symmetric form only works for -pi/2 < phi < pi/2,
-    # need to use periodicity outside this range
-
-    # limit as phi->0
-    if np.abs(phi)<=1.e-10: # TODO what value cutoff?
-        return phi
-
-    # limit as m->-infinity
-    if(m<-1.e14): # TODO what value cutoff?
-        return 0.
-
-    cphi = np.cos(phi)
-    sphi = np.sin(phi)
-
-    x = cphi**2
-    y = 1. - m*sphi**2
-    z = 1.
-    rho = 1. - n*sphi**2
-
-    # check the allowed region
-    if(y<0):
-        raise Exception("m*sin^2(phi) > 1 in ellipticPi!")
-    if(np.abs(phi)>np.pi/2. and m>=1):
-        raise Exception("abs(phi)>pi/2 and m >= 1 in ellipticPi!")
-    if(np.abs(phi)>np.pi/2. and n==1):
-        return np.inf
-    if (rho==0):
-        return np.inf
-    if (np.isinf(n)): # TODO large n limit
-        return 0.
-
-    # account for periodicity
-    if(np.abs(phi)>np.pi):
-        s = np.sign(phi)
-        k = s*np.floor(np.abs(phi)/np.pi)
-        phi2 = phi - k*np.pi
-        comp_part = 2*k*ellip_pi(n,np.pi/2.,m,precision=precision)
-        incomp_part = ellip_pi(n,phi2,m,precision=precision)
-        Pi = comp_part + incomp_part
-
-    elif(np.pi/2.<np.abs(phi)<=np.pi): #TODO can we merge with previous case somehow?
-        s = np.sign(phi)
-        phi2 = -phi + s*np.pi
-        comp_part = s*2*ellip_pi(n,np.pi/2.,m,precision=precision)
-        incomp_part = -ellip_pi(n,phi2,m,precision=precision)
-        Pi = comp_part + incomp_part
-
-    else:
-        # TODO should we just use scipy ellipkinc here?!
-
-        CRF = sp.elliprf(x,y,z)
-
-        if rho>0:
-            CRJ = sp.elliprj(x,y,z,rho)
-
-        else: # transform for rho<0, https://dlmf.nist.gov/19.20#E14 19.20.14
-            q = -rho
-            p = (z*(x+y+q) - x*y) / (z + q)
-
-            CRJ0 = sp.elliprj(x,y,z,p)
-            CRC = sp.elliprc(x*y + p*q,p*q)
-
-
-            CRJ = ((p-z)*CRJ0 - 3*CRF + 3*np.sqrt((x*y*z)/(x*y+p*q))*CRC)/(q+z)
-
-        F = sphi * CRF
-        Pi = F + (n/3.)*(sphi**3)*CRJ
-
-    return Pi
+# oldest scalar version, unused; superseded by ellip_pi_arr
+#def ellip_pi(n,phi,m,precision=1.e-3):
+#    """Incomplete Elliptic Integral of the Third Kind Pi(n;phi|m)
+#       Convention following Abramowitz & Stegun & Mathematica
+#       DIFFERENT from gsl convention.
+#       Implemented using CarlsonRJ and CarlsonRF and periodicities to account for full range
+#    """
+#
+#    # real range is m sin^2(phi) < 1, n sin^2 phi < 1
+#    # relation to Carlson symmetric form only works for -pi/2 < phi < pi/2,
+#    # need to use periodicity outside this range
+#
+#    # limit as phi->0
+#    if np.abs(phi)<=1.e-10: # TODO what value cutoff?
+#        return phi
+#
+#    # limit as m->-infinity
+#    if(m<-1.e14): # TODO what value cutoff?
+#        return 0.
+#
+#    cphi = np.cos(phi)
+#    sphi = np.sin(phi)
+#
+#    x = cphi**2
+#    y = 1. - m*sphi**2
+#    z = 1.
+#    rho = 1. - n*sphi**2
+#
+#    # check the allowed region
+#    if(y<0):
+#        raise Exception("m*sin^2(phi) > 1 in ellipticPi!")
+#    if(np.abs(phi)>np.pi/2. and m>=1):
+#        raise Exception("abs(phi)>pi/2 and m >= 1 in ellipticPi!")
+#    if(np.abs(phi)>np.pi/2. and n==1):
+#        return np.inf
+#    if (rho==0):
+#        return np.inf
+#    if (np.isinf(n)): # TODO large n limit
+#        return 0.
+#
+#    # account for periodicity
+#    if(np.abs(phi)>np.pi):
+#        s = np.sign(phi)
+#        k = s*np.floor(np.abs(phi)/np.pi)
+#        phi2 = phi - k*np.pi
+#        comp_part = 2*k*ellip_pi(n,np.pi/2.,m,precision=precision)
+#        incomp_part = ellip_pi(n,phi2,m,precision=precision)
+#        Pi = comp_part + incomp_part
+#
+#    elif(np.pi/2.<np.abs(phi)<=np.pi): #TODO can we merge with previous case somehow?
+#        s = np.sign(phi)
+#        phi2 = -phi + s*np.pi
+#        comp_part = s*2*ellip_pi(n,np.pi/2.,m,precision=precision)
+#        incomp_part = -ellip_pi(n,phi2,m,precision=precision)
+#        Pi = comp_part + incomp_part
+#
+#    else:
+#        # TODO should we just use scipy ellipkinc here?!
+#
+#        CRF = sp.elliprf(x,y,z)
+#
+#        if rho>0:
+#            CRJ = sp.elliprj(x,y,z,rho)
+#
+#        else: # transform for rho<0, https://dlmf.nist.gov/19.20#E14 19.20.14
+#            q = -rho
+#            p = (z*(x+y+q) - x*y) / (z + q)
+#
+#            CRJ0 = sp.elliprj(x,y,z,p)
+#            CRC = sp.elliprc(x*y + p*q,p*q)
+#
+#
+#            CRJ = ((p-z)*CRJ0 - 3*CRF + 3*np.sqrt((x*y*z)/(x*y+p*q))*CRC)/(q+z)
+#
+#        F = sphi * CRF
+#        Pi = F + (n/3.)*(sphi**3)*CRJ
+#
+#    return Pi
 
 def ellip_pi_arr(n,phi,m):
     """Incomplete Elliptic Integral of the Third Kind Pi(n;phi|m)
@@ -122,14 +123,16 @@ def ellip_pi_arr(n,phi,m):
     outarr = np.zeros(phi.shape)
     donemask = np.zeros(phi.shape).astype(bool)
 
-    # limit as phi->0
-    mask1 = np.abs(phi)<=1.e-10 #TODO what value cutoff?
+    # phi = 0 (the Carlson form below is accurate for small phi)
+    #mask1 = np.abs(phi)<=1.e-10
+    mask1 = phi==0
     if np.any(mask1):
         outarr[mask1] = phi[mask1]
     donemask += mask1
 
-    # limit as m->-infinity
-    mask2 = (m<-1.e14) * ~donemask #TODO what value cutoff?
+    # m = -infinity (the Carlson form below is accurate for large |m|)
+    #mask2 = (m<-1.e14) * ~donemask
+    mask2 = (m==-np.inf) * ~donemask
     if np.any(mask2):
         outarr[mask2] = 0.
     donemask += mask2

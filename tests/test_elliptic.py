@@ -6,7 +6,7 @@ import pytest
 import scipy.special as sp
 
 from kgeo.kerr_raytracing_ana import R1_diff
-from kgeo.scipy_ellip_binding import ellip_pi, ellip_pi_arr, ellip_pi_scaled, ellipj_m1
+from kgeo.scipy_ellip_binding import ellip_pi_arr, ellip_pi_scaled, ellipj_m1
 
 # |phi| > pi/2 and > pi exercise the periodicity reductions; tiny phi the phi->0 limit
 _PHIS = [-215., -14.3, -7.7, -4.1, -np.pi, -2.37, -np.pi/2, -0.1, 1e-11,
@@ -14,7 +14,6 @@ _PHIS = [-215., -14.3, -7.7, -4.1, -np.pi, -2.37, -np.pi/2, -0.1, 1e-11,
 
 # Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3)
 PI_RTOL = 1e-12            # ellip_pi_arr vs mpmath                                       [1e-14]
-PI_SCALAR_RTOL = 1e-14     # ellip_pi (scalar) vs ellip_pi_arr                            [0]
 PI_SPECIAL_RTOL = 1e-13    # Pi(0; phi|m) = F(phi|m), Pi(0; phi|0) = phi                  [4e-16]
 PI_SCALED_ATOL = 1e-12     # ellip_pi_scaled = C Pi(n; phi|m) vs mpmath, |phi| <= 20      [1.4e-13]
 R1_DIFF_TOL = 1e-13        # R1_diff vs quadrature, relative to max(|R1 diff|, 1)          [6e-15]
@@ -59,9 +58,17 @@ def test_ellip_pi_broadcasting():
     np.testing.assert_allclose(out, expected, rtol=PI_RTOL, atol=0)
 
 
-def test_ellip_pi_scalar_matches_array():
-    for n, phi, m in [(0.8, 4.1, -0.33), (-2., -14.3, 0.5), (0.3, 1.2, 0.9), (0.95, -2.37, -5.)]:
-        assert np.isclose(ellip_pi(n, phi, m), ellip_pi_arr(n, phi, m)[0], rtol=PI_SCALAR_RTOL, atol=0)
+def test_ellip_pi_tiny_phi_huge_m():
+    """Where ellip_pi_arr used to cut off (|phi| <= 1e-10 -> phi, m < -1e14 -> 0; the true value ~ log|m|/sqrt|m|,
+    reached near eta = 0, where m = u_+/u_- ~ -a^2 u_+^2/eta), the Carlson form is accurate; phi = 0 and
+    m = -inf are the exact limits 0."""
+    cases = [(0.5, 1.2, -1.01e14), (0.5, 1.2, -1e16), (0.5, -1.2, -1e30), (-3e13, 1.2, -1e16), (-2e15, 0.3, -2e15),
+             (0.5, 4.1, -1e16), (-1e14, 1e-11, -1e13), (0.9, 1e-12, 0.9), (-50., -1e-11, -1e6)]
+    n, phi, m = (np.array(x) for x in zip(*cases))
+    expected = np.array([_mp_ellippi(*c) for c in cases])
+    np.testing.assert_allclose(ellip_pi_arr(n, phi, m), expected, rtol=PI_RTOL, atol=0)
+    assert np.all(ellip_pi_arr(np.array([0.5, -1e14]), np.zeros(2), np.array([-1e16, 0.3])) == 0)
+    assert np.all(ellip_pi_arr(np.array([0.5, -3.]), np.array([1.2, 4.1]), np.full(2, -np.inf)) == 0)
 
 
 def test_ellip_pi_special_values():
