@@ -236,6 +236,29 @@ def ellip_pi_arr(n,phi,m):
 
     return outarr
 
+def ellip_pi_scaled(c, nc, phi, m):
+    """c * Pi(n;phi|m) in the circular case m < n < 1, for c = +-C with C = sqrt((1-n)(n-m)/n),
+       given c and the complementary characteristic nc = m/n instead of n.
+       Finite as n -> 1 (C -> 0), where Pi(n;phi|m) itself diverges at phi = pi/2 + j pi.
+       Uses DLMF 19.7.8 (Byrd & Friedman 117.02), extended to all real phi by quasi-periodicity:
+       Pi(n;phi|m) = F(phi|m) - Pi(m/n;phi|m) + [arctan(C tan(Phi)/Delta(Phi)) + j pi]/C,
+       j = round(phi/pi), Phi = phi - j pi, Delta = sqrt(1 - m sin^2 Phi).
+       At c = 0 this is j pi (sign(c) = +1 at c = 0).
+       c, nc, m have the shape of the last axis of phi.
+    """
+
+    if not isinstance(c, np.ndarray): c = np.array([c]).flatten()
+    if not isinstance(nc, np.ndarray): nc = np.array([nc]).flatten()
+    if not isinstance(phi, np.ndarray): phi = np.array([phi]).flatten()
+    if not isinstance(m, np.ndarray): m = np.array([m]).flatten()
+
+    j = np.round(phi/np.pi)
+    Phi = phi - j*np.pi # in [-pi/2, pi/2], so cos(Phi) >= 0 and atan2 below is arctan(c tan(Phi)/Delta)
+    Delta = np.sqrt(1. - m*np.sin(Phi)**2)
+    sgn = np.where(c>=0, 1., -1.)
+
+    return c*(sp.ellipkinc(phi, m) - ellip_pi_arr(nc, phi, m)) + np.arctan2(c*np.sin(Phi), np.cos(Phi)*Delta) + sgn*j*np.pi
+
 def ellipj_m1(u, m1, niter=16):
     """Jacobi elliptic functions (sn, cn, dn, am) of u for parameter m = 1 - m1, 0 <= m1 <= 1,
        taking the complementary parameter m1 as input (same outputs as scipy.special.ellipj).

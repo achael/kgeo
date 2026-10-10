@@ -20,7 +20,8 @@ ODE_RTOL = 1e-10              # r vs the ODE oracle                             
 ODE_ANGLE_ATOL = 1e-10        # theta, phi vs the ODE oracle                               [7e-12]
 NEAR_EXTREMAL_TOL = 1e-8      # a = 1 - 1e-8: r, theta, phi, t (rel. to |t| + 1)           [1e-9]
                               # (a = 1, a = 1 - 1e-14: [target, B7])
-SMALL_LAM_ANGLE_ATOL = 1e-7   # alpha ~ 1e-5: the ODE's near-pole stiffness gives ~1e-8    [target, B4]
+SMALL_LAM_ANGLE_ATOL = 1e-7   # 1e-5 <= |alpha| <= 1e-3: limited by the ODE oracle's       [5e-9]
+                              # near-pole roundoff (doesn't converge as its rtol tightens)
 RADIAL_RAY_TOL = 1e-12        # a = 0 radial ray vs closed form: tau_tot, r, theta, phi    [0]
 RADIAL_RAY_T_TOL = 1e-12      # a = 0 radial ray: t, sigma (rtol and atol)                 [1e-13]
 CONST_TH_ANGLE_ATOL = 1e-7    # constant-theta rays: u_+, u_- differ by ~1e-8 roundoff (B9) [5e-8]
@@ -110,7 +111,6 @@ def test_eta_near_zero_beta_zero(a, th_o, sign, deta):
     _assert_matches_ode(a, th_o, alpha, 0.0)
 
 
-@xfail_until("B4", "lam*G_phi = 0*inf: ellip_pi_arr returns inf for n = u_+ = 1, |phi| > pi/2")
 @pytest.mark.parametrize("a, th_o, beta", [
     (0.5, 0.3, 8.0),     # escapes, two pole passages
     (0.5, 0.3, 4.0),     # captured, one pole passage
@@ -122,12 +122,11 @@ def test_eta_near_zero_beta_zero(a, th_o, sign, deta):
 ])
 def test_lambda_zero(a, th_o, beta):
     """alpha = 0 (lam = 0): the ray stays in the meridional plane and phi jumps by
-    pi at each pole passage. Compared with the folded ODE oracle, phi mod 2 pi."""
+    pi at each pole passage. Compared with the folded ODE oracle, phi mod 2 pi.
+    (Before B4, lam*G_phi was 0*inf = NaN, or silently off by pi for vortical rays.)"""
     _assert_matches_ode(a, th_o, 0.0, beta, phi_mod_2pi=True)
 
 
-@xfail_until("B4", "lam * Pi(u_+ -> 1; ...) cancels: phi error 4e-7 at alpha = 1e-3, "
-                   "3e-3 at 1e-4, 0.13 rad at 1e-5")
 @pytest.mark.parametrize("a, th_o, alpha, beta", [
     (0.5, 0.3, 1e-3, 8.0),
     (0.5, 0.3, 1e-4, 8.0),
@@ -138,7 +137,8 @@ def test_lambda_zero(a, th_o, beta):
     (0.94, 0.1, 1e-4, 0.3),   # vortical
 ])
 def test_lambda_near_zero(a, th_o, alpha, beta):
-    """Small lam != 0: a fast but smooth phi swing of ~pi at each near-pole passage."""
+    """Small lam != 0: a fast but smooth phi swing of ~pi at each near-pole passage.
+    (Before B4, lam*Pi(u_+ -> 1) cancelled: phi off by 4e-7 at alpha = 1e-3, 0.13 rad at 1e-5.)"""
     _assert_matches_ode(a, th_o, alpha, beta, angle_tol=SMALL_LAM_ANGLE_ATOL)
 
 

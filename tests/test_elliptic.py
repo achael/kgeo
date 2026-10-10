@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import scipy.special as sp
 
-from kgeo.scipy_ellip_binding import ellip_pi, ellip_pi_arr, ellipj_m1
+from kgeo.scipy_ellip_binding import ellip_pi, ellip_pi_arr, ellip_pi_scaled, ellipj_m1
 
 # |phi| > pi/2 and > pi exercise the periodicity reductions; tiny phi the phi->0 limit
 _PHIS = [-215., -14.3, -7.7, -4.1, -np.pi, -2.37, -np.pi/2, -0.1, 1e-11,
@@ -15,6 +15,7 @@ _PHIS = [-215., -14.3, -7.7, -4.1, -np.pi, -2.37, -np.pi/2, -0.1, 1e-11,
 PI_RTOL = 1e-12            # ellip_pi_arr vs mpmath                                       [1e-14]
 PI_SCALAR_RTOL = 1e-14     # ellip_pi (scalar) vs ellip_pi_arr                            [0]
 PI_SPECIAL_RTOL = 1e-13    # Pi(0; phi|m) = F(phi|m), Pi(0; phi|0) = phi                  [4e-16]
+PI_SCALED_ATOL = 1e-12     # ellip_pi_scaled = C Pi(n; phi|m) vs mpmath, |phi| <= 20      [1.4e-13]
 ELLIPJ_ATOL = 1e-13        # ellipj_m1 vs scipy away from m = 1                           [5e-14]
 ELLIPJ_M1_TOL = 1e-13      # ellipj_m1 vs mpmath near m = 1: sn, dn relative; cn, am abs  [8e-15]
 GUDERMANNIAN_ATOL = 1e-14  # m = 1: am = arctan(sinh u)                                   [2e-16]
@@ -68,6 +69,30 @@ def test_ellip_pi_special_values():
     np.testing.assert_allclose(ellip_pi_arr(np.zeros(5), phi, m), sp.ellipkinc(phi, m), rtol=PI_SPECIAL_RTOL)
     np.testing.assert_allclose(ellip_pi_arr(np.zeros(5), phi, np.zeros(5)), phi, rtol=PI_SPECIAL_RTOL)
     assert np.all(ellip_pi_arr(np.array([0.3, -2., 0.8]), np.zeros(3), np.array([0.5, 0., -5.])) == 0)
+
+
+@pytest.mark.parametrize("one_minus_n", [1e-1, 1e-3, 1e-6, 1e-9, 1e-12])
+def test_ellip_pi_scaled_matches_mpmath(one_minus_n):
+    """c Pi(n; phi|m) for c = +-C, C = sqrt((1-n)(n-m)/n), in the circular case m < 0 < n < 1,
+    as n -> 1 (Pi itself grows like 1/C across each phi = pi/2 + j pi), any phi, both signs of c."""
+    rng = np.random.default_rng(int(-np.log10(one_minus_n)))
+    n = 1 - one_minus_n*rng.uniform(1, 9, 20)
+    m = -rng.uniform(0, 50, 20)
+    phi = rng.uniform(-20, 20, 20)
+    sgn = rng.choice([-1., 1.], 20)
+    with mp.workdps(40):
+        C = [mp.sqrt((1 - mp.mpf(ni))*(mp.mpf(ni) - mp.mpf(mi))/mp.mpf(ni)) for ni, mi in zip(n, m)]
+        expected = [float(s*Ci*mp.re(mp.ellippi(mp.mpf(ni), mp.mpf(p), mp.mpf(mi))))
+                    for s, Ci, ni, p, mi in zip(sgn, C, n, phi, m)]
+    c = sgn*np.array([float(Ci) for Ci in C])
+    np.testing.assert_allclose(ellip_pi_scaled(c, m/n, phi, m), expected, rtol=0, atol=PI_SCALED_ATOL)
+
+
+def test_ellip_pi_scaled_c_zero():
+    """c = 0 (n = 1): only the pi steps at phi = pi/2 + j pi remain"""
+    phi = np.array([0.3, 1.6, -1.6, 4.0, 7.9])
+    out = ellip_pi_scaled(np.zeros(5), np.full(5, -3.), phi, np.full(5, -3.))
+    np.testing.assert_array_equal(out, np.pi*np.array([0., 1., -1., 1., 3.]))
 
 
 @pytest.mark.parametrize("m", [0., 0.3, 0.9, 0.999])
