@@ -12,7 +12,7 @@ R_O = 1000.
 
 # Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3);
 # [target] where only strict xfails use them
-ON_EQUATOR_ATOL = 1e-10        # cos(theta) at the crossing time Ir                       [9e-15]
+ON_EQUATOR_ATOL = 1e-13        # cos(theta) at the crossing time Ir                       [9e-15]
 CROSSING_R_RTOL = 1e-12        # r at Ir vs r_equatorial's r_s                            [0]
 MIRROR_RTOL = 1e-12            # a = 0 image: I(alpha, beta) = I(-alpha, beta)            [0]
 IMAGE_SYMMETRY_RTOL = 1e-10    # equatorial reflection of the image (incl. beta = 0 row)  [2e-12]

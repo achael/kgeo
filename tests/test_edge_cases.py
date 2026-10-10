@@ -22,7 +22,7 @@ NEAR_EXTREMAL_TOL = 1e-8      # a = 1 - 1e-8: r, theta, phi, t (rel. to |t| + 1)
                               # (a = 1, a = 1 - 1e-14: [target, B7])
 SMALL_LAM_ANGLE_ATOL = 1e-7   # alpha ~ 1e-5: the ODE's near-pole stiffness gives ~1e-8    [target, B4]
 RADIAL_RAY_TOL = 1e-12        # a = 0 radial ray vs closed form: tau_tot, r, theta, phi    [0]
-RADIAL_RAY_T_TOL = 1e-10      # a = 0 radial ray: t, sigma (rtol and atol)                 [1e-13]
+RADIAL_RAY_T_TOL = 1e-12      # a = 0 radial ray: t, sigma (rtol and atol)                 [1e-13]
 CONST_TH_ANGLE_ATOL = 1e-7    # constant-theta rays: u_+, u_- differ by ~1e-8 roundoff (B9) [5e-8]
 CONST_TH_RTOL = 1e-11         # constant-theta rays: tau(r), t vs quadrature               [5e-12]
 EQUATORIAL_RAY_ATOL = 1e-14   # th_o = pi/2, beta = 0: theta = pi/2                        [target, B6]

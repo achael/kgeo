@@ -9,14 +9,14 @@ _MIDPLANE = np.pi/2.
 
 # Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3);
 # [target] where only strict xfails use them
-NP_DEFAULT_ATOL = 1e-8           # np.isclose/allclose's default atol, made explicit below
+NP_DEFAULT_ATOL = 1e-8           # np.isclose/allclose's default atol, kept in the older tests
 USQ_RTOL = 1e-5                  # fuzzed u.u = -1                                  [8e-13]
 FROMFILE_RTOL = 1e-4             # 'fromfile' u^mu vs tabulated values              [3e-5]
 GENERAL_RTOL = 1e-5              # 'general' u^mu vs ipole                          [3e-6]
-NORM_RTOL = 1e-10                # u.u = -1 at a = 0                                [4e-14]
+NORM_RTOL = 1e-12                # u.u = -1 at a = 0 (no atol)                      [4e-14]
                                  # (a = 1: [target, B7])
 ZERO_SPIN_CONTINUITY_TOL = 1e-6  # u^mu(a = 0) vs u^mu(a = 1e-8), rtol and atol     [2e-7]
-RPLUS_RTOL = 1e-15               # r_+ = M + sqrt(M^2 - a^2)                        [0]
+RPLUS_RTOL = 1e-15               # r_+ = M + sqrt(M^2 - a^2) (no atol)              [0]
 
 
 def _gcov_bl(a, r, th=np.pi/2.):
@@ -134,7 +134,7 @@ def _usq(veltype, a, r):
 def test_velocity_normalized_schwarzschild(veltype):
     """a = 0 (outside r_+ = 2, incl. inside the ISCO at r = 6): u.u = -1."""
     for r in np.linspace(2.1, 15., 30):
-        assert np.isclose(_usq(veltype, 0.0, r), -1., rtol=NORM_RTOL, atol=NP_DEFAULT_ATOL), f"r = {r}"
+        assert np.isclose(_usq(veltype, 0.0, r), -1., rtol=NORM_RTOL, atol=0), f"r = {r}"
 
 
 @pytest.mark.parametrize("veltype", _MODELS)
@@ -153,10 +153,10 @@ def test_velocity_continuous_at_zero_spin(veltype):
 def test_velocity_normalized_extremal(veltype):
     """a = 1, outside the horizon r_+ = 1: u.u = -1."""
     for r in np.linspace(1.1, 15., 30):
-        assert np.isclose(_usq(veltype, 1.0, r), -1., rtol=NORM_RTOL, atol=NP_DEFAULT_ATOL), f"r = {r}"
+        assert np.isclose(_usq(veltype, 1.0, r), -1., rtol=NORM_RTOL, atol=0), f"r = {r}"
 
 
 @pytest.mark.parametrize("spin, M", [(0.0, 1.0), (0.5, 1.0), (1.0, 1.0), (1.0, 2.0)])
 def test_rplusfunc_horizon(spin, M):
     """Outer horizon r_+ = M + sqrt(M^2 - a^2) (used by the BZ paraboloid helpers)."""
-    assert np.isclose(rplusfunc(spin, M), M + np.sqrt(M**2 - spin**2), rtol=RPLUS_RTOL, atol=NP_DEFAULT_ATOL)
+    assert np.isclose(rplusfunc(spin, M), M + np.sqrt(M**2 - spin**2), rtol=RPLUS_RTOL, atol=0)
