@@ -431,7 +431,6 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
     # so (dcos(th)/dtau)^2 = a^2 cos^2(th) (u_plus - cos^2(th)) is solved by elementary functions:
     # cos(th) = h*sqrt(u_plus)*sech(psi), psi = psi_o + |a| sqrt(u_plus) tau;
     # the ray asymptotes to the equator
-    # TODO lam = 0 (B4)
     if(np.any(eta==0.) and np.abs(a)>=MINSPIN_TH):
         mask = eta==0.
         up = u_plus[mask]

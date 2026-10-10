@@ -134,28 +134,33 @@ def ellip_pi_arr(n,phi,m):
         outarr[mask2] = 0.
     donemask += mask2
 
-    # check the allowed region
+    # no real value: m sin^2 phi > 1
     mask3 = (y<0) * ~donemask
     if np.any(mask3):
         outarr[mask3] = np.nan
     donemask += mask3
 
+    # no real value: path crosses m sin^2 = 1
     mask4 = (np.abs(phi)>halfpi) * (m>=1) * ~donemask
     if np.any(mask4):
         outarr[mask4] = np.nan
     donemask += mask4
 
-    # TODO this limit causes issues in G_ph when alpha=0
+    # divergent: double pole at pi/2  when n=1
     mask5 = (np.abs(phi)>halfpi) * (n==1) * ~donemask
     if np.any(mask5):
-        outarr[mask5] = np.inf
+        #outarr[mask5] = np.inf
+        outarr[mask5] = np.sign(phi[mask5])*np.inf # Pi is odd in phi
     donemask += mask5
 
+    # divergent: phi on the pole n sin^2 = 1
     mask6 = (rho==0) * ~donemask
     if np.any(mask6):
-        outarr[mask6] = np.inf
+        #outarr[mask6] = np.inf
+        outarr[mask6] = np.sign(phi[mask6])*np.inf
     donemask += mask6
 
+    # limit as n->+-infinity
     mask7 = np.isinf(n) * ~donemask
     if np.any(mask7):
         outarr[mask7] = 0
@@ -242,7 +247,7 @@ def ellip_pi_scaled(c, nc, phi, m):
        Finite as n -> 1 (C -> 0), where Pi(n;phi|m) itself diverges at phi = pi/2 + j pi.
        Uses DLMF 19.7.8 (Byrd & Friedman 117.02), extended to all real phi by quasi-periodicity:
        Pi(n;phi|m) = F(phi|m) - Pi(m/n;phi|m) + [arctan(C tan(Phi)/Delta(Phi)) + j pi]/C,
-       j = round(phi/pi), Phi = phi - j pi, Delta = sqrt(1 - m sin^2 Phi).
+       where j = round(phi/pi), Phi = phi - j pi, Delta = sqrt(1 - m sin^2 Phi).
        At c = 0 this is j pi (sign(c) = +1 at c = 0).
        c, nc, m have the shape of the last axis of phi.
     """
