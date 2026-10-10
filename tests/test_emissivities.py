@@ -2,6 +2,10 @@ import numpy as np
 
 from kgeo.emissivities import Emissivity
 
+# Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3)
+NP_DEFAULT_ATOL = 1e-8   # np.isclose's default atol, made explicit below
+JREST_RTOL = 1e-4        # emissivity models vs tabulated values   [3e-5]
+
 
 def test_emissivity():
     """
@@ -41,4 +45,4 @@ def test_emissivity():
         kwargs, answer = value
         emissivity = Emissivity(model, **kwargs)
         radius = np.array(radius)
-        assert np.isclose(emissivity.jrest(bhspin, radius), answer, rtol=1e-4)
+        assert np.isclose(emissivity.jrest(bhspin, radius), answer, rtol=JREST_RTOL, atol=NP_DEFAULT_ATOL)

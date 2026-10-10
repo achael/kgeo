@@ -7,6 +7,14 @@ from kgeo.velocities import Velocity
 
 from helpers import DATA_DIR
 
+# Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3)
+NP_DEFAULT_ATOL = 1e-8                # np.allclose's default atol, made explicit below
+EVPA_RTOL = 1e-2                      # EVPA cuts vs ipole                       [6e-3]
+# the n = 0 image's cut b (evpa_n0[:, 400]) agrees less well, per model:
+EVPA_N0_B_RTOL_LOWSPIN_KEP = 4e-2     #                                          [3.5e-2]
+EVPA_N0_B_RTOL_MIDSPIN_KEP = 3e-2     #                                          [2.4e-2]
+EVPA_N0_B_RTOL_MIDSPIN_SUBKEP = 2e-2  #                                          [1.2e-2]
+
 
 def _get_evpa_kgeo(Q, U):
     """
@@ -77,10 +85,10 @@ def test_lowspin_keplerian():
     mask_n1_a = (ipole_ploc > n1_limits[0]) & (ipole_ploc < n1_limits[1])
     mask_n1_b = (ipole_ploc > n1_limits[2]) & (ipole_ploc < n1_limits[3])
 
-    assert np.allclose(n0_a[mask_n0_a], evpa_n0[400, mask_n0_a], rtol=1.e-2)
-    assert np.allclose(n0_b[mask_n0_b], evpa_n0[mask_n0_b, 400], rtol=4.e-2)
-    assert np.allclose(n1_a[mask_n1_a], evpa_n1[400, mask_n1_a], rtol=1.e-2)
-    assert np.allclose(n1_b[mask_n1_b], evpa_n1[mask_n1_b, 400], rtol=1.e-2)
+    assert np.allclose(n0_a[mask_n0_a], evpa_n0[400, mask_n0_a], rtol=EVPA_RTOL, atol=NP_DEFAULT_ATOL)
+    assert np.allclose(n0_b[mask_n0_b], evpa_n0[mask_n0_b, 400], rtol=EVPA_N0_B_RTOL_LOWSPIN_KEP, atol=NP_DEFAULT_ATOL)
+    assert np.allclose(n1_a[mask_n1_a], evpa_n1[400, mask_n1_a], rtol=EVPA_RTOL, atol=NP_DEFAULT_ATOL)
+    assert np.allclose(n1_b[mask_n1_b], evpa_n1[mask_n1_b, 400], rtol=EVPA_RTOL, atol=NP_DEFAULT_ATOL)
 
 
 def test_midspin_inclined_keplerian():
@@ -98,10 +106,10 @@ def test_midspin_inclined_keplerian():
     mask_n1_a = (ipole_ploc > n1_limits[0]) & (ipole_ploc < n1_limits[1])
     mask_n1_b = (ipole_ploc > n1_limits[2]) & (ipole_ploc < n1_limits[3])
 
-    assert np.allclose(n0_a[mask_n0_a], evpa_n0[400, mask_n0_a], rtol=1.e-2)
-    assert np.allclose(n0_b[mask_n0_b], evpa_n0[mask_n0_b, 400], rtol=3.e-2)
-    assert np.allclose(n1_a[mask_n1_a], evpa_n1[400, mask_n1_a], rtol=1.e-2)
-    assert np.allclose(n1_b[mask_n1_b], evpa_n1[mask_n1_b, 400], rtol=1.e-2)
+    assert np.allclose(n0_a[mask_n0_a], evpa_n0[400, mask_n0_a], rtol=EVPA_RTOL, atol=NP_DEFAULT_ATOL)
+    assert np.allclose(n0_b[mask_n0_b], evpa_n0[mask_n0_b, 400], rtol=EVPA_N0_B_RTOL_MIDSPIN_KEP, atol=NP_DEFAULT_ATOL)
+    assert np.allclose(n1_a[mask_n1_a], evpa_n1[400, mask_n1_a], rtol=EVPA_RTOL, atol=NP_DEFAULT_ATOL)
+    assert np.allclose(n1_b[mask_n1_b], evpa_n1[mask_n1_b, 400], rtol=EVPA_RTOL, atol=NP_DEFAULT_ATOL)
 
 
 def test_midspin_inclined_subkep():
@@ -120,7 +128,7 @@ def test_midspin_inclined_subkep():
     mask_n1_a = (ipole_ploc > n1_limits[0]) & (ipole_ploc < n1_limits[1])
     mask_n1_b = (ipole_ploc > n1_limits[2]) & (ipole_ploc < n1_limits[3])
 
-    assert np.allclose(n0_a[mask_n0_a], evpa_n0[400, mask_n0_a], rtol=1.e-2)
-    assert np.allclose(n0_b[mask_n0_b], evpa_n0[mask_n0_b, 400], rtol=2.e-2)
-    assert np.allclose(n1_a[mask_n1_a], evpa_n1[400, mask_n1_a], rtol=1.e-2)
-    assert np.allclose(n1_b[mask_n1_b], evpa_n1[mask_n1_b, 400], rtol=1.e-2)
+    assert np.allclose(n0_a[mask_n0_a], evpa_n0[400, mask_n0_a], rtol=EVPA_RTOL, atol=NP_DEFAULT_ATOL)
+    assert np.allclose(n0_b[mask_n0_b], evpa_n0[mask_n0_b, 400], rtol=EVPA_N0_B_RTOL_MIDSPIN_SUBKEP, atol=NP_DEFAULT_ATOL)
+    assert np.allclose(n1_a[mask_n1_a], evpa_n1[400, mask_n1_a], rtol=EVPA_RTOL, atol=NP_DEFAULT_ATOL)
+    assert np.allclose(n1_b[mask_n1_b], evpa_n1[mask_n1_b, 400], rtol=EVPA_RTOL, atol=NP_DEFAULT_ATOL)

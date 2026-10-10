@@ -5,7 +5,10 @@ from kgeo.kerr_raytracing_ana import coords_at_tau
 from kgeo.kerr_raytracing_utils import n_angular_turnings, n_equatorial_crossings, n_poloidal_orbits
 
 from geodesic_ode import conserved
-from helpers import quiet, xfail_until
+from helpers import quiet
+
+# Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3)
+N0_ATOL = 1e-12   # beta = 0: n_angular_turnings at the observer is 0   [3e-16]
 
 # (a, th_o, alpha, beta): ordinary and vortical rays, both hemispheres, both signs of beta
 TURNING_CASES = [
@@ -58,7 +61,7 @@ def test_n_angular_turnings_beta_zero(a, th_o, alpha):
     n(0) = 0; later turning points are counted as usual. (Before B4, F0 at the theta_-/theta_+
     and pole-side turning points came from arcsin(1 - O(eps)) and n(0) was off by ~1e-8.)"""
     n, counted = _turnings(a, th_o, alpha, 0.0)
-    assert abs(n[0]) < 1e-12
+    assert abs(n[0]) < N0_ATOL
     step = n[1] - n[0]
     clear = np.abs(n - np.round(n)) > 2*step
     np.testing.assert_array_equal(np.floor(n)[clear], counted[clear])

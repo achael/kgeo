@@ -2,6 +2,11 @@ import numpy as np
 
 from kgeo.kerr_raytracing_ana import raytrace_ana
 
+# Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3)
+NP_DEFAULT_ATOL = 1e-8   # np.allclose's default atol, made explicit below
+MIDPLANE_RTOL = 1e-3     # first midplane crossing (x, y) vs ipole / older kgeo   [7e-4]
+                         # (the alpha = 1e-4 cases are kgeo snapshots from before B4)
+
 
 def _interp_signed(x0, x, z):
     """
@@ -73,4 +78,4 @@ def test_midplane_intersections():
     for key, value in tests.items():
         bhspin, inc, alpha, beta = key
         x0, y0 = _get_midplane_crossing(bhspin, inc, alpha, beta)
-        assert np.allclose([x0, y0], value, rtol=1e-3)
+        assert np.allclose([x0, y0], value, rtol=MIDPLANE_RTOL, atol=NP_DEFAULT_ATOL)

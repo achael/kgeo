@@ -17,6 +17,14 @@ BETA = np.concatenate([_BETA.ravel(), [0.1, 0.05, -0.1, 0.1, -0.3]])
 SPINS = [0.0, 0.5, 0.94]
 INCS = [0.3, 1.0, 1.5, 2.2]
 
+# Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3)
+VIETA_TOL = 1e-13              # radial roots: scaled Vieta residual                      [4e-16]
+RADIAL_RAY_ROOTS_ATOL = 1e-12  # a = 0 radial ray: all four roots at 0                    [0]
+MINO_TOTAL_RTOL = 1e-9         # tau_tot vs quadrature (worst: near the PNC pixel)        [2e-10]
+ANGULAR_POLY_TOL = 1e-13       # u_pm: scaled residual of (1-u) Theta(u) = 0              [7e-14]
+UPUM_PRODUCT_RTOL = 1e-12      # u_+ u_- = -eta/a^2                                       [2e-16]
+IDENTITY_RTOL = 1e-15          # uratio, a2um and their a = 0 limits                      [0]
+
 
 def _vieta_residual(a, lam, eta):
     """Largest scaled mismatch between the roots' elementary symmetric polynomials
@@ -43,7 +51,7 @@ def _vieta_residual(a, lam, eta):
 def test_radial_roots_vieta(a, th_o):
     """r1..r4 are the roots of R(r): sum r_i = 0, sum r_i r_j = A, etc."""
     lam, eta = conserved(a, th_o, ALPHA, BETA)
-    assert np.all(_vieta_residual(a, lam, eta) < 1e-13)
+    assert np.all(_vieta_residual(a, lam, eta) < VIETA_TOL)
 
 
 @pytest.mark.parametrize("a, th_o, alpha, beta", [
@@ -55,7 +63,7 @@ def test_radial_roots_resolvent_cancellation(a, th_o, alpha, beta):
     """Screen points near the curve where the resolvent cubic's P vanishes: before the
     omegap*omegam = -P/3 recomputation in radial_roots, the roots here were off by ~1e-6."""
     lam, eta = conserved(a, th_o, np.array([alpha]), np.array([beta]))
-    assert _vieta_residual(a, lam, eta)[0] < 1e-13
+    assert _vieta_residual(a, lam, eta)[0] < VIETA_TOL
 
 
 @pytest.mark.parametrize("th_o", [0.3, 1.0])
@@ -64,7 +72,7 @@ def test_radial_roots_schwarzschild_radial_ray(th_o):
     zero = np.array([0.])
     roots = np.array(radial_roots(0.0, *conserved(0.0, th_o, zero, zero))[:4])
     assert np.all(np.isfinite(roots))
-    assert np.all(np.abs(roots) < 1e-12)
+    assert np.all(np.abs(roots) < RADIAL_RAY_ROOTS_ATOL)
 
 
 def _mino_total_quad(a, lam, eta, rclass, r4_guess, r_o):
@@ -97,7 +105,7 @@ def test_mino_total_matches_quadrature(a, th_o):
     tautot = mino_total(a, r_o, eta, r1, r2, r3, r4)
     expected = [_mino_total_quad(a, lam[i], eta[i], rclass[i], np.real(r4[i]), r_o)
                 for i in range(len(lam))]
-    np.testing.assert_allclose(tautot, expected, rtol=1e-9)
+    np.testing.assert_allclose(tautot, expected, rtol=MINO_TOTAL_RTOL)
 
 
 @pytest.mark.parametrize("a", [0.1, 0.5, 0.94])
@@ -115,7 +123,7 @@ def test_mino_total_near_principal_null_congruence(a, th_o):
     tautot = mino_total(a, r_o, eta, r1, r2, r3, r4)
     assert np.all(rclass == 4)
     expected = [_mino_total_quad(a, lam[i], eta[i], 4, None, r_o) for i in range(len(lam))]
-    np.testing.assert_allclose(tautot, expected, rtol=1e-9)
+    np.testing.assert_allclose(tautot, expected, rtol=MINO_TOTAL_RTOL)
 
 
 @pytest.mark.parametrize("a", SPINS)
@@ -148,11 +156,11 @@ def test_angular_roots(a, th_o):
         return eta + (a**2 - eta - lam**2)*u - a**2*u**2
 
     scale = 1 + np.abs(eta) + lam**2 + a**2
-    assert np.all(np.abs(poly(up))/scale < 1e-13)
-    assert np.all(np.abs(poly(um))/scale < 1e-13)
-    np.testing.assert_allclose(up*um, -eta/a**2, rtol=1e-12)
-    np.testing.assert_allclose(uratio, up/um, rtol=1e-15)
-    np.testing.assert_allclose(a2um, a**2*um, rtol=1e-15)
+    assert np.all(np.abs(poly(up))/scale < ANGULAR_POLY_TOL)
+    assert np.all(np.abs(poly(um))/scale < ANGULAR_POLY_TOL)
+    np.testing.assert_allclose(up*um, -eta/a**2, rtol=UPUM_PRODUCT_RTOL)
+    np.testing.assert_allclose(uratio, up/um, rtol=IDENTITY_RTOL)
+    np.testing.assert_allclose(a2um, a**2*um, rtol=IDENTITY_RTOL)
 
     # the observer lies in the allowed band: cos^2(th_o) <= u_+ always,
     # and u_- <= cos^2(th_o) for vortical rays (eta < 0)
@@ -167,6 +175,6 @@ def test_angular_roots_schwarzschild(th_o):
     a^2 u_- = -eta/u_+ -> -(eta + lam^2) and u_+/u_- -> 0 in the a -> 0 limit."""
     lam, eta = conserved(0.0, th_o, ALPHA, BETA)
     up, um, uratio, a2um = uplus_uminus(0.0, th_o, lam, eta)
-    np.testing.assert_allclose(up, eta/(eta + lam**2), rtol=1e-15)
-    np.testing.assert_allclose(a2um, -(eta + lam**2), rtol=1e-15)
+    np.testing.assert_allclose(up, eta/(eta + lam**2), rtol=IDENTITY_RTOL)
+    np.testing.assert_allclose(a2um, -(eta + lam**2), rtol=IDENTITY_RTOL)
     assert np.all(uratio == 0)

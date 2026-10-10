@@ -7,6 +7,17 @@ from helpers import DATA_DIR, xfail_until
 
 _MIDPLANE = np.pi/2.
 
+# Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3);
+# [target] where only strict xfails use them
+NP_DEFAULT_ATOL = 1e-8           # np.isclose/allclose's default atol, made explicit below
+USQ_RTOL = 1e-5                  # fuzzed u.u = -1                                  [8e-13]
+FROMFILE_RTOL = 1e-4             # 'fromfile' u^mu vs tabulated values              [3e-5]
+GENERAL_RTOL = 1e-5              # 'general' u^mu vs ipole                          [3e-6]
+NORM_RTOL = 1e-10                # u.u = -1 at a = 0                                [4e-14]
+                                 # (a = 1: [target, B7])
+ZERO_SPIN_CONTINUITY_TOL = 1e-6  # u^mu(a = 0) vs u^mu(a = 1e-8), rtol and atol     [2e-7]
+RPLUS_RTOL = 1e-15               # r_+ = M + sqrt(M^2 - a^2)                        [0]
+
 
 def _gcov_bl(a, r, th=np.pi/2.):
     """
@@ -52,7 +63,7 @@ def test_velocity_usq():
                 ucon = np.array(v.u_lab(bhspin, radius))
                 ucov = np.einsum('ij,i...->j...', gcov, ucon)
                 usq = np.einsum('i...,i...->...', ucon, ucov)
-                assert np.isclose(usq, -1., rtol=1.e-5), \
+                assert np.isclose(usq, -1., rtol=USQ_RTOL, atol=NP_DEFAULT_ATOL), \
                     f'Failed for {veltype} with a={bhspin} at r={radius}: u.u = {usq}'
 
 
@@ -73,7 +84,7 @@ def test_velocity_fromfile():
         bhspin = np.array(0.6)
         radius = np.array(radius)
         ucon_out = np.squeeze(v.u_lab(bhspin, radius, th=theta))
-        assert np.allclose(ucon_out, ucon, rtol=1.e-4), \
+        assert np.allclose(ucon_out, ucon, rtol=FROMFILE_RTOL, atol=NP_DEFAULT_ATOL), \
             f'Failed for radius={radius}, theta={theta}: expected {ucon}, got {ucon_out}'
 
 
@@ -101,7 +112,7 @@ def test_velocity_general():
         v = Velocity('general', **kwargs)
         u0, u1, u2, u3 = v.u_lab(bhspin, radius, th=theta)
         ucon_out = np.array([np.squeeze(u0), np.squeeze(u1), np.squeeze(u2), np.squeeze(u3)])
-        assert np.allclose(ucon_out, ucon, rtol=1.e-5), \
+        assert np.allclose(ucon_out, ucon, rtol=GENERAL_RTOL, atol=NP_DEFAULT_ATOL), \
             f'Failed for retro={retro}, fac_subkep={fac_subkep}, beta_phi={beta_phi}, ' \
             f'beta_r={beta_r}, bhspin={bhspin}, radius={radius}, theta={theta}: ' \
             f'expected {ucon}, got {ucon_out}'
@@ -123,7 +134,7 @@ def _usq(veltype, a, r):
 def test_velocity_normalized_schwarzschild(veltype):
     """a = 0 (outside r_+ = 2, incl. inside the ISCO at r = 6): u.u = -1."""
     for r in np.linspace(2.1, 15., 30):
-        assert np.isclose(_usq(veltype, 0.0, r), -1., rtol=1e-10), f"r = {r}"
+        assert np.isclose(_usq(veltype, 0.0, r), -1., rtol=NORM_RTOL, atol=NP_DEFAULT_ATOL), f"r = {r}"
 
 
 @pytest.mark.parametrize("veltype", _MODELS)
@@ -133,7 +144,7 @@ def test_velocity_continuous_at_zero_spin(veltype):
     (kep, cunningham, subkep, cunningham_subkep, general did, via np.sign(0) = 0)."""
     for r in np.linspace(2.1, 15., 30):
         np.testing.assert_allclose(_ucon(veltype, 0.0, r), _ucon(veltype, 1e-8, r),
-                                   rtol=1e-6, atol=1e-6, err_msg=f"r = {r}")
+                                   rtol=ZERO_SPIN_CONTINUITY_TOL, atol=ZERO_SPIN_CONTINUITY_TOL, err_msg=f"r = {r}")
 
 
 @xfail_until("B7", "a = 1 rejected by the input checks; ISCO = horizon = 1 makes the "
@@ -142,10 +153,10 @@ def test_velocity_continuous_at_zero_spin(veltype):
 def test_velocity_normalized_extremal(veltype):
     """a = 1, outside the horizon r_+ = 1: u.u = -1."""
     for r in np.linspace(1.1, 15., 30):
-        assert np.isclose(_usq(veltype, 1.0, r), -1., rtol=1e-10), f"r = {r}"
+        assert np.isclose(_usq(veltype, 1.0, r), -1., rtol=NORM_RTOL, atol=NP_DEFAULT_ATOL), f"r = {r}"
 
 
 @pytest.mark.parametrize("spin, M", [(0.0, 1.0), (0.5, 1.0), (1.0, 1.0), (1.0, 2.0)])
 def test_rplusfunc_horizon(spin, M):
     """Outer horizon r_+ = M + sqrt(M^2 - a^2) (used by the BZ paraboloid helpers)."""
-    assert np.isclose(rplusfunc(spin, M), M + np.sqrt(M**2 - spin**2), rtol=1e-15)
+    assert np.isclose(rplusfunc(spin, M), M + np.sqrt(M**2 - spin**2), rtol=RPLUS_RTOL, atol=NP_DEFAULT_ATOL)

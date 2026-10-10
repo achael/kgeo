@@ -14,8 +14,22 @@ from helpers import trace, wrap, xfail_until
 
 R_O = 1000.
 
+# Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3);
+# [target] where only strict xfails use them
+ODE_RTOL = 1e-10              # r vs the ODE oracle                                        [4e-12]
+ODE_ANGLE_ATOL = 1e-10        # theta, phi vs the ODE oracle                               [7e-12]
+NEAR_EXTREMAL_TOL = 1e-8      # a = 1 - 1e-8: r, theta, phi, t (rel. to |t| + 1)           [1e-9]
+                              # (a = 1, a = 1 - 1e-14: [target, B7])
+SMALL_LAM_ANGLE_ATOL = 1e-7   # alpha ~ 1e-5: the ODE's near-pole stiffness gives ~1e-8    [target, B4]
+RADIAL_RAY_TOL = 1e-12        # a = 0 radial ray vs closed form: tau_tot, r, theta, phi    [0]
+RADIAL_RAY_T_TOL = 1e-10      # a = 0 radial ray: t, sigma (rtol and atol)                 [1e-13]
+CONST_TH_ANGLE_ATOL = 1e-7    # constant-theta rays: u_+, u_- differ by ~1e-8 roundoff (B9) [5e-8]
+CONST_TH_RTOL = 1e-11         # constant-theta rays: tau(r), t vs quadrature               [5e-12]
+EQUATORIAL_RAY_ATOL = 1e-14   # th_o = pi/2, beta = 0: theta = pi/2                        [target, B6]
+DISTANT_T_ATOL = 1e-6         # r_o = 1e7: t, sigma vs 30-digit quadrature                 [target, B8]
 
-def _assert_matches_ode(a, th_o, alpha, beta, ngeo=40, angle_tol=1e-10, rtol=1e-10,
+
+def _assert_matches_ode(a, th_o, alpha, beta, ngeo=40, angle_tol=ODE_ANGLE_ATOL, rtol=ODE_RTOL,
                         phi_mod_2pi=False, check_t=False):
     """Analytic r, theta, phi of one ray agree with the ODE oracle, clear of the horizon.
     Generic rays agree to ~1e-11 (see test_geodesic_invariants.py).
@@ -61,22 +75,22 @@ _A_VB, _TH_VB, _ALPHA_VB = 0.5, 0.3, 0.2
 _BETA_VB = np.sqrt(_A_VB**2 - _ALPHA_VB**2)*np.cos(_TH_VB)
 
 
-@pytest.mark.parametrize("a, th_o, alpha, beta, angle_tol", [
+@pytest.mark.parametrize("a, th_o, alpha, beta", [
     # alpha = +-a, beta = 0
-    (0.5, 0.3, 0.5, 0.0, 1e-10),
-    (0.5, 0.3, -0.5, 0.0, 1e-10),
-    (0.94, 1.2, 0.94, 0.0, 1e-10),
+    (0.5, 0.3, 0.5, 0.0),
+    (0.5, 0.3, -0.5, 0.0),
+    (0.94, 1.2, 0.94, 0.0),
     # on the boundary of the vortical region, beta != 0; both signs of beta, and the southern reflection
-    (_A_VB, _TH_VB, _ALPHA_VB, _BETA_VB, 1e-10),
-    (_A_VB, _TH_VB, _ALPHA_VB, -_BETA_VB, 1e-10),
-    (_A_VB, np.pi - _TH_VB, _ALPHA_VB, -_BETA_VB, 1e-10),
+    (_A_VB, _TH_VB, _ALPHA_VB, _BETA_VB),
+    (_A_VB, _TH_VB, _ALPHA_VB, -_BETA_VB),
+    (_A_VB, np.pi - _TH_VB, _ALPHA_VB, -_BETA_VB),
 ])
-def test_eta_zero(a, th_o, alpha, beta, angle_tol):
+def test_eta_zero(a, th_o, alpha, beta):
     """eta = 0: u_- = 0 is a double root of the theta potential and the ray
     asymptotes to the equator (boundary between ordinary and vortical motion)."""
     lam, eta = conserved(a, th_o, alpha, beta)
     assert eta == 0
-    _assert_matches_ode(a, th_o, alpha, beta, angle_tol=angle_tol)
+    _assert_matches_ode(a, th_o, alpha, beta)
 
 
 @pytest.mark.parametrize("deta", [1e-9, 1e-12, 1e-14, -1e-14, -1e-12, -1e-9])
@@ -124,9 +138,8 @@ def test_lambda_zero(a, th_o, beta):
     (0.94, 0.1, 1e-4, 0.3),   # vortical
 ])
 def test_lambda_near_zero(a, th_o, alpha, beta):
-    """Small lam != 0: a fast but smooth phi swing of ~pi at each near-pole passage.
-    1e-7 tolerance: the ODE's near-pole stiffness limits it to ~1e-8 at alpha = 1e-5."""
-    _assert_matches_ode(a, th_o, alpha, beta, angle_tol=1e-7)
+    """Small lam != 0: a fast but smooth phi swing of ~pi at each near-pole passage."""
+    _assert_matches_ode(a, th_o, alpha, beta, angle_tol=SMALL_LAM_ANGLE_ATOL)
 
 
 @pytest.mark.parametrize("th_o", [0.3, 1.0, 2.2])
@@ -140,15 +153,15 @@ def test_schwarzschild_radial_ray(th_o):
     def rstar(x):
         return x + 2*np.log(x/2 - 1)
 
-    np.testing.assert_allclose(geo['tautot'], 1/2 - 1/R_O, rtol=1e-12)
-    np.testing.assert_allclose(r, 1/(1/R_O + tau), rtol=1e-12)
-    np.testing.assert_allclose(geo['th'][:, 0], th_o, rtol=0, atol=1e-12)
-    np.testing.assert_allclose(geo['ph'][:, 0], 0, rtol=0, atol=1e-12)
-    np.testing.assert_allclose(geo['t'][:, 0], -(rstar(R_O) - rstar(r)), rtol=1e-10, atol=1e-10)
-    np.testing.assert_allclose(geo['sig'][:, 0], -(R_O - r), rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(geo['tautot'], 1/2 - 1/R_O, rtol=RADIAL_RAY_TOL)
+    np.testing.assert_allclose(r, 1/(1/R_O + tau), rtol=RADIAL_RAY_TOL)
+    np.testing.assert_allclose(geo['th'][:, 0], th_o, rtol=0, atol=RADIAL_RAY_TOL)
+    np.testing.assert_allclose(geo['ph'][:, 0], 0, rtol=0, atol=RADIAL_RAY_TOL)
+    np.testing.assert_allclose(geo['t'][:, 0], -(rstar(R_O) - rstar(r)), rtol=RADIAL_RAY_T_TOL, atol=RADIAL_RAY_T_TOL)
+    np.testing.assert_allclose(geo['sig'][:, 0], -(R_O - r), rtol=RADIAL_RAY_T_TOL, atol=RADIAL_RAY_T_TOL)
 
 
-def _assert_constant_theta_matches_quad(a, th_o, sign, angle_tol=1e-7, rtol=1e-11):
+def _assert_constant_theta_matches_quad(a, th_o, sign, angle_tol=CONST_TH_ANGLE_ATOL, rtol=CONST_TH_RTOL):
     """beta = 0, alpha = -sign a sin(th_o): u_+ = u_- = cos^2(th_o), so theta = th_o (GL19a 24).
     Compared with quadrature in r of tau, I_phi, I_t (GL19a 13), with G_phi = -tau/sin^2(th_o)
     and G_t = -tau cos^2(th_o) (kgeo's tau runs backward from the observer)."""
@@ -183,8 +196,7 @@ def _assert_constant_theta_matches_quad(a, th_o, sign, angle_tol=1e-7, rtol=1e-1
 def test_constant_theta_rays(a, th_o, sign):
     """The two double roots of the theta potential on the beta = 0 row, both NaN before B3.
     sign = 1: principal null congruence, zeta = 0 and sqrt(R) = r^2 + a^2 cos^2(th_o)
-    (GL19a 75, 76; its a -> 0 limit is the radial ray). sign = -1: the counter-rotating ray.
-    1e-7 on angles: where u_+, u_- don't coincide exactly, they differ by ~1e-8 roundoff."""
+    (GL19a 75, 76; its a -> 0 limit is the radial ray). sign = -1: the counter-rotating ray."""
     if sign == 1:
         lam, eta = conserved(a, th_o, -a*np.sin(th_o), 0.)
         assert eta + (lam - a)**2 == 0
@@ -216,7 +228,7 @@ def test_equatorial_ray(a, alpha):
     stays in the equatorial plane (for |lam| < a the equator is an unstable
     equilibrium of the theta motion, but still exact)."""
     geo = trace(a, np.pi/2, [alpha], [0.0], ngeo=40, r_o=R_O)
-    np.testing.assert_allclose(geo['th'][:, 0], np.pi/2, rtol=0, atol=1e-14)
+    np.testing.assert_allclose(geo['th'][:, 0], np.pi/2, rtol=0, atol=EQUATORIAL_RAY_ATOL)
     _assert_matches_ode(a, np.pi/2, alpha, 0.0)
 
 
@@ -243,10 +255,10 @@ def test_face_on_observer(a, alpha, beta):
     geo = trace(a, 0.0, [alpha], [beta], ngeo=40, r_o=R_O)
     ode = integrate_geodesic(a, R_O, 0.0, alpha, beta, geo['tau'][:, 0])
     ok = geo['r'][:, 0] > 1 + np.sqrt(1 - a**2) + 0.2
-    np.testing.assert_allclose(geo['r'][ok, 0], ode['r'][ok], rtol=1e-10, err_msg="r")
-    np.testing.assert_allclose(geo['th'][ok, 0], ode['th'][ok], rtol=0, atol=1e-10, err_msg="theta")
+    np.testing.assert_allclose(geo['r'][ok, 0], ode['r'][ok], rtol=ODE_RTOL, err_msg="r")
+    np.testing.assert_allclose(geo['th'][ok, 0], ode['th'][ok], rtol=0, atol=ODE_ANGLE_ATOL, err_msg="theta")
     dph = wrap(geo['ph'][ok, 0] - _face_on_expected_phi(alpha, beta, ode)[ok])
-    np.testing.assert_allclose(dph, 0, rtol=0, atol=1e-10, err_msg="phi")
+    np.testing.assert_allclose(dph, 0, rtol=0, atol=ODE_ANGLE_ATOL, err_msg="phi")
 
 
 @xfail_until("B5", "th_o = pi rejected by the input checks")
@@ -259,12 +271,12 @@ def test_south_pole_observer(a, alpha, beta):
     ode = integrate_geodesic(a, R_O, np.pi, alpha, beta, geo['tau'][:, 0])
     ode_north = integrate_geodesic(a, R_O, 0.0, alpha, -beta, geo['tau'][:, 0])
     ok = geo['r'][:, 0] > 1 + np.sqrt(1 - a**2) + 0.2
-    np.testing.assert_allclose(geo['r'][ok, 0], ode['r'][ok], rtol=1e-10, err_msg="r")
-    np.testing.assert_allclose(geo['th'][ok, 0], ode['th'][ok], rtol=0, atol=1e-10, err_msg="theta")
-    np.testing.assert_allclose(np.pi - ode_north['th'][ok], ode['th'][ok], rtol=0, atol=1e-10,
+    np.testing.assert_allclose(geo['r'][ok, 0], ode['r'][ok], rtol=ODE_RTOL, err_msg="r")
+    np.testing.assert_allclose(geo['th'][ok, 0], ode['th'][ok], rtol=0, atol=ODE_ANGLE_ATOL, err_msg="theta")
+    np.testing.assert_allclose(np.pi - ode_north['th'][ok], ode['th'][ok], rtol=0, atol=ODE_ANGLE_ATOL,
                                err_msg="oracle reflection")
     dph = wrap(geo['ph'][ok, 0] - _face_on_expected_phi(alpha, -beta, ode_north)[ok])
-    np.testing.assert_allclose(dph, 0, rtol=0, atol=1e-10, err_msg="phi")
+    np.testing.assert_allclose(dph, 0, rtol=0, atol=ODE_ANGLE_ATOL, err_msg="phi")
 
 
 # generic rays for the near-extremal / extremal tests (none on the NHEK line lam = 2)
@@ -276,7 +288,8 @@ _RAYS_EXTREMAL = [(6.0, 2.0), (-5.0, -4.0), (2.0, 3.0), (0.4, -1.5), (0.1, 0.1)]
 def test_near_extremal(th_o, alpha, beta):
     """a = 1 - 1e-8 (r_+ - r_- ~ 3e-4): currently accurate to ~1e-9 incl. t, phi.
     Regression guard for the a = 1 work (B7)."""
-    _assert_matches_ode(1 - 1e-8, th_o, alpha, beta, angle_tol=1e-8, rtol=1e-8, check_t=True)
+    _assert_matches_ode(1 - 1e-8, th_o, alpha, beta, angle_tol=NEAR_EXTREMAL_TOL, rtol=NEAR_EXTREMAL_TOL,
+                        check_t=True)
 
 
 @xfail_until("B7", "I_phi, I_t divided difference [F(r_+) - F(r_-)]/(r_+ - r_-) cancels "
@@ -285,7 +298,8 @@ def test_near_extremal(th_o, alpha, beta):
 def test_extremal_limit_cancellation(th_o, alpha, beta):
     """a = 1 - 1e-14 (r_+ - r_- ~ 3e-7), captured rays, whose phi and t are dominated
     by the near-horizon I_+- integrals."""
-    _assert_matches_ode(1 - 1e-14, th_o, alpha, beta, angle_tol=1e-8, rtol=1e-8, check_t=True)
+    _assert_matches_ode(1 - 1e-14, th_o, alpha, beta, angle_tol=NEAR_EXTREMAL_TOL, rtol=NEAR_EXTREMAL_TOL,
+                        check_t=True)
 
 
 @xfail_until("B7", "a = 1 rejected by the input checks; I_phi, I_t need the r_+ = r_- limit")
@@ -293,7 +307,8 @@ def test_extremal_limit_cancellation(th_o, alpha, beta):
 @pytest.mark.parametrize("alpha, beta", _RAYS_EXTREMAL)
 def test_extremal(th_o, alpha, beta):
     """a = 1: r_+ = r_- = 1 and Delta = (r - 1)^2 has a double root."""
-    _assert_matches_ode(1.0, th_o, alpha, beta, angle_tol=1e-8, rtol=1e-8, check_t=True)
+    _assert_matches_ode(1.0, th_o, alpha, beta, angle_tol=NEAR_EXTREMAL_TOL, rtol=NEAR_EXTREMAL_TOL,
+                        check_t=True)
 
 
 @xfail_until("B8", "the observer enters only via the last digits of O(1) elliptic arguments: "
@@ -317,5 +332,5 @@ def test_distant_observer_time():
     with mp.workdps(30):
         t_exact = [-float(mp.quad(integrand_t, [mp.mpf(x), r_o])) for x in r]
         sig_exact = [-float(mp.quad(integrand_sig, [mp.mpf(x), r_o])) for x in r]
-    np.testing.assert_allclose(geo['t'][1:, 0], t_exact, rtol=0, atol=1e-6, err_msg="t")
-    np.testing.assert_allclose(geo['sig'][1:, 0], sig_exact, rtol=0, atol=1e-6, err_msg="sigma")
+    np.testing.assert_allclose(geo['t'][1:, 0], t_exact, rtol=0, atol=DISTANT_T_ATOL, err_msg="t")
+    np.testing.assert_allclose(geo['sig'][1:, 0], sig_exact, rtol=0, atol=DISTANT_T_ATOL, err_msg="sigma")

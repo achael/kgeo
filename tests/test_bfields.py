@@ -6,6 +6,13 @@ from helpers import DATA_DIR
 
 _MIDPLANE = np.pi/2.
 
+# Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3)
+NP_DEFAULT_ATOL = 1e-8     # np.allclose's default atol, made explicit below
+BZ_GUESS_RTOL = 1e-5       # 'bz_guess' Bphi/Br vs ipole                [2e-6]
+FROMFILE_RTOL = 1e-4       # 'fromfile' B vs tabulated values           [2e-5]
+BZ_MONOPOLE_RTOL = 1e-3    # 'bz_monopole' B vs ipole / GNW's script    [4e-4]
+BZ_MONOPOLE_ATOL = 1e-15   #   for the B_theta = 0 components
+
 
 def test_bfield_bz_guess():
     """
@@ -25,7 +32,7 @@ def test_bfield_bz_guess():
     for (C, bhspin, radius, theta), Bfield_expected in tests.items():
         b = Bfield('bz_guess', C=C)
         Bfield_out = np.squeeze(b.bfield_lab(bhspin, radius, th=theta))
-        assert np.allclose(Bfield_expected, Bfield_out[2] / Bfield_out[0], rtol=1.e-5)
+        assert np.allclose(Bfield_expected, Bfield_out[2] / Bfield_out[0], rtol=BZ_GUESS_RTOL, atol=NP_DEFAULT_ATOL)
 
 
 def test_bfield_fromfile():
@@ -43,7 +50,7 @@ def test_bfield_fromfile():
 
     for (radius, theta), Brhp in tests.items():
         Bfield_out = np.squeeze(b.bfield_lab(0.6, radius, th=theta))
-        assert np.allclose(Bfield_out, Brhp, rtol=1.e-4)
+        assert np.allclose(Bfield_out, Brhp, rtol=FROMFILE_RTOL, atol=NP_DEFAULT_ATOL)
 
 
 def test_bfield_bz_monopole():
@@ -64,4 +71,4 @@ def test_bfield_bz_monopole():
     for (C, bhspin, radius, theta), Bfield_expected in tests.items():
         b = Bfield('bz_monopole', C=C)
         Bfield_out = np.squeeze(b.bfield_lab(bhspin, radius, th=theta))
-        assert np.allclose(Bfield_expected, Bfield_out, rtol=1.e-3, atol=1.e-15)
+        assert np.allclose(Bfield_expected, Bfield_out, rtol=BZ_MONOPOLE_RTOL, atol=BZ_MONOPOLE_ATOL)

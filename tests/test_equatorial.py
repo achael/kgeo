@@ -10,6 +10,15 @@ from helpers import quiet, xfail_until
 
 R_O = 1000.
 
+# Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3);
+# [target] where only strict xfails use them
+ON_EQUATOR_ATOL = 1e-10        # cos(theta) at the crossing time Ir                       [9e-15]
+CROSSING_R_RTOL = 1e-12        # r at Ir vs r_equatorial's r_s                            [0]
+MIRROR_RTOL = 1e-12            # a = 0 image: I(alpha, beta) = I(-alpha, beta)            [0]
+IMAGE_SYMMETRY_RTOL = 1e-10    # equatorial reflection of the image (incl. beta = 0 row)  [2e-12]
+                               # (th_o = 0 axisymmetry: [target, B5])
+EDGE_ON_LIMIT_RTOL = 1e-7      # th_o = pi/2 image vs th_o = pi/2 - 1e-11                 [target, B6]
+
 # a coarse grid plus a dense horizontal cut, which crosses the thin mbar = 2 band
 # near the critical curve. alpha includes 0 (lam = 0 is harmless here: no G_phi
 # needed); beta avoids 0, which is tested separately (observer at a turning point)
@@ -45,8 +54,8 @@ def _assert_crossings_on_equator(a, th_o, mbar, alpha, beta):
     with quiet():
         _, (t, r, th, ph) = coords_at_tau(a, [0, R_O, th_o, 0], [alpha[hit], beta[hit]],
                                           Ir[hit].reshape(1, -1), do_phi_and_t=False)
-    np.testing.assert_allclose(np.cos(th[0]), 0, atol=1e-10)
-    np.testing.assert_allclose(r[0], r_s[hit], rtol=1e-12)
+    np.testing.assert_allclose(np.cos(th[0]), 0, atol=ON_EQUATOR_ATOL)
+    np.testing.assert_allclose(r[0], r_s[hit], rtol=CROSSING_R_RTOL)
 
 
 @pytest.mark.parametrize("a", [0.3, 0.94])
@@ -159,7 +168,7 @@ def test_image_schwarzschild_left_right(th_o, mbar):
     image = _intensity(0.0, th_o, mbar)
     mirror = _intensity(0.0, th_o, mbar, -SYM_ALPHA, SYM_BETA)
     assert np.any(image > 0)
-    np.testing.assert_allclose(image, mirror, rtol=1e-12, atol=0)
+    np.testing.assert_allclose(image, mirror, rtol=MIRROR_RTOL, atol=0)
 
 
 @pytest.mark.parametrize("a", [0.5, 0.94])
@@ -175,7 +184,7 @@ def test_image_equatorial_reflection(a, th_o, mbar):
     north = _intensity(a, th_o, mbar, alpha, beta)
     south = _intensity(a, np.pi - th_o, mbar, alpha, -beta)
     assert np.any(north > 0)
-    np.testing.assert_allclose(south, north, rtol=1e-10, atol=0)
+    np.testing.assert_allclose(south, north, rtol=IMAGE_SYMMETRY_RTOL, atol=0)
 
 
 @xfail_until("B5", "th_o = 0 rejected by the input checks")
@@ -187,7 +196,7 @@ def test_image_face_on_axisymmetric(a, mbar):
     image = _intensity(a, 0.0, mbar)
     rotated = _intensity(a, 0.0, mbar, -SYM_BETA, SYM_ALPHA)
     assert np.any(image > 0)
-    np.testing.assert_allclose(rotated, image, rtol=1e-10, atol=0)
+    np.testing.assert_allclose(rotated, image, rtol=IMAGE_SYMMETRY_RTOL, atol=0)
 
 
 @xfail_until("B6", "th_o = pi/2 rejected by the input checks")
@@ -208,8 +217,8 @@ def test_image_edge_on_limit(a):
     edge_up = _intensity(a, np.pi/2, 0, alpha_up, beta_up)
     edge_dn = _intensity(a, np.pi/2, 0, alpha_dn, beta_dn)
     assert np.any(edge_up > 0)
-    np.testing.assert_allclose(edge_up, _intensity(a, below, 0, alpha_up, beta_up), rtol=1e-7, atol=0)
-    np.testing.assert_allclose(edge_dn, _intensity(a, below, 1, alpha_dn, beta_dn), rtol=1e-7, atol=0)
+    np.testing.assert_allclose(edge_up, _intensity(a, below, 0, alpha_up, beta_up), rtol=EDGE_ON_LIMIT_RTOL, atol=0)
+    np.testing.assert_allclose(edge_dn, _intensity(a, below, 1, alpha_dn, beta_dn), rtol=EDGE_ON_LIMIT_RTOL, atol=0)
 
     row = SYM_BETA == 0
     assert np.all(_intensity(a, np.pi/2, 0, SYM_ALPHA[row], SYM_BETA[row]) == 0)
@@ -224,4 +233,4 @@ def test_image_equatorial_reflection_beta_zero_row(a, mbar):
     north = _intensity(a, th_o, mbar, alpha, beta)
     south = _intensity(a, np.pi - th_o, mbar, alpha, -beta)
     assert np.any(north > 0)
-    np.testing.assert_allclose(south, north, rtol=1e-10, atol=0)
+    np.testing.assert_allclose(south, north, rtol=IMAGE_SYMMETRY_RTOL, atol=0)
