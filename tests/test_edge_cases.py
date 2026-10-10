@@ -36,18 +36,23 @@ def _assert_matches_ode(a, th_o, alpha, beta, ngeo=40, angle_tol=1e-10, rtol=1e-
         np.testing.assert_allclose(dt, 0, rtol=0, atol=rtol, err_msg="t")
 
 
-@xfail_until("B4", "arcsin(cos th_o/sqrt(u_+)) at argument 1 - O(eps) loses half the digits "
-                   "(theta, phi errors 1e-9 to 1e-7; some cases pass by roundoff since B2)", strict=False)
 @pytest.mark.parametrize("a, th_o, alpha", [
     (0.0, 1.2, 5.0),
     (0.3, 1.2, 5.0),
     (0.94, 0.3, 5.0),
     (0.94, 1.2, -4.0),    # class I
     (0.94, 2.2, 6.0),
+    # vortical: at u_- for |alpha| < a sin(th_o), at u_+ for |alpha| > a sin(th_o)
+    (0.94, 0.3, 0.1),
+    (0.94, 0.3, -0.6),
+    (0.94, 2.2, 0.3),
+    (0.94, 2.2, 0.8),
 ])
 def test_beta_zero_turning_point(a, th_o, alpha):
     """beta = 0: the observer sits exactly at a theta turning point (the beta = 0 row
-    of every image grid)."""
+    of every image grid). On this row the roots of the theta potential in u = cos^2(theta)
+    are cos^2(th_o) and 1 - alpha^2/a^2, so vortical rays start at u_- or u_+.
+    (Before B4, arcsin(1 - O(eps)) in the observer amplitude gave theta, phi errors ~1e-8.)"""
     _assert_matches_ode(a, th_o, alpha, 0.0)
 
 
@@ -57,10 +62,10 @@ _BETA_VB = np.sqrt(_A_VB**2 - _ALPHA_VB**2)*np.cos(_TH_VB)
 
 
 @pytest.mark.parametrize("a, th_o, alpha, beta, angle_tol", [
-    # alpha = +-a, beta = 0. 1e-6 tolerance: these also carry the beta = 0 error (B4)
-    (0.5, 0.3, 0.5, 0.0, 1e-6),
-    (0.5, 0.3, -0.5, 0.0, 1e-6),
-    (0.94, 1.2, 0.94, 0.0, 1e-6),
+    # alpha = +-a, beta = 0
+    (0.5, 0.3, 0.5, 0.0, 1e-10),
+    (0.5, 0.3, -0.5, 0.0, 1e-10),
+    (0.94, 1.2, 0.94, 0.0, 1e-10),
     # on the boundary of the vortical region, beta != 0; both signs of beta, and the southern reflection
     (_A_VB, _TH_VB, _ALPHA_VB, _BETA_VB, 1e-10),
     (_A_VB, _TH_VB, _ALPHA_VB, -_BETA_VB, 1e-10),
@@ -86,11 +91,9 @@ def test_eta_near_zero(a, th_o, alpha, deta):
 @pytest.mark.parametrize("a, th_o, sign", [(0.5, 0.3, 1), (0.94, 1.2, 1), (0.94, 2.2, -1)])
 def test_eta_near_zero_beta_zero(a, th_o, sign, deta):
     """Approach eta = 0 along the beta = 0 row, through alpha = +-a (the ends of the
-    vortical region's boundary). 1e-6 tolerance: these rays also carry the beta = 0
-    error (~1e-7, B4).
-    r (independent of u_-) is ~1e-10 off near the horizon here, so rtol = 1e-9."""
+    vortical region's boundary)."""
     alpha = sign*a*np.sqrt(1 + deta/(a*np.cos(th_o))**2)
-    _assert_matches_ode(a, th_o, alpha, 0.0, angle_tol=1e-6, rtol=1e-9)
+    _assert_matches_ode(a, th_o, alpha, 0.0)
 
 
 @xfail_until("B4", "lam*G_phi = 0*inf: ellip_pi_arr returns inf for n = u_+ = 1, |phi| > pi/2")

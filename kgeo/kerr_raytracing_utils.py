@@ -346,6 +346,37 @@ def uplus_uminus(a,th_o,lam,eta):
 
     return (u_plus, u_minus, uratio, a2u_minus)
 
+def psi_o_amplitude(a, th_o, beta, a2u_minus):
+    """Observer amplitude Psi_o = arcsin(cos(th_o)/sqrt(u_plus)) for ordinary motion (eta > 0),
+       the argument of F, Pi, E in GL19a 29-31 at the observer (cf. 45).
+       arcsin loses half the digits near a turning point (beta = 0), where its argument ~ 1.
+       Instead use tan(Psi_o) = cos(th_o)/sqrt(u_plus - cos^2 th_o) with GL19a 18-19,
+       sin^2(th_o) beta^2 = a^2 (u_plus - cos^2 th_o)(cos^2 th_o - u_minus), so
+       sqrt(u_plus - cos^2 th_o) = |beta| sin(th_o)/sqrt(a^2 cos^2 th_o - a^2 u_minus).
+       Exact at beta = 0 and finite as a -> 0 (a2u_minus -> -(eta + lam^2)).
+       Inputs are assumed checked by the caller."""
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    return np.arctan2(cos_o*np.sqrt(a**2*cos_o**2 - a2u_minus), np.abs(beta)*sin_o)
+
+def upsilon_o_amplitude(a, th_o, beta, u_plus, u_minus):
+    """Observer amplitude Up_o = arcsin(sqrt((cos^2 th_o - u_minus)/(u_plus - u_minus)))
+       for vortical motion (eta < 0), GL19a 59.
+       The sqrt or arcsin loses half the digits near either turning point (beta = 0).
+       Instead use tan(Up_o) = sqrt(q/p), with p = u_plus - cos^2 th_o, q = cos^2 th_o - u_minus;
+       compute the larger of p, q directly and the smaller from
+       sin^2(th_o) beta^2 = a^2 p q (GL19a 18-19):
+       p < q: Up_o = atan2(|a| q, |beta| sin th_o), else Up_o = atan2(|beta| sin th_o, |a| p).
+       Exact at either turning point (beta = 0).
+       Inputs are assumed checked by the caller."""
+    sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+    p = np.maximum(u_plus - cos_o**2, 0) # p, q >= 0 for vortical rays;
+    q = np.maximum(cos_o**2 - u_minus, 0) # clamp roundoff so Up_o stays in [0, pi/2]
+    Up_o = np.where(p<q, np.arctan2(np.abs(a)*q, np.abs(beta)*sin_o),
+                         np.arctan2(np.abs(beta)*sin_o, np.abs(a)*p))
+    # on the constant-theta rays (PNC and counter-rotating) u_plus = u_minus = cos^2(th_o) so Up_o = 0
+    Up_o[u_plus==u_minus] = 0.
+    return Up_o
+
 def radial_roots(a, lam, eta):
     """Calculate radial roots r1,r2,r3,r4, for a geodisic with conserved (lam,eta)"""
 
@@ -727,8 +758,9 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
 
         # equation 12 for F0
         # checks on xFarg should be handled in uplus_uminus function
-        xFarg = np.cos(th_o)/np.sqrt(u_plus)
-        F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
+        #xFarg = np.cos(th_o)/np.sqrt(u_plus)
+        #F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
+        F0 = sp.ellipkinc(psi_o_amplitude(a, th_o, beta_reg, a2u_minus), uratio) # exact at turning points
 
         # equation 17 for K
         K = sp.ellipkinc(0.5*np.pi, uratio)
@@ -813,8 +845,9 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
 
         # GL19a equation 29 for F0
         # checks on xFarg should be handled in uplus_uminus function
-        xFarg = np.cos(th_o)/np.sqrt(u_plus)
-        F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
+        #xFarg = np.cos(th_o)/np.sqrt(u_plus)
+        #F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
+        F0 = sp.ellipkinc(psi_o_amplitude(a, th_o, beta_reg, a2u_minus), uratio) # exact at turning points
 
         # GL19a equation 33 for K
         K = sp.ellipkinc(0.5*np.pi, uratio)
@@ -854,7 +887,8 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         # Upsilon runs from 0 at the turning point nearest the equator (cos^2 = u_minus)
         # to pi/2 at the one nearest the pole (cos^2 = u_plus);
         # depends only on cos^2(th_o), so the same in both hemispheres
-        Up = np.arcsin(np.sqrt((np.cos(th_o)**2-u_minus)/(u_plus-u_minus)))
+        #Up = np.arcsin(np.sqrt((np.cos(th_o)**2-u_minus)/(u_plus-u_minus)))
+        Up = upsilon_o_amplitude(a, th_o, beta_v, u_plus, u_minus) # exact at turning points
         F0 = sp.ellipkinc(Up, 1-uratio)
 
         # equation 60 for K

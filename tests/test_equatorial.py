@@ -28,12 +28,11 @@ def test_r_equatorial_lands_on_equator(a, th_o, mbar):
     _assert_crossings_on_equator(a, th_o, mbar, ALPHA, BETA)
 
 
-@xfail_until("B4", "beta = 0: F0 = F(arcsin(cos th_o/sqrt(u_+)) ~ arcsin(1)) loses half the "
-                   "digits, crossings miss the equator by 1e-8..3e-7 "
-                   "(some cases pass by roundoff since B2)", strict=False)
 @pytest.mark.parametrize("a", [0.3, 0.94])
 @pytest.mark.parametrize("th_o", [0.3, 1.2])
 def test_r_equatorial_beta_zero_row(a, th_o):
+    """The same on the beta = 0 row, where F0 = +-K exactly (observer at a turning point;
+    before B4 the crossings missed the equator by 1e-8..3e-7)."""
     alpha = np.linspace(-8, 8, 9)
     _assert_crossings_on_equator(a, th_o, 0, alpha, np.zeros_like(alpha))
 
@@ -156,12 +155,11 @@ def _intensity(a, th_o, mbar, alpha=SYM_ALPHA, beta=SYM_BETA):
 @pytest.mark.parametrize("mbar", [0, 1])   # the mbar = 2 ring is too thin for this grid
 def test_image_schwarzschild_left_right(th_o, mbar):
     """a = 0, static (ZAMO) fluid: reflection through the plane of the line of sight
-    and the axis (lam -> -lam) gives I(alpha, beta) = I(-alpha, beta).
-    rtol 1e-6: the beta = 0 row carries the ~1e-7 turning-point error (B4)."""
+    and the axis (lam -> -lam) gives I(alpha, beta) = I(-alpha, beta)."""
     image = _intensity(0.0, th_o, mbar)
     mirror = _intensity(0.0, th_o, mbar, -SYM_ALPHA, SYM_BETA)
     assert np.any(image > 0)
-    np.testing.assert_allclose(image, mirror, rtol=1e-6, atol=0)
+    np.testing.assert_allclose(image, mirror, rtol=1e-12, atol=0)
 
 
 @pytest.mark.parametrize("a", [0.5, 0.94])
@@ -217,8 +215,6 @@ def test_image_edge_on_limit(a):
     assert np.all(_intensity(a, np.pi/2, 0, SYM_ALPHA[row], SYM_BETA[row]) == 0)
 
 
-@xfail_until("B4", "beta = 0 row: turning-point arcsin precision, intensities off by 1e-7..2e-6 "
-                   "(some cases pass by roundoff since B2)", strict=False)
 @pytest.mark.parametrize("a", [0.5, 0.94])
 @pytest.mark.parametrize("mbar", [0, 1])
 def test_image_equatorial_reflection_beta_zero_row(a, mbar):

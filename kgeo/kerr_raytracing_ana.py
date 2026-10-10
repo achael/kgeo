@@ -27,7 +27,9 @@ from kgeo.kerr_raytracing_utils import (
     mino_total,
     my_sign,
     obs_trig,
+    psi_o_amplitude,
     radial_roots,
+    upsilon_o_amplitude,
 )
 from kgeo.scipy_ellip_binding import ellipj_m1
 
@@ -181,7 +183,7 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
     print('integrating in theta...',end="\r")
     start = time.time()
     (th_s, G_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,tau,
-                                     do_phi_and_t=do_phi_and_t)
+                                     do_phi_and_t=do_phi_and_t, beta=beta)
     stop = time.time()
     print('integrating in theta...%0.2f s'%(stop-start))
 
@@ -204,7 +206,7 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
     return sig_s, geo_coords
 
 def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
-                 do_phi_and_t=True):
+                 do_phi_and_t=True, beta=None):
     check_spin(a)
     check_inclination(th_o)
     if not isinstance(s_o, np.ndarray): s_o = np.array([s_o]).flatten()
@@ -212,7 +214,17 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
     if not isinstance(lam, np.ndarray): lam= np.array([lam]).flatten()
     if not isinstance(u_plus, np.ndarray): u_plus = np.array([u_plus]).flatten()
     if not isinstance(u_minus, np.ndarray): u_minus = np.array([u_minus]).flatten()
-    if not(len(s_o)==len(eta)==len(lam)==len(u_plus)==len(u_minus)):
+
+    # beta at the observer can be optionally passed as an argument
+    # used to increase precision when the observer is near a turning point, beta~0
+    # if not given, recompute from Theta(th_o) = beta^2 (GL19b 55)
+    if beta is None:
+        betaabs = np.sqrt(np.maximum(eta + np.cos(th_o)**2*(a**2 - lam**2/np.sin(th_o)**2), 0))
+    else:
+        if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
+        betaabs = np.abs(beta)
+
+    if not(len(s_o)==len(eta)==len(lam)==len(u_plus)==len(u_minus)==len(betaabs)):
         raise Exception("inputs to th_integrate not the same length!")
     if not(tausteps.shape[-1]==len(s_o)):
         raise Exception("tausteps has incompatible shape in th_integrate!")
@@ -224,7 +236,6 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
 
     # ordinary motion:
     if(np.any(eta>0.)):
-        #mask = eta>=0.
         mask = eta>0. # eta = 0 handled separately below
         up = u_plus[mask]
         um = u_minus[mask]
@@ -241,7 +252,9 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         ## compute antideriviatives at the origin
         pref = 1/np.sqrt(-a2um)
         k = uratio # k<0 since um<0 for eta>0
-        elliparg = np.arcsin(np.cos(th_o)/np.sqrt(up))
+        # Psi_o = arcsin(cos(th_o)/sqrt(up)), the amplitude of GL19a 29 at the observer (cf. 45)
+        #elliparg = np.arcsin(np.cos(th_o)/np.sqrt(up)) # old version
+        elliparg = psi_o_amplitude(a, th_o, betaabs[mask], a2um) # exact at turning points (beta=0)
 
         # "G-terms" at observer
         F =  sp.ellipkinc(elliparg,k)
@@ -315,50 +328,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             Gtout =  Gtout - s*Gt_o
             G_t[:,mask] = Gtout
 
-    # TODO added by Claude --> rederive
-    # exact boundary between vortical and regular motion, eta=0
-    # Here u_minus = 0 is a double root of GL19a 18, (1-u)Theta = a^2 u (u_plus - u),
-    # so (dcos(th)/dtau)^2 = a^2 cos^2(th) (u_plus - cos^2(th)) is solved by elementary functions:
-    # cos(th) = h*sqrt(u_plus)*sech(psi), psi = psi_o + |a| sqrt(u_plus) tau;
-    # the ray asymptotes to the equator
-    # TODO lam = 0 (B4)
-    #if(np.any(eta==0.)):
-    if(np.any(eta==0.) and np.abs(a)>=MINSPIN_TH):
-        mask = eta==0.
-        up = u_plus[mask]
-        s = s_o[mask]
-        lamabs = np.abs(lam[mask])
-
-        if th_o <= np.pi/2: h = 1. # sign(cos(th)) GL19a 54, hemisphere
-        else: h = -1
-
-        # sign of psi_o so that dcos(th)/dtau has sign s at tau=0, as in GL19a 49
-        psi_o = -h*s*np.arcsinh(np.sqrt(up - np.cos(th_o)**2)/np.abs(np.cos(th_o)))
-        psi = psi_o + np.sqrt(a**2*up)*tausteps[:,mask]
-
-        # solution for theta_o, solves GL19a 25
-        th_s[:,mask] = (np.arccos(h*np.sqrt(up)/np.cosh(psi))).astype(float)
-
-        if do_phi_and_t:
-            # GL19a 26, 27, with signs flipped since kgeo's tau runs backward from the observer
-            # G_phi = -int dtau/sin^2(th), with sqrt(u_plus/(1-u_plus)) = |a| sqrt(u_plus)/|lam| since 1-u_plus = lam^2/a^2
-            c = np.sqrt(a**2*up)/lamabs
-            G_ph[:,mask] = (-tausteps[:,mask] - (np.arctan(c*np.tanh(psi)) - np.arctan(c*np.tanh(psi_o)))/lamabs).astype(float)
-
-            # G_t = -int cos^2(th) dtau
-            G_t[:,mask] = (-np.sqrt(up/a**2)*(np.tanh(psi) - np.tanh(psi_o))).astype(float)
-
-    # eta = 0 at a = 0: Theta = -lam^2 cot^2(th) <= 0, so Theta = 0 and th = th_o
-    # (the radial ray lam = 0, a limit of the principal null congruences, or th_o = pi/2)
-    if(np.any(eta==0.) and np.abs(a)<MINSPIN_TH):
-        mask = eta==0.
-        th_s[:,mask] = th_o
-        if do_phi_and_t:
-            G_ph[:,mask] = -tausteps[:,mask]/np.sin(th_o)**2
-            G_t[:,mask] = -tausteps[:,mask]*np.cos(th_o)**2
-
     # vortical motion case
-    #if(np.any(eta<=0.)):
     if(np.any(eta<0.)):
         if(np.abs(a)<MINSPIN_TH):
             raise Exception("below MINSPIN_TH but there are eta<0 points in th_integrate!")
@@ -372,17 +342,17 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         a2um = a**2 * um
 
         # compute antideriviatives at the observer point
-        if th_o <= np.pi/2: h = 1. # sign(cos(th)) GL19a 54,  hemisphere
+        if th_o <= np.pi/2: h = 1. # sign(cos(th)) GL19a 54, which hemisphere
         else: h = -1
 
         prefA = 1/np.sqrt(a2um) # u_minus>0 always for eta<0
         prefB = prefA / (1.-um)
         prefC = np.sqrt(um/a**2)
-        #Up_o = np.arcsin(np.sqrt((np.cos(th_o)**2 - um)/(up-um))) # GL19a, 59
-        # up = um = cos^2(th_o) on the constant-theta rays (PNC and counter-rotating): then Up_o = 0
-        Up_o = np.arcsin(np.sqrt((np.cos(th_o)**2 - um)/np.where(up==um, 1., up-um))) # GL19a, 59
         k = 1 - uratio # again, k<0 always since for eta<0 up>um>0
         upm = (up-um)/(1.-um)
+
+        #Up_o = np.arcsin(np.sqrt((np.cos(th_o)**2 - um)/(up-um))) # GL19a, 59
+        Up_o = upsilon_o_amplitude(a, th_o, betaabs[mask], up, um) # exact at turning points (beta=0)
 
         # "G-terms" at observer
         Gth_o = -h*prefA * sp.ellipkinc(Up_o, k) #GL19a 56
@@ -435,6 +405,49 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
 
             # G_t integral, GL19a, 68
             G_t[:,mask] = (prefC * sp.ellipeinc(Up_tau,k) - s*Gt_o).astype(float)
+
+    # exact boundary between vortical and regular motion, eta=0, |a|>0
+    # TODO added by Claude --> rederive
+    # Here u_minus = 0 is a double root of GL19a 18, (1-u)Theta = a^2 u (u_plus - u),
+    # so (dcos(th)/dtau)^2 = a^2 cos^2(th) (u_plus - cos^2(th)) is solved by elementary functions:
+    # cos(th) = h*sqrt(u_plus)*sech(psi), psi = psi_o + |a| sqrt(u_plus) tau;
+    # the ray asymptotes to the equator
+    # TODO lam = 0 (B4)
+    if(np.any(eta==0.) and np.abs(a)>=MINSPIN_TH):
+        mask = eta==0.
+        up = u_plus[mask]
+        s = s_o[mask]
+        lamabs = np.abs(lam[mask])
+
+        if th_o <= np.pi/2: h = 1. # sign(cos(th)) GL19a 54, hemisphere
+        else: h = -1
+
+        # sign of psi_o so that dcos(th)/dtau has sign s at tau=0, as in GL19a 49
+        #psi_o = -h*s*np.arcsinh(np.sqrt(up - np.cos(th_o)**2)/np.abs(np.cos(th_o)))
+        # sqrt(up - cos^2 th_o) = |beta| sin(th_o)/(|a| |cos th_o|), from GL19a 18-19 with um = 0
+        psi_o = -h*s*np.arcsinh(betaabs[mask]*np.sin(th_o)/(np.abs(a)*np.cos(th_o)**2))
+        psi = psi_o + np.sqrt(a**2*up)*tausteps[:,mask]
+
+        # solution for theta_o, solves GL19a 25
+        th_s[:,mask] = (np.arccos(h*np.sqrt(up)/np.cosh(psi))).astype(float)
+
+        if do_phi_and_t:
+            # GL19a 26, 27, with signs flipped since kgeo's tau runs backward from the observer
+            # G_phi = -int dtau/sin^2(th), with sqrt(u_plus/(1-u_plus)) = |a| sqrt(u_plus)/|lam| since 1-u_plus = lam^2/a^2
+            c = np.sqrt(a**2*up)/lamabs
+            G_ph[:,mask] = (-tausteps[:,mask] - (np.arctan(c*np.tanh(psi)) - np.arctan(c*np.tanh(psi_o)))/lamabs).astype(float)
+
+            # G_t = -int cos^2(th) dtau
+            G_t[:,mask] = (-np.sqrt(up/a**2)*(np.tanh(psi) - np.tanh(psi_o))).astype(float)
+
+    # eta = 0 and a = 0
+    # (the radial ray lam = 0, a limit of the principal null congruences, or th_o = pi/2)
+    if(np.any(eta==0.) and np.abs(a)<MINSPIN_TH):
+        mask = eta==0.
+        th_s[:,mask] = th_o
+        if do_phi_and_t:
+            G_ph[:,mask] = -tausteps[:,mask]/np.sin(th_o)**2
+            G_t[:,mask] = -tausteps[:,mask]*np.cos(th_o)**2
 
     return (th_s, G_ph, G_t)
 

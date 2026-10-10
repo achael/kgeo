@@ -110,7 +110,14 @@ def integrate_geodesic(a, r_o, th_o, alpha, beta, taus, rtol=1e-12, atol=1e-12):
     u_o = 1/r_o
     sign_beta = 1. if beta >= 0 else -1.
     udot_o = np.sqrt(inverse_radial_potential(u_o, a, lam, eta))
-    thdot_o = -sign_beta*np.sqrt(max(angular_potential(th_o, a, lam, eta), 0.))
+    #thdot_o = -sign_beta*np.sqrt(max(angular_potential(th_o, a, lam, eta), 0.))
+    # off the axis Theta(th_o) = beta^2 exactly (GL19b 55); rebuilding it from lam, eta
+    # gives |dtheta/dtau| ~ 1e-8 instead of 0 on the beta = 0 row (observer at a turning point).
+    # On the axis lam = 0 and Theta(th_o) = alpha^2 + beta^2, the speed through the pole.
+    if _sincos(th_o)[0] != 0:
+        thdot_o = -beta
+    else:
+        thdot_o = -sign_beta*np.sqrt(max(angular_potential(th_o, a, lam, eta), 0.))
 
     taus = np.asarray(taus, dtype=float)
     y0 = [u_o, udot_o, th_o, thdot_o, 0., 0., 0.]

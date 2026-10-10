@@ -55,23 +55,13 @@ def test_n_angular_turnings_counts_turning_points(a, th_o, alpha, beta):
 ])
 def test_n_angular_turnings_beta_zero(a, th_o, alpha):
     """beta = 0: the observer itself sits on a turning point, which is not counted, so
-    n(0) = 0; later turning points are counted as usual. (1e-6: at the theta_-/theta_+
-    and pole-side turning points F0 comes from arcsin(1 - O(eps)), off by ~1e-8; B4)"""
+    n(0) = 0; later turning points are counted as usual. (Before B4, F0 at the theta_-/theta_+
+    and pole-side turning points came from arcsin(1 - O(eps)) and n(0) was off by ~1e-8.)"""
     n, counted = _turnings(a, th_o, alpha, 0.0)
-    assert abs(n[0]) < 1e-6
+    assert abs(n[0]) < 1e-12
     step = n[1] - n[0]
     clear = np.abs(n - np.round(n)) > 2*step
     np.testing.assert_array_equal(np.floor(n)[clear], counted[clear])
-
-
-@xfail_until("B4", "beta = 0: arcsin(1 - O(eps)) in F0 loses half the digits, n(0) ~ 1e-8 "
-                   "(some cases pass by roundoff since B2)", strict=False)
-@pytest.mark.parametrize("a, th_o, alpha", [
-    (0.5, 1.0, 4.0), (0.5, np.pi - 1.0, 4.0), (0.94, 0.3, 0.6), (0.94, np.pi - 0.3, 0.6),
-])
-def test_n_angular_turnings_beta_zero_exact(a, th_o, alpha):
-    A, B = np.array([alpha]), np.array([0.0])
-    assert abs(n_angular_turnings(a, th_o, A, B, np.array([[0.0]]))[0, 0]) < 1e-12
 
 
 def test_all_vortical_input_returns_flag():
