@@ -58,7 +58,6 @@ def test_radial_roots_resolvent_cancellation(a, th_o, alpha, beta):
     assert _vieta_residual(a, lam, eta)[0] < 1e-13
 
 
-@xfail_until("B3", "z = 0 gives B/(4z) = 0/0 in radial_roots")
 @pytest.mark.parametrize("th_o", [0.3, 1.0])
 def test_radial_roots_schwarzschild_radial_ray(th_o):
     """a = 0, screen center: lam = eta = 0, so R(r) = r^4 has a quadruple root at r = 0."""
@@ -98,6 +97,24 @@ def test_mino_total_matches_quadrature(a, th_o):
     tautot = mino_total(a, r_o, eta, r1, r2, r3, r4)
     expected = [_mino_total_quad(a, lam[i], eta[i], rclass[i], np.real(r4[i]), r_o)
                 for i in range(len(lam))]
+    np.testing.assert_allclose(tautot, expected, rtol=1e-9)
+
+
+@pytest.mark.parametrize("a", [0.1, 0.5, 0.94])
+@pytest.mark.parametrize("th_o", [0.3, 1.0, 2.2])
+def test_mino_total_near_principal_null_congruence(a, th_o):
+    """At and near the PNC pixel (alpha, beta) = (-a sin th_o, 0), zeta = eta + (lam-a)^2 -> 0
+    and the resolvent cubic has a double root at 0; 4P^3 + 27Q^2 then cancels and rounding it
+    to >= 0 used to give the wrong resolvent root (NaN or negative tautot out to offsets ~1e-6)."""
+    d = np.array([0., 1e-8, 1e-6, 0., 0.])
+    alpha = -a*np.sin(th_o) + d
+    beta = np.array([0., 0., 0., 1e-8, 1e-6])
+    lam, eta = conserved(a, th_o, alpha, beta)
+    r1, r2, r3, r4, rclass = radial_roots(a, lam, eta)
+    r_o = 1000.
+    tautot = mino_total(a, r_o, eta, r1, r2, r3, r4)
+    assert np.all(rclass == 4)
+    expected = [_mino_total_quad(a, lam[i], eta[i], 4, None, r_o) for i in range(len(lam))]
     np.testing.assert_allclose(tautot, expected, rtol=1e-9)
 
 

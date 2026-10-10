@@ -4,8 +4,6 @@ import numpy as np
 import scipy.special as sp
 
 # minimum spin for full formulas to work before taking limits.
-# changed to 1.e-4 to be conservative, 1.e-6 was giving issues on-axis
-#MINSPIN = 1.e-4
 # theta integrals: with the cancellation-free u_plus, u_minus in uplus_uminus, the full
 # formulas hold down to a ~ 1e-8, below which the dropped O(a^2) terms are under roundoff
 MINSPIN_TH = 1.e-8
@@ -306,7 +304,9 @@ def uplus_uminus(a,th_o,lam,eta):
         # first compute the larger-magnitude root directly,
         # then compute the other from u_plus*u_minus = -eta/a^2
         Atheta = a*a - eta - lam*lam #Delta_theta*2*a^2
-        Dtheta = np.sqrt(Atheta**2 + 4*a*a*eta)
+        #Dtheta = np.sqrt(Atheta**2 + 4*a*a*eta)
+        # discriminant >= 0 in the allowed region, = 0 on the constant-theta rays (GL19a 24): clamp roundoff
+        Dtheta = np.sqrt(np.maximum(Atheta**2 + 4*a*a*eta, 0.))
         posmask = Atheta >= 0
         u_plus = np.empty(eta.shape)
         u_minus = np.empty(eta.shape)
@@ -390,13 +390,34 @@ def radial_roots(a, lam, eta):
 
     # GL 19a eq 87, 94. Always real and > 0
     xi0 = omegap + omegam - A/3.
+
+    # TODO: added by Claude - rederive
+    # Near zeta = 0 (principal null congruences, GL19a 75) the resolvent has a double root near 0,
+    # 4P^3+27Q^2 cancels, and if it rounds to >= 0 we get the simple root xi_s ~ -A < 0 instead.
+    # Then deflate: the other two roots of xi^3 + A xi^2 + (A^2/4 - C) xi - B^2/8 = 0 have
+    # product B^2/(8 xi_s) and sum -A - xi_s; take the larger one with the stable quadratic formula
+    negmask = realmask * (np.real(xi0) < 0)
+    if np.any(negmask):
+        xis = np.real(xi0)[negmask]
+        ssum = -A[negmask] - xis
+        prod = B[negmask]**2/(8*xis)
+        sq = np.sqrt(ssum**2 - 4*prod)
+        xi0[negmask] = np.where(ssum >= 0, 0.5*(ssum + sq), -2*prod/(sq - ssum))
     z = np.sqrt(0.5*xi0)
 
+    # z = 0 only if B = 2(eta + (lam-a)^2) = 0 (the principal null congruences)
+    # where B/(4z) -> 0
+    B4z = 0.25*B/np.where(z==0, 1., z)
+
     #GL 19a Eqn 95
-    r1 = -z - np.sqrt((-0.5*A - z**2 + 0.25*B/z).astype(complex))
-    r2 = -z + np.sqrt((-0.5*A - z**2 + 0.25*B/z).astype(complex))
-    r3 =  z - np.sqrt((-0.5*A - z**2 - 0.25*B/z).astype(complex))
-    r4 =  z + np.sqrt((-0.5*A - z**2 - 0.25*B/z).astype(complex))
+    #r1 = -z - np.sqrt((-0.5*A - z**2 + 0.25*B/z).astype(complex))
+    #r2 = -z + np.sqrt((-0.5*A - z**2 + 0.25*B/z).astype(complex))
+    #r3 =  z - np.sqrt((-0.5*A - z**2 - 0.25*B/z).astype(complex))
+    #r4 =  z + np.sqrt((-0.5*A - z**2 - 0.25*B/z).astype(complex))
+    r1 = -z - np.sqrt((-0.5*A - z**2 + B4z).astype(complex))
+    r2 = -z + np.sqrt((-0.5*A - z**2 + B4z).astype(complex))
+    r3 =  z - np.sqrt((-0.5*A - z**2 - B4z).astype(complex))
+    r4 =  z + np.sqrt((-0.5*A - z**2 - B4z).astype(complex))
 
     # determine the radial case
     rclass = np.zeros(r1.shape).astype(int)
@@ -579,6 +600,20 @@ def mino_total(a, r_o, eta, r1, r2, r3, r4):
         # class I geodesics terminate at infinity
         Imax = 2*I2ro
         Imax_out[mask_I] = Imax
+
+    # TODO: added by Claude - rederive
+    # z = 0: principal null congruence (GL19a 75, 76), incl. the a = 0 radial ray,
+    # overriding the degenerate class II / IV values above.
+    # R = (r^2 + b^2)^2 with roots +-ib, b = a|cos(th_0)|, so tau = int dr/(r^2 + b^2) is elementary
+    mask_0 = (np.real(r4) == 0)
+    if np.any(mask_0):
+        bb = np.imag(r4)[mask_0]
+        if r_o==np.inf:
+            xx = 1/rplus
+        else:
+            xx = (r_o - rplus)/(r_o*rplus + bb**2)
+        # arctan(b xx)/b, -> xx = 1/rplus - 1/r_o at b = 0
+        Imax_out[mask_0] = np.where(bb==0, xx, np.arctan(bb*xx)/np.where(bb==0, 1., bb))
 
     return Imax_out
 

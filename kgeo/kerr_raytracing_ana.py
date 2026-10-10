@@ -315,11 +315,15 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             Gtout =  Gtout - s*Gt_o
             G_t[:,mask] = Gtout
 
-    # eta = 0, a != 0 (GL19a 24): u_minus = 0 is a double root of GL19a 18, (1-u)Theta = a^2 u (u_plus - u),
+    # TODO added by Claude --> rederive
+    # exact boundary between vortical and regular motion, eta=0
+    # Here u_minus = 0 is a double root of GL19a 18, (1-u)Theta = a^2 u (u_plus - u),
     # so (dcos(th)/dtau)^2 = a^2 cos^2(th) (u_plus - cos^2(th)) is solved by elementary functions:
-    # cos(th) = h*sqrt(u_plus)*sech(psi), psi = psi_o + |a| sqrt(u_plus) tau; the ray asymptotes to the equator
-    # TODO a = 0 (radial ray, B3.3) and lam = 0 (B4)
-    if(np.any(eta==0.)):
+    # cos(th) = h*sqrt(u_plus)*sech(psi), psi = psi_o + |a| sqrt(u_plus) tau;
+    # the ray asymptotes to the equator
+    # TODO lam = 0 (B4)
+    #if(np.any(eta==0.)):
+    if(np.any(eta==0.) and np.abs(a)>=MINSPIN_TH):
         mask = eta==0.
         up = u_plus[mask]
         s = s_o[mask]
@@ -344,9 +348,18 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             # G_t = -int cos^2(th) dtau
             G_t[:,mask] = (-np.sqrt(up/a**2)*(np.tanh(psi) - np.tanh(psi_o))).astype(float)
 
+    # eta = 0 at a = 0: Theta = -lam^2 cot^2(th) <= 0, so Theta = 0 and th = th_o
+    # (the radial ray lam = 0, a limit of the principal null congruences, or th_o = pi/2)
+    if(np.any(eta==0.) and np.abs(a)<MINSPIN_TH):
+        mask = eta==0.
+        th_s[:,mask] = th_o
+        if do_phi_and_t:
+            G_ph[:,mask] = -tausteps[:,mask]/np.sin(th_o)**2
+            G_t[:,mask] = -tausteps[:,mask]*np.cos(th_o)**2
+
     # vortical motion case
-    # most eta=0 exact points are a limit of vortical motion
-    if(np.any(eta<=0.)):
+    #if(np.any(eta<=0.)):
+    if(np.any(eta<0.)):
         if(np.abs(a)<MINSPIN_TH):
             raise Exception("below MINSPIN_TH but there are eta<0 points in th_integrate!")
 
@@ -365,7 +378,9 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         prefA = 1/np.sqrt(a2um) # u_minus>0 always for eta<0
         prefB = prefA / (1.-um)
         prefC = np.sqrt(um/a**2)
-        Up_o = np.arcsin(np.sqrt((np.cos(th_o)**2 - um)/(up-um))) # GL19a, 59
+        #Up_o = np.arcsin(np.sqrt((np.cos(th_o)**2 - um)/(up-um))) # GL19a, 59
+        # up = um = cos^2(th_o) on the constant-theta rays (PNC and counter-rotating): then Up_o = 0
+        Up_o = np.arcsin(np.sqrt((np.cos(th_o)**2 - um)/np.where(up==um, 1., up-um))) # GL19a, 59
         k = 1 - uratio # again, k<0 always since for eta<0 up>um>0
         upm = (up-um)/(1.-um)
 
@@ -681,6 +696,29 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
             I_m[:,mask_2] = Im
             I_1[:,mask_2] = I1
             I_2[:,mask_2] = I2
+
+    # TODO: added by Claude - rederive
+    # z = 0: principal null congruence (GL19a 75, 76), incl. the a = 0 radial ray,
+    # overriding the degenerate case 2 / 4 values above.
+    # sqrt(R) = r^2 + b^2 with b = a|cos(th_0)|, so arctan(r/b) = arctan(r_o/b) - b tau
+    mask_0 = (np.real(r4) == 0)
+    if np.any(mask_0):
+        tau = tausteps[:,mask_0]
+        bb = np.imag(r4)[mask_0]
+        tanbt = tau*np.sinc(bb*tau/np.pi)/np.cos(bb*tau) # tan(b tau)/b, finite at b = 0
+        rs = (1 - bb**2*tanbt/r_o)/(1/r_o + tanbt)
+        r_s[:,mask_0] = rs
+
+        if do_phi_and_t:
+            # I_n = -int r^n dtau = -int_rs^r_o r^n dr/(r^2 + b^2), and partial fractions for I_p, I_m
+            lnrb = 0.5*np.log((r_o**2 + bb**2)/(rs**2 + bb**2))
+            I_1[:,mask_0] = -lnrb
+            I_2[:,mask_0] = -(r_o - rs) + bb**2*tau
+            I_p[:,mask_0] = (rplus*tau - np.log((r_o - rplus)/(rs - rplus)) + lnrb)/(rplus**2 + bb**2)
+            # rminus = b = 0 only at a = 0, where I_m = -int_rs^r_o dr/r^3 (and its prefactors vanish)
+            rmb2 = rminus**2 + bb**2
+            I_m[:,mask_0] = np.where(rmb2==0, -0.5*(1/rs**2 - 1/r_o**2),
+                                     (rminus*tau - np.log((r_o - rminus)/(rs - rminus)) + lnrb)/np.where(rmb2==0, 1., rmb2))
 
     # get I_phi, I_t, I_sigma
     I_0 = -tausteps

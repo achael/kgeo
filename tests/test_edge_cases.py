@@ -7,6 +7,7 @@ so each fix must flip its tests to passing (an unexpected pass fails the suite).
 import mpmath as mp
 import numpy as np
 import pytest
+from scipy.integrate import quad
 
 from geodesic_ode import conserved, integrate_geodesic, radial_potential
 from helpers import trace, wrap, xfail_until
@@ -125,7 +126,6 @@ def test_lambda_near_zero(a, th_o, alpha, beta):
     _assert_matches_ode(a, th_o, alpha, beta, angle_tol=1e-7)
 
 
-@xfail_until("B3", "lam = eta = 0 at a = 0: radial_roots NaN, th_integrate raises")
 @pytest.mark.parametrize("th_o", [0.3, 1.0, 2.2])
 def test_schwarzschild_radial_ray(th_o):
     """a = 0, screen center: lam = eta = 0, a purely radial ray with R = r^4, Theta = 0.
@@ -143,6 +143,57 @@ def test_schwarzschild_radial_ray(th_o):
     np.testing.assert_allclose(geo['ph'][:, 0], 0, rtol=0, atol=1e-12)
     np.testing.assert_allclose(geo['t'][:, 0], -(rstar(R_O) - rstar(r)), rtol=1e-10, atol=1e-10)
     np.testing.assert_allclose(geo['sig'][:, 0], -(R_O - r), rtol=1e-10, atol=1e-10)
+
+
+def _assert_constant_theta_matches_quad(a, th_o, sign, angle_tol=1e-7, rtol=1e-11):
+    """beta = 0, alpha = -sign a sin(th_o): u_+ = u_- = cos^2(th_o), so theta = th_o (GL19a 24).
+    Compared with quadrature in r of tau, I_phi, I_t (GL19a 13), with G_phi = -tau/sin^2(th_o)
+    and G_t = -tau cos^2(th_o) (kgeo's tau runs backward from the observer)."""
+    s, c = np.sin(th_o), np.cos(th_o)
+    geo = trace(a, th_o, [-sign*a*s], [0.], ngeo=12, r_o=R_O)
+    lam, eta = geo['lam'][0], geo['eta'][0]
+
+    def q(f, r):
+        return quad(f, r, R_O, epsabs=0, epsrel=1e-13, limit=200)[0]
+
+    def R(r):
+        return radial_potential(r, a, lam, eta)
+
+    def D(r):
+        return r*r - 2*r + a*a
+
+    np.testing.assert_allclose(geo['th'][:, 0], th_o, rtol=0, atol=angle_tol, err_msg="theta")
+    for rs, tau, ph, t in zip(geo['r'][1:, 0], geo['tau'][1:, 0], geo['ph'][1:, 0], geo['t'][1:, 0]):
+        ph_ex = -q(lambda r: a*(2*r - a*lam)/(D(r)*np.sqrt(R(r))), rs) - lam*tau/s**2
+        t_ex = -q(lambda r: (r*r*D(r) + 2*r*(r*r + a*a - a*lam))/(D(r)*np.sqrt(R(r))), rs) - a*a*c*c*tau
+        np.testing.assert_allclose(q(lambda r: 1/np.sqrt(R(r)), rs), tau, rtol=rtol, err_msg="tau(r)")
+        np.testing.assert_allclose(ph, ph_ex, rtol=0, atol=angle_tol, err_msg="phi")
+        np.testing.assert_allclose(t, t_ex, rtol=rtol, err_msg="t")
+
+
+@pytest.mark.parametrize("a, th_o, sign", [
+    # principal null congruence with zeta = 0 exactly in floating point (so z = 0 in radial_roots)
+    (0.1, 2.2, 1), (0.5, 0.3, 1), (0.7, 2.2, 1), (0.94, 1.0, 1),
+    # counter-rotating constant-theta ray, lam = -a sin^2(th_o)
+    (0.1, 0.3, -1), (0.5, 1.0, -1), (0.94, 2.2, -1), (0.99, 2.8, -1),
+])
+def test_constant_theta_rays(a, th_o, sign):
+    """The two double roots of the theta potential on the beta = 0 row, both NaN before B3.
+    sign = 1: principal null congruence, zeta = 0 and sqrt(R) = r^2 + a^2 cos^2(th_o)
+    (GL19a 75, 76; its a -> 0 limit is the radial ray). sign = -1: the counter-rotating ray.
+    1e-7 on angles: where u_+, u_- don't coincide exactly, they differ by ~1e-8 roundoff."""
+    if sign == 1:
+        lam, eta = conserved(a, th_o, -a*np.sin(th_o), 0.)
+        assert eta + (lam - a)**2 == 0
+    _assert_constant_theta_matches_quad(a, th_o, sign)
+
+
+@xfail_until("B9", "near zeta = 0, z ~ sqrt(eps) from roundoff and the case-4 I_p, I_m lose ~eps/z^2: "
+                   "phi off by 5e-6 to 4e-5 at the PNC pixel when zeta is not exactly 0")
+@pytest.mark.parametrize("a, th_o", [(0.94, 2.2), (0.99, 2.2)])
+def test_principal_null_congruence_near_degenerate(a, th_o):
+    """The PNC pixel when zeta rounds to a nonzero ~1e-17, so the case-4 formulas are used."""
+    _assert_constant_theta_matches_quad(a, th_o, 1)
 
 
 @xfail_until("B0/B6", "th_o = pi/2 rejected by the input checks")
