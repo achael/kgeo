@@ -272,8 +272,22 @@ def rho_of_req_single(a, th0, req, varphi, mbar=0):
     return rho
 
 def critical_curve(a, th0, n=100000):
-    """returns parametrized critical curve (alpha,beta) array with n points
-       won't work for a=0 exactly"""
+    """returns parametrized critical curve (alpha,beta) array with n points.
+       At a = 0 or for an observer on the axis (th0 = 0, pi) it is a circle,
+       alpha^2 + beta^2 = eta + a^2 cos^2(th0) + lam^2, returned with 2n points."""
+
+    # a = 0: all photon orbits at r = 3, lam^2 + eta = 27.
+    # on the axis: only lam = 0 reaches the screen, rho^2 = eta + a^2 at the photon orbit r0 with lam(r0) = 0,
+    # the largest root of r^3 - 3r^2 + a^2 r + a^2 (trigonometric solution of the depressed cubic in r - 1)
+    sin_o, cos_o = obs_trig(th0) # exact at 0, pi/2, pi
+    if a == 0 or sin_o == 0:
+        if a == 0:
+            rho = np.sqrt(27.)
+        else:
+            r0 = 1 + 2*np.sqrt(1 - a**2/3)*np.cos(np.arccos((1 - a**2)/(1 - a**2/3)**1.5)/3)
+            rho = np.sqrt(r0**2*(3*r0**2 + a**2)/(r0**2 - a**2) + a**2)
+        psi = np.linspace(0, 2*np.pi, 2*n)
+        return (rho*np.cos(psi), rho*np.sin(psi))
 
     # this parameterization requires very high accuracy nera beginning/end points to get equatorial slice!
 

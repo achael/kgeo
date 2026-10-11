@@ -104,16 +104,10 @@ def test_momentum_signs(a, th_o, mbar):
     np.testing.assert_array_equal(np.full(len(dth), kth_sign), -np.sign(dth))
 
 
-_EMPTY_CURVE = "critical_curve divides by a and sin(th_o): silently returns an empty curve"
-
-
 @pytest.mark.parametrize("a, th_o", [
     (0.3, 0.3), (0.3, 1.2), (0.3, 2.2), (0.94, 0.3), (0.94, 1.2), (0.94, 2.2),
     (0.94, np.pi/2),
-    pytest.param(0.0, 0.3, marks=xfail_until("B5", _EMPTY_CURVE)),
-    pytest.param(0.0, 1.2, marks=xfail_until("B5", _EMPTY_CURVE)),
-    pytest.param(0.5, 0.0, marks=xfail_until("B5", _EMPTY_CURVE)),
-    pytest.param(0.5, np.pi, marks=xfail_until("B5", _EMPTY_CURVE)),
+    (0.0, 0.3), (0.0, 1.2), (0.5, 0.0), (0.5, np.pi), (0.94, 0.0),    # circles
     pytest.param(1.0, 1.2, marks=xfail_until("B7", "a = 1 rejected by is_outside_crit")),
 ])
 def test_critical_curve_separates_inside_outside(a, th_o):
