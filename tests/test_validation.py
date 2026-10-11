@@ -8,7 +8,9 @@ from kgeo.velocities import Velocity
 
 from helpers import quiet
 
-# No tolerances: int / numpy-scalar inputs must give results identical to python floats
+# Tolerances, with the worst error measured in [brackets] (2026-10-11, CI)
+SCALAR_TYPE_RTOL = 1e-6   # Iobs with int / numpy-scalar a, th_o vs python floats   [0; 7e-8 with numpy >= 2,
+                          # where a float32 spin makes the arithmetic float32 (NEP 50)]
 
 
 @pytest.mark.parametrize("a", [0, 0.0, 0.5, -0.5, 0.999, np.float64(0.3), np.float32(0.3), np.int64(0)])
@@ -53,7 +55,7 @@ def test_public_functions_accept_int_and_numpy_scalars():
     with quiet():
         expected = Iobs(0.5, 1000., 1.0, 0, alpha, beta)[0]
         for a, th_o in [(np.float64(0.5), 1), (np.float32(0.5), np.int64(1))]:
-            np.testing.assert_array_equal(Iobs(a, 1000., th_o, 0, alpha, beta)[0], expected)
+            np.testing.assert_allclose(Iobs(a, 1000., th_o, 0, alpha, beta)[0], expected, rtol=SCALAR_TYPE_RTOL)
 
     r = np.array([4.0, 8.0])
     # u_lab returns u^theta as a scalar 0 next to arrays, so compare per component

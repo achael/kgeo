@@ -175,12 +175,13 @@ def test_schwarzschild_radial_ray(th_o):
     np.testing.assert_allclose(geo['sig'][:, 0], -(R_O - r), rtol=RADIAL_RAY_T_TOL, atol=RADIAL_RAY_T_TOL)
 
 
-def _assert_constant_theta_matches_quad(a, th_o, sign, angle_tol=CONST_TH_ANGLE_ATOL, rtol=CONST_TH_RTOL):
-    """beta = 0, alpha = -sign a sin(th_o): u_+ = u_- = cos^2(th_o), so theta = th_o (GL19a 24).
+def _assert_constant_theta_matches_quad(a, th_o, sign, alpha=None, angle_tol=CONST_TH_ANGLE_ATOL, rtol=CONST_TH_RTOL):
+    """beta = 0, alpha = -sign a sin(th_o) (or a given alpha within a few ulps of it):
+    u_+ = u_- = cos^2(th_o), so theta = th_o (GL19a 24).
     Compared with quadrature in r of tau, I_phi, I_t (GL19a 13), with G_phi = -tau/sin^2(th_o)
     and G_t = -tau cos^2(th_o) (kgeo's tau runs backward from the observer)."""
     s, c = np.sin(th_o), np.cos(th_o)
-    geo = trace(a, th_o, [-sign*a*s], [0.], ngeo=12, r_o=R_O)
+    geo = trace(a, th_o, [-sign*a*s if alpha is None else alpha], [0.], ngeo=12, r_o=R_O)
     lam, eta = geo['lam'][0], geo['eta'][0]
 
     def q(f, r):
@@ -201,6 +202,17 @@ def _assert_constant_theta_matches_quad(a, th_o, sign, angle_tol=CONST_TH_ANGLE_
         np.testing.assert_allclose(t, t_ex, rtol=rtol, err_msg="t")
 
 
+def _pnc_alpha(a, th_o, width=100):
+    """alpha within width ulps of -a sin(th_o) where zeta = eta + (lam - a)^2 is exactly 0 in floating point,
+    or None. Mathematically zeta = (alpha + a sin(th_o))^2 on the beta = 0 row, so its floating-point value
+    is roundoff, and whether it is exactly 0 at alpha = -a sin(th_o) depends on the machine's sin/cos."""
+    al0 = -a*np.sin(th_o)
+    alpha = al0 + np.arange(-width, width + 1)*np.spacing(al0)
+    lam, eta = conserved(a, th_o, alpha, np.zeros_like(alpha))
+    exact = np.nonzero(eta + (lam - a)**2 == 0)[0]
+    return alpha[exact[np.argmin(np.abs(exact - width))]] if len(exact) else None
+
+
 @pytest.mark.parametrize("a, th_o, sign", [
     # principal null congruence with zeta = 0 exactly in floating point (so z = 0 in radial_roots)
     (0.1, 2.2, 1), (0.5, 0.3, 1), (0.7, 2.2, 1), (0.94, 1.0, 1),
@@ -211,18 +223,26 @@ def test_constant_theta_rays(a, th_o, sign):
     """The two double roots of the theta potential on the beta = 0 row, both NaN before B3.
     sign = 1: principal null congruence, zeta = 0 and sqrt(R) = r^2 + a^2 cos^2(th_o)
     (GL19a 75, 76; its a -> 0 limit is the radial ray). sign = -1: the counter-rotating ray."""
+    alpha = None
     if sign == 1:
-        lam, eta = conserved(a, th_o, -a*np.sin(th_o), 0.)
-        assert eta + (lam - a)**2 == 0
-    _assert_constant_theta_matches_quad(a, th_o, sign)
+        alpha = _pnc_alpha(a, th_o)
+        if alpha is None:
+            pytest.skip("no alpha with zeta == 0 exactly on this machine (the near-degenerate PNC is B9)")
+    _assert_constant_theta_matches_quad(a, th_o, sign, alpha=alpha)
 
 
 @xfail_until("B9", "near zeta = 0, z ~ sqrt(eps) from roundoff and the case-4 I_p, I_m lose ~eps/z^2: "
                    "phi off by 5e-6 to 4e-5 at the PNC pixel when zeta is not exactly 0")
 @pytest.mark.parametrize("a, th_o", [(0.94, 2.2), (0.99, 2.2)])
 def test_principal_null_congruence_near_degenerate(a, th_o):
-    """The PNC pixel when zeta rounds to a nonzero ~1e-17, so the case-4 formulas are used."""
-    _assert_constant_theta_matches_quad(a, th_o, 1)
+    """The PNC pixel when zeta rounds to a nonzero ~1e-17, so the case-4 formulas are used
+    (alpha nudged by an ulp if zeta is exactly 0 on this machine)."""
+    alpha = -a*np.sin(th_o)
+    lam, eta = conserved(a, th_o, alpha, 0.)
+    while eta + (lam - a)**2 == 0:
+        alpha = np.nextafter(alpha, 0.)
+        lam, eta = conserved(a, th_o, alpha, 0.)
+    _assert_constant_theta_matches_quad(a, th_o, 1, alpha=alpha)
 
 
 @xfail_until("B0/B6", "th_o = pi/2 rejected by the input checks")
