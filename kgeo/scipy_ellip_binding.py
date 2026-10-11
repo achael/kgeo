@@ -244,7 +244,7 @@ def ellip_pi_arr(n,phi,m):
 
     return outarr
 
-def ellip_pi_scaled(c, nc, phi, m):
+def ellip_pi_scaled(c, nc, phi, m, ctan=None):
     """c * Pi(n;phi|m) in the circular case m < n < 1, for c = +-C with C = sqrt((1-n)(n-m)/n),
        given c and the complementary characteristic nc = m/n instead of n.
        Finite as n -> 1 (C -> 0), where Pi(n;phi|m) itself diverges at phi = pi/2 + j pi.
@@ -252,6 +252,10 @@ def ellip_pi_scaled(c, nc, phi, m):
        Pi(n;phi|m) = F(phi|m) - Pi(m/n;phi|m) + [arctan(C tan(Phi)/Delta(Phi)) + j pi]/C,
        where j = round(phi/pi), Phi = phi - j pi, Delta = sqrt(1 - m sin^2 Phi).
        At c = 0 this is j pi (sign(c) = +1 at c = 0).
+
+       optionally pass ctan = (num, den), where num/den = c tan(phi) for |phi| <= pi/2,
+       when c -> 0 and phi -> +-pi/2 together (an observer on the axis), c tan(phi) stays finite.
+
        c, nc, m have the shape of the last axis of phi.
     """
 
@@ -264,8 +268,12 @@ def ellip_pi_scaled(c, nc, phi, m):
     Phi = phi - j*np.pi # in [-pi/2, pi/2], so cos(Phi) >= 0 and atan2 below is arctan(c tan(Phi)/Delta)
     Delta = np.sqrt(1. - m*np.sin(Phi)**2)
     sgn = np.where(c>=0, 1., -1.)
+    if ctan is None:
+        arct = np.arctan2(c*np.sin(Phi), np.cos(Phi)*Delta)
+    else:
+        arct = np.arctan2(ctan[0], ctan[1]*Delta) # arctan(c tan(phi)/Delta), |phi| <= pi/2 so j = 0
 
-    return c*(sp.ellipkinc(phi, m) - ellip_pi_arr(nc, phi, m)) + np.arctan2(c*np.sin(Phi), np.cos(Phi)*Delta) + sgn*j*np.pi
+    return c*(sp.ellipkinc(phi, m) - ellip_pi_arr(nc, phi, m)) + arct + sgn*j*np.pi
 
 def ellipj_m1(u, m1, niter=16):
     """Jacobi elliptic functions (sn, cn, dn, am) of u for parameter m = 1 - m1, 0 <= m1 <= 1,

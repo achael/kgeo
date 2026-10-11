@@ -16,7 +16,7 @@ ON_EQUATOR_ATOL = 1e-13        # cos(theta) at the crossing time Ir             
 CROSSING_R_RTOL = 1e-12        # r at Ir vs r_equatorial's r_s                            [0]
 MIRROR_RTOL = 1e-12            # a = 0 image: I(alpha, beta) = I(-alpha, beta)            [0]
 IMAGE_SYMMETRY_RTOL = 1e-10    # equatorial reflection of the image (incl. beta = 0 row)  [2e-12]
-                               # (th_o = 0 axisymmetry: [target, B5])
+                               # and th_o = 0 axisymmetry                                 [0]
 EDGE_ON_LIMIT_RTOL = 1e-7      # th_o = pi/2 image vs th_o = pi/2 - 1e-11                 [target, B6]
 
 # a coarse grid plus a dense horizontal cut, which crosses the thin mbar = 2 band
@@ -133,9 +133,9 @@ def test_critical_curve_separates_inside_outside(a, th_o):
     (0.5, 1.0),
     (0.0, 1.0),
     pytest.param(1.0, 1.0, marks=xfail_until("B7", "a = 1 rejected by the input checks")),
-    pytest.param(0.5, 0.0, marks=xfail_until("B5", "th_o = 0 rejected by the input checks")),
+    (0.5, 0.0),
     pytest.param(0.5, np.pi/2, marks=xfail_until("B6", "th_o = pi/2 rejected by the input checks")),
-    pytest.param(0.5, np.pi, marks=xfail_until("B5", "th_o = pi rejected by the input checks")),
+    (0.5, np.pi),
 ])
 def test_make_image_smoke(a, th_o):
     """A small unpolarized image (default bpl emissivity, ZAMO, radial field) is
@@ -187,7 +187,6 @@ def test_image_equatorial_reflection(a, th_o, mbar):
     np.testing.assert_allclose(south, north, rtol=IMAGE_SYMMETRY_RTOL, atol=0)
 
 
-@xfail_until("B5", "th_o = 0 rejected by the input checks")
 @pytest.mark.parametrize("a", [0.0, 0.5, 0.94])
 @pytest.mark.parametrize("mbar", [0, 1])
 def test_image_face_on_axisymmetric(a, mbar):

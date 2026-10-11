@@ -16,8 +16,8 @@ R_O = 1000.
 
 # Tolerances, with the worst error measured in [brackets] (2026-10-10, after B4 1/3);
 # [target] where only strict xfails use them
-ODE_RTOL = 1e-10              # r vs the ODE oracle                                        [4e-12]
-ODE_ANGLE_ATOL = 1e-10        # theta, phi vs the ODE oracle                               [7e-12]
+ODE_RTOL = 1e-10              # r vs the ODE oracle                        [4e-12; 3.5e-11 on the axis]
+ODE_ANGLE_ATOL = 1e-10        # theta, phi vs the ODE oracle               [7e-12; 2e-11 on the axis]
 NEAR_EXTREMAL_TOL = 1e-8      # a = 1 - 1e-8: r, theta, phi, t (rel. to |t| + 1)           [1e-9]
                               # (a = 1, a = 1 - 1e-14: [target, B7])
 SMALL_LAM_ANGLE_ATOL = 1e-7   # 1e-5 <= |alpha| <= 1e-3: limited by the ODE oracle's       [5e-9]
@@ -156,7 +156,7 @@ def test_r_minus_root(a, th_o, beta, dlam):
     _assert_matches_ode(a, th_o, alpha, beta)
 
 
-@pytest.mark.parametrize("th_o", [0.3, 1.0, 2.2])
+@pytest.mark.parametrize("th_o", [0.3, 1.0, 2.2, 0.0, np.pi])   # incl. along the axis
 def test_schwarzschild_radial_ray(th_o):
     """a = 0, screen center: lam = eta = 0, a purely radial ray with R = r^4, Theta = 0.
     dr/dtau = -r^2 gives r = 1/(1/r_o + tau) and tau_tot = 1/2 - 1/r_o; theta = th_o,
@@ -277,7 +277,6 @@ def _face_on_expected_phi(alpha, beta, ode):
     return np.arctan2(alpha, -beta) + ode['ph'] - np.pi*(beta >= 0)
 
 
-@xfail_until("B5", "th_o = 0 rejected by the input checks (lam = 0 for every pixel)")
 @pytest.mark.parametrize("a", [0.0, 0.5, 0.94])
 @pytest.mark.parametrize("alpha, beta", [
     (3.0, 4.0), (-2.0, 5.0), (4.0, -6.0), (-5.0, -1.0), (6.0, 0.0),
@@ -295,7 +294,6 @@ def test_face_on_observer(a, alpha, beta):
     np.testing.assert_allclose(dph, 0, rtol=0, atol=ODE_ANGLE_ATOL, err_msg="phi")
 
 
-@xfail_until("B5", "th_o = pi rejected by the input checks")
 @pytest.mark.parametrize("a", [0.0, 0.5, 0.94])
 @pytest.mark.parametrize("alpha, beta", [(3.0, 4.0), (4.0, -6.0), (6.0, 0.0), (0.5, 0.2)])
 def test_south_pole_observer(a, alpha, beta):

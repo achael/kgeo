@@ -145,7 +145,7 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
         # checks on xFarg should be handled in uplus_uminus function
         #xFarg = np.cos(th_o)/np.sqrt(u_plus)
         #F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
-        F0 = sp.ellipkinc(psi_o_amplitude(a, th_o, beta_reg, a2u_minus), uratio) # exact at turning points
+        F0 = sp.ellipkinc(psi_o_amplitude(a, th_o, beta_reg, a2u_minus)[0], uratio) # exact at turning points
 
         # equation 17 for K
         K = sp.ellipkinc(0.5*np.pi, uratio)

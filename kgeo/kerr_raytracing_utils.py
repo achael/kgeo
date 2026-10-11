@@ -347,35 +347,45 @@ def uplus_uminus(a,th_o,lam,eta):
     return (u_plus, u_minus, uratio, a2u_minus)
 
 def psi_o_amplitude(a, th_o, beta, a2u_minus):
-    """Observer amplitude Psi_o = arcsin(cos(th_o)/sqrt(u_plus)) for ordinary motion (eta > 0),
-       the argument of F, Pi, E in GL19a 29-31 at the observer (cf. 45).
+    """Observer amplitude Psi_o = arcsin(cos(th_o)/sqrt(u_plus))
+       for ordinary motion (eta > 0), the argument of F, Pi, E in GL19a 29-31 at the observer.
+
        arcsin loses half the digits near a turning point (beta = 0), where its argument ~ 1.
-       Instead use tan(Psi_o) = cos(th_o)/sqrt(u_plus - cos^2 th_o) with GL19a 18-19,
-       sin^2(th_o) beta^2 = a^2 (u_plus - cos^2 th_o)(cos^2 th_o - u_minus), so
-       sqrt(u_plus - cos^2 th_o) = |beta| sin(th_o)/sqrt(a^2 cos^2 th_o - a^2 u_minus).
-       Exact at beta = 0 and finite as a -> 0 (a2u_minus -> -(eta + lam^2)).
+       Instead use GL19a 18-19, sin^2(th_o) beta^2 = a^2 (u_plus - cos^2 th_o)(cos^2 th_o - u_minus), so
+       tan(Psi_o) = cos(th_o)/sqrt(u_plus - cos^2 th_o) = N/(D sin(th_o)),
+       with N = cos(th_o) sqrt(a^2 cos^2 th_o - a^2 u_minus) and D = |beta|.
+
+       Returns (Psi_o, N, D): Psi_o = atan2(N, D sin(th_o)) is exact at turning points beta = 0
+       and finite as a -> 0 (where a2u_minus -> -(eta + lam^2));
+       N/D = sin(th_o) tan(Psi_o) stays finite on the axis (th_o = 0, pi) where Psi_o = +-pi/2.
        Inputs are assumed checked by the caller."""
     sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
-    return np.arctan2(cos_o*np.sqrt(a**2*cos_o**2 - a2u_minus), np.abs(beta)*sin_o)
+    N = cos_o*np.sqrt(a**2*cos_o**2 - a2u_minus)
+    D = np.abs(beta)
+    return np.arctan2(N, D*sin_o), N, D
 
 def upsilon_o_amplitude(a, th_o, beta, u_plus, u_minus):
     """Observer amplitude Up_o = arcsin(sqrt((cos^2 th_o - u_minus)/(u_plus - u_minus)))
-       for vortical motion (eta < 0), GL19a 59.
+       for vortical motion (eta < 0), GL19a 59, the argument of F, Pi, E in GL19a 56-58 at the observer.
+
        The sqrt or arcsin loses half the digits near either turning point (beta = 0).
        Instead use tan(Up_o) = sqrt(q/p), with p = u_plus - cos^2 th_o, q = cos^2 th_o - u_minus;
-       compute the larger of p, q directly and the smaller from
-       sin^2(th_o) beta^2 = a^2 p q (GL19a 18-19):
-       p < q: Up_o = atan2(|a| q, |beta| sin th_o), else Up_o = atan2(|beta| sin th_o, |a| p).
-       Exact at either turning point (beta = 0).
+       compute the larger of p, q directly and the smaller from sin^2(th_o) beta^2 = a^2 p q (GL19a 18-19):
+       tan(Up_o) = N/(D sin(th_o)), with (N, D) = (|a| q, |beta|) if p < q, else (|beta| sin^2 th_o, |a| p).
+
+       Returns (Up_o, N, D): Up_o = atan2(N, D sin(th_o)) is exact at turning points (beta = 0);
+       N/D = sin(th_o) tan(Up_o) stays finite on the axis (th_o = 0, pi) where Up_o = pi/2.
        Inputs are assumed checked by the caller."""
     sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
     p = np.maximum(u_plus - cos_o**2, 0) # p, q >= 0 for vortical rays;
     q = np.maximum(cos_o**2 - u_minus, 0) # clamp roundoff so Up_o stays in [0, pi/2]
-    Up_o = np.where(p<q, np.arctan2(np.abs(a)*q, np.abs(beta)*sin_o),
-                         np.arctan2(np.abs(beta)*sin_o, np.abs(a)*p))
+    N = np.where(p<q, np.abs(a)*q, np.abs(beta)*sin_o**2)
+    D = np.where(p<q, np.abs(beta), np.abs(a)*p)
+    Up_o = np.arctan2(N, D*sin_o)
     # on the constant-theta rays (PNC and counter-rotating) u_plus = u_minus = cos^2(th_o) so Up_o = 0
     Up_o[u_plus==u_minus] = 0.
-    return Up_o
+    N[u_plus==u_minus] = 0.
+    return Up_o, N, D
 
 def radial_roots(a, lam, eta):
     """Calculate radial roots r1,r2,r3,r4, for a geodisic with conserved (lam,eta)"""
@@ -760,7 +770,7 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
         # checks on xFarg should be handled in uplus_uminus function
         #xFarg = np.cos(th_o)/np.sqrt(u_plus)
         #F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
-        F0 = sp.ellipkinc(psi_o_amplitude(a, th_o, beta_reg, a2u_minus), uratio) # exact at turning points
+        F0 = sp.ellipkinc(psi_o_amplitude(a, th_o, beta_reg, a2u_minus)[0], uratio) # exact at turning points
 
         # equation 17 for K
         K = sp.ellipkinc(0.5*np.pi, uratio)
@@ -847,7 +857,7 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         # checks on xFarg should be handled in uplus_uminus function
         #xFarg = np.cos(th_o)/np.sqrt(u_plus)
         #F0 = sp.ellipkinc(np.arcsin(xFarg), uratio)
-        F0 = sp.ellipkinc(psi_o_amplitude(a, th_o, beta_reg, a2u_minus), uratio) # exact at turning points
+        F0 = sp.ellipkinc(psi_o_amplitude(a, th_o, beta_reg, a2u_minus)[0], uratio) # exact at turning points
 
         # GL19a equation 33 for K
         K = sp.ellipkinc(0.5*np.pi, uratio)
@@ -888,7 +898,7 @@ def n_angular_turnings(a, th_o, alpha, beta, tau):
         # to pi/2 at the one nearest the pole (cos^2 = u_plus);
         # depends only on cos^2(th_o), so the same in both hemispheres
         #Up = np.arcsin(np.sqrt((np.cos(th_o)**2-u_minus)/(u_plus-u_minus)))
-        Up = upsilon_o_amplitude(a, th_o, beta_v, u_plus, u_minus) # exact at turning points
+        Up = upsilon_o_amplitude(a, th_o, beta_v, u_plus, u_minus)[0] # exact at turning points
         F0 = sp.ellipkinc(Up, 1-uratio)
 
         # equation 60 for K
@@ -997,9 +1007,10 @@ def check_spin(a):
         raise Exception("|a| should be a float in range [0,1)")
 
 def check_inclination(th_o):
-    """raise an exception unless th_o is a real scalar in (0,pi/2) or (pi/2,pi)"""
-    if not (_is_real_scalar(th_o) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range (0,pi/2) or (pi/2,pi)")
+    """raise an exception unless th_o is a real scalar in [0,pi/2) or (pi/2,pi]"""
+    #if not (_is_real_scalar(th_o) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
+    if not (_is_real_scalar(th_o) and (0<=th_o<=np.pi) and th_o!=0.5*np.pi):
+        raise Exception("th_o should be a float in range [0,pi/2) or (pi/2,pi]")
 
 def obs_trig(th_o):
     """sin(th_o), cos(th_o), exact at th_o = 0, pi/2, pi

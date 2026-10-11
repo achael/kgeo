@@ -171,7 +171,11 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
         print(f"WARNING: there were eta<0 points for spin {a:f}<MINSPIN_TH!")
 
     # sign of final angular momentum
-    s_o = my_sign(beta)
+    #s_o = my_sign(beta)
+    # beta = 0 counts as + in the north, - in the south, as in r_equatorial,
+    # so the reflection (th_o, beta) -> (pi - th_o, -beta) flips s_o at beta = 0 too
+    h = 1. if th_o < 0.5*np.pi else -1. # sign(cos th_o), GL19a 54
+    s_o = h*my_sign(h*beta)
 
     # angular turning points and number of equatorial crossings
     (u_plus, u_minus, th_plus, th_minus, thclass) = angular_turning(a, th_o, lam, eta)
@@ -183,7 +187,7 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
     print('integrating in theta...',end="\r")
     start = time.time()
     (th_s, lamG_ph, G_t) = th_integrate(a,th_o,s_o,lam,eta,u_plus,u_minus,tau,
-                                        do_phi_and_t=do_phi_and_t, beta=beta, return_lamG=True)
+                                        do_phi_and_t=do_phi_and_t, beta=beta, alpha=alpha, return_lamG=True)
     stop = time.time()
     print('integrating in theta...%0.2f s'%(stop-start))
 
@@ -207,11 +211,14 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
     return sig_s, geo_coords
 
 def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
-                 do_phi_and_t=True, beta=None, return_lamG=False):
+                 do_phi_and_t=True, beta=None, alpha=None, return_lamG=False):
     """theta, G_phi, G_t at Mino times tausteps (GL19a 29-68).
        beta at the observer can be optionally passed as an argument,
        used to increase precision when the observer is near a turning point, beta ~ 0;
        if not given, it is recomputed from Theta(th_o) = beta^2 (GL19b 55).
+       alpha at the observer can be optionally passed as an argument,
+       needed for an observer on the axis (th_o = 0, pi), where lam = 0 for every alpha;
+       if not given, it is recomputed from lam = -alpha sin(th_o) (GL19b 55).
        G_phi diverges at each pole passage as lam -> 0, but lam*G_phi stays finite:
        it is what is computed, and returned in place of G_phi if return_lamG
        (otherwise G_phi = lam*G_phi/lam)."""
@@ -229,7 +236,14 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
         betaabs = np.abs(beta)
 
-    if not(len(s_o)==len(eta)==len(lam)==len(u_plus)==len(u_minus)==len(betaabs)):
+    # lamhat = lam/sin(th_o) = -alpha, finite on the axis
+    if alpha is None:
+        lamhat = lam/np.sin(th_o)
+    else:
+        if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
+        lamhat = -alpha
+
+    if not(len(s_o)==len(eta)==len(lam)==len(u_plus)==len(u_minus)==len(betaabs)==len(lamhat)):
         raise Exception("inputs to th_integrate not the same length!")
     if not(tausteps.shape[-1]==len(s_o)):
         raise Exception("tausteps has incompatible shape in th_integrate!")
@@ -259,7 +273,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         k = uratio # k<0 since um<0 for eta>0
         # Psi_o = arcsin(cos(th_o)/sqrt(up)), the amplitude of GL19a 29 at the observer (cf. 45)
         #elliparg = np.arcsin(np.cos(th_o)/np.sqrt(up)) # old version
-        elliparg = psi_o_amplitude(a, th_o, betaabs[mask], a2um) # exact at turning points (beta=0)
+        elliparg, N_o, D_o = psi_o_amplitude(a, th_o, betaabs[mask], a2um) # exact at turning points (beta=0)
 
         # "G-terms" at observer
         F =  sp.ellipkinc(elliparg,k)
@@ -272,9 +286,11 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             # lam*pref*Pi(up; phi|k) = ellip_pi_scaled(lamc, nc, phi, k), finite as lam -> 0 (up -> 1), with
             # lamc = lam*pref = +-sqrt((1-up)(up-k)/up), since 1 - up = lam^2/(a^2 - a^2 um),
             # nc = k/up = 1/um = a^2/a2um (finite as a -> 0)
+            # ctan = lamc tan(Psi_o) = lamhat pref N_o/D_o is finite on the axis where lamc -> 0, Psi_o -> +-pi/2
             lamc = lam[mask]*pref
             nc = a**2/a2um
-            lamGph_o = -ellip_pi_scaled(lamc, nc, elliparg, k)
+            ctan = (lamhat[mask]*pref*N_o, D_o)
+            lamGph_o = -ellip_pi_scaled(lamc, nc, elliparg, k, ctan=ctan)
 
             # GL 19a, 31
             maskk = (k==0)
@@ -320,6 +336,12 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             #Phi_tau[~jmask] = 0.5*np.pi-sp.ellipj(sp.ellipk(m) - snarg[~jmask]/np.sqrt(1-m), m)[3]
             Phi_tau[~jmask] = 0.5*np.pi - ellipj_m1(sp.ellipkm1(m1) - snarg[~jmask]/np.sqrt(m1), m1)[3]
 
+        # at tau = 0, use the exact relation Phi_tau = -s Psi_o.
+        # On the axis, Psi_o = +-pi/2 and roundoff would shift j in ellip_pi_scaled
+        t0 = tausteps[:,mask]==0
+        Phi_tau = np.where(t0, -s*elliparg, Phi_tau)
+        sinPhi_tau = np.where(t0, -s*np.sin(elliparg), sinPhi_tau)
+
         # solution for theta_o, GL19a 49
         th_s[:,mask] = (np.arccos(-s*np.sqrt(up)*sinPhi_tau)).astype(float)
 
@@ -364,7 +386,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         upm = (up-um)/(1.-um)
 
         #Up_o = np.arcsin(np.sqrt((np.cos(th_o)**2 - um)/(up-um))) # GL19a, 59
-        Up_o = upsilon_o_amplitude(a, th_o, betaabs[mask], up, um) # exact at turning points (beta=0)
+        Up_o, N_o, D_o = upsilon_o_amplitude(a, th_o, betaabs[mask], up, um) # exact at turning points (beta=0)
 
         # "G-terms" at observer
         Gth_o = -h*prefA * sp.ellipkinc(Up_o, k) #GL19a 56
@@ -373,9 +395,11 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             # lam*prefB*Pi(upm; phi|k) = ellip_pi_scaled(lamc, nc, phi, k), finite as lam -> 0 (upm -> 1), with
             # lamc = lam*prefB = +-sqrt((1-upm)(upm-k)/upm), since 1 - upm = lam^2/(a^2 (1-um)^2),
             # nc = k/upm = 1 - 1/um
+            # ctan = lamc tan(Up_o) = lamhat prefB N_o/D_o is finite on the axis where lamc -> 0, Up_o -> pi/2
             lamc = lam[mask]*prefB
             nc = 1. - 1./um
-            lamGph_o = -h*ellip_pi_scaled(lamc, nc, Up_o, k) #GL19a 57
+            ctan = (lamhat[mask]*prefB*N_o, D_o)
+            lamGph_o = -h*ellip_pi_scaled(lamc, nc, Up_o, k, ctan=ctan) #GL19a 57
             Gt_o  = -h*prefC * sp.ellipeinc(Up_o,k) #GL19a 58
 
         # compute the amplitude Up_tau, GL19a equation 66
@@ -412,6 +436,12 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             #am(sqrt(1-m)x | k) = pi/2 - am(K(m) - x | m for m <=1
             #Up_tau[~jmask] = 0.5*np.pi-sp.ellipj(sp.ellipk(m) - snarg[~jmask]/np.sqrt(1-m), m)[3]
             Up_tau[~jmask] = 0.5*np.pi - ellipj_m1(sp.ellipkm1(m1) - snarg[~jmask]/np.sqrt(m1), m1)[3]
+
+        # at tau = 0, use the exact relation Up_tau = -s h Up_o.
+        # On the axis, Up_o = pi/2 and roundoff would shift j in ellip_pi_scaled
+        t0 = tausteps[:,mask]==0
+        Up_tau = np.where(t0, -s*h*Up_o, Up_tau)
+        sinUp_tau = np.where(t0, -s*h*np.sin(Up_o), sinUp_tau)
 
         # solution for theta_o, GL19a 69
         th_s[:,mask] = (np.arccos(h*np.sqrt(um + (up-um)*sinUp_tau**2))).astype(float)
@@ -456,9 +486,17 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             #G_ph[:,mask] = (-tausteps[:,mask] - (np.arctan(c*np.tanh(psi)) - np.arctan(c*np.tanh(psi_o)))/lamabs).astype(float)
             # times lam: finite at lam = 0 (a pole passage at psi = 0)
             clam = np.sqrt(a**2*up)
-            lamsign = my_sign(lam[mask])
+            #lamsign = my_sign(lam[mask])
+            #lamG_ph[:,mask] = (-lam[mask]*tausteps[:,mask]
+            #                   -lamsign*(np.arctan2(clam*np.tanh(psi), lamabs) - np.arctan2(clam*np.tanh(psi_o), lamabs))).astype(float)
+            # with lamhat = lam/sin(th_o): its sign is that of lam (the th_o -> 0 limit on the axis), and the
+            # observer term drops sin(th_o) from both arguments, using tanh(psi_o)/sin(th_o) = -h s zhat/sqrt(1 + z^2)
+            lamsign = my_sign(lamhat[mask])
+            zhat = betaabs[mask]/(np.abs(a)*np.cos(th_o)**2)
+            tanh_psio_hat = -h*s*zhat/np.sqrt(1 + (zhat*np.sin(th_o))**2)
             lamG_ph[:,mask] = (-lam[mask]*tausteps[:,mask]
-                               -lamsign*(np.arctan2(clam*np.tanh(psi), lamabs) - np.arctan2(clam*np.tanh(psi_o), lamabs))).astype(float)
+                               -lamsign*(np.arctan2(clam*np.tanh(psi), lamabs)
+                                         - np.arctan2(clam*tanh_psio_hat, np.abs(lamhat[mask])))).astype(float)
 
             # G_t = -int cos^2(th) dtau
             G_t[:,mask] = (-np.sqrt(up/a**2)*(np.tanh(psi) - np.tanh(psi_o))).astype(float)
@@ -469,7 +507,9 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         mask = eta==0.
         th_s[:,mask] = th_o
         if do_phi_and_t:
-            lamG_ph[:,mask] = -lam[mask]*tausteps[:,mask]/np.sin(th_o)**2
+            #lamG_ph[:,mask] = -lam[mask]*tausteps[:,mask]/np.sin(th_o)**2
+            # 0 for the radial ray on the axis (lam = 0, sin(th_o) = 0)
+            lamG_ph[:,mask] = -lam[mask]*tausteps[:,mask]/np.where(lam[mask]==0, 1., np.sin(th_o)**2)
             G_t[:,mask] = -tausteps[:,mask]*np.cos(th_o)**2
 
     if return_lamG:
