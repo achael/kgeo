@@ -281,6 +281,7 @@ def angular_turning(a, th_o, lam, eta):
 
     return(u_plus, u_minus, th_plus, th_minus, thclass)
 
+@np.errstate(divide='ignore', invalid='ignore') # x/0, 0/0 in branches that are computed but not used
 def uplus_uminus(a,th_o,lam,eta):
     """Calculate u_+, u_- and ratios u_+/u_-, a^2 u_+/u_-
        including in spin->0 limit"""
@@ -390,6 +391,7 @@ def upsilon_o_amplitude(a, th_o, beta, u_plus, u_minus):
     N[u_plus==u_minus] = 0.
     return Up_o, N, D
 
+@np.errstate(divide='ignore', invalid='ignore') # x/0, 0/0 in branches that are computed but not used
 def radial_roots(a, lam, eta):
     """Calculate radial roots r1,r2,r3,r4, for a geodisic with conserved (lam,eta)"""
 
@@ -482,6 +484,7 @@ def radial_roots(a, lam, eta):
 
     return (r1,r2,r3,r4,rclass)
 
+@np.errstate(divide='ignore', invalid='ignore') # x/0, 0/0 in branches that are computed but not used
 def mino_total(a, r_o, eta, r1, r2, r3, r4):
     """Maximal mino time elapsed for geodesic with radial roots r1,r2,r3,r4"""
 

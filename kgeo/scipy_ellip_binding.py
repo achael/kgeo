@@ -85,6 +85,7 @@ halfpi = 0.5*np.pi
 #
 #    return Pi
 
+@np.errstate(divide='ignore', invalid='ignore') # x/0, 0/0 in branches that are computed but not used
 def ellip_pi_arr(n,phi,m):
     """Incomplete Elliptic Integral of the Third Kind Pi(n;phi|m)
        Convention following Abramowitz & Stegun & Mathematica

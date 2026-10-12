@@ -11,6 +11,7 @@
 # TODO -- add image plane transformations for a<0, th_o>pi/2?
 
 import time
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -82,6 +83,10 @@ def raytrace_ana(a=SPIN,
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):
         raise Exception("alpha, beta are different lengths!")
+
+    if maxtaufrac >= 1:
+        warnings.warn("maxtaufrac >= 1: rays that fall into the black hole end on the horizon r_+, "
+                      "where t and phi diverge logarithmically (returned as +-inf or nan there)")
 
     print('calculating preliminaries...')
 
@@ -208,8 +213,16 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
     # return
     geo_coords = [t_s,r_s,th_s,ph_s]
 
+    # non-finite values before the end of the ray are numerical failures, not physical divergences
+    # (captured rays reach the horizon at tau = tau_tot, where t and phi diverge)
+    tau_tot = mino_total(a, r_o, eta, r1, r2, r3, r4)
+    bad = np.any(~np.isfinite(np.array(geo_coords + [sig_s])) & (tau < tau_tot), axis=(0, 1))
+    if np.any(bad):
+        warnings.warn(f"{np.sum(bad)} of {len(bad)} rays have non-finite coordinates before reaching the horizon")
+
     return sig_s, geo_coords
 
+@np.errstate(divide='ignore', invalid='ignore') # x/0, 0/0 in branches that are computed but not used
 def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
                  do_phi_and_t=True, beta=None, alpha=None, return_lamG=False):
     """theta, G_phi, G_t at Mino times tausteps (GL19a 29-68).
@@ -533,6 +546,7 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
     return (th_s, G_ph, G_t)
 
 
+@np.errstate(divide='ignore', invalid='ignore') # x/0, 0/0 in branches that are computed but not used
 def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
                 do_phi_and_t=True):
 
@@ -831,6 +845,7 @@ def r_integrate(a,r_o,lam,eta, r1,r2,r3,r4,tausteps,
 
 # auxillary functions for the radial integrals
 # TODO al->0 limit??
+@np.errstate(divide='ignore', invalid='ignore') # x/0, 0/0 in branches that are computed but not used
 def S1_S2(al,phi,j,ret_s2=True): #B92 and B93 of GL19a
     al2 = al*al
     al2p1 = 1 + al2
