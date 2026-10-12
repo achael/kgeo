@@ -473,7 +473,15 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
         # sign of psi_o so that dcos(th)/dtau has sign s at tau=0, as in GL19a 49
         #psi_o = -h*s*np.arcsinh(np.sqrt(up - np.cos(th_o)**2)/np.abs(np.cos(th_o)))
         # sqrt(up - cos^2 th_o) = |beta| sin(th_o)/(|a| |cos th_o|), from GL19a 18-19 with um = 0
-        psi_o = -h*s*np.arcsinh(betaabs[mask]*np.sin(th_o)/(np.abs(a)*np.cos(th_o)**2))
+        #psi_o = -h*s*np.arcsinh(betaabs[mask]*np.sin(th_o)/(np.abs(a)*np.cos(th_o)**2))
+        # sinh|psi_o| = zhat sin(th_o). On the equator (th_o = pi/2, so beta = 0) the observer sits on
+        # the double root u = 0: psi_o = -+inf, and theta = pi/2 throughout
+        sin_o, cos_o = obs_trig(th_o) # exact at 0, pi/2, pi
+        if cos_o == 0:
+            zhat = np.full(betaabs[mask].shape, np.inf)
+        else:
+            zhat = betaabs[mask]/(np.abs(a)*cos_o**2)
+        psi_o = -h*s*np.arcsinh(zhat*sin_o)
         psi = psi_o + np.sqrt(a**2*up)*tausteps[:,mask]
 
         # solution for theta_o, solves GL19a 25
@@ -492,8 +500,12 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             # with lamhat = lam/sin(th_o): its sign is that of lam (the th_o -> 0 limit on the axis), and the
             # observer term drops sin(th_o) from both arguments, using tanh(psi_o)/sin(th_o) = -h s zhat/sqrt(1 + z^2)
             lamsign = my_sign(lamhat[mask])
-            zhat = betaabs[mask]/(np.abs(a)*np.cos(th_o)**2)
-            tanh_psio_hat = -h*s*zhat/np.sqrt(1 + (zhat*np.sin(th_o))**2)
+            #zhat = betaabs[mask]/(np.abs(a)*np.cos(th_o)**2)
+            #tanh_psio_hat = -h*s*zhat/np.sqrt(1 + (zhat*np.sin(th_o))**2)
+            if cos_o == 0: # zhat = inf
+                tanh_psio_hat = -h*s/sin_o
+            else:
+                tanh_psio_hat = -h*s*zhat/np.sqrt(1 + (zhat*sin_o)**2)
             lamG_ph[:,mask] = (-lam[mask]*tausteps[:,mask]
                                -lamsign*(np.arctan2(clam*np.tanh(psi), lamabs)
                                          - np.arctan2(clam*tanh_psio_hat, np.abs(lamhat[mask])))).astype(float)

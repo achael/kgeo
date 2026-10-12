@@ -1007,10 +1007,11 @@ def check_spin(a):
         raise Exception("|a| should be a float in range [0,1)")
 
 def check_inclination(th_o):
-    """raise an exception unless th_o is a real scalar in [0,pi/2) or (pi/2,pi]"""
+    """raise an exception unless th_o is a real scalar in [0,pi]"""
     #if not (_is_real_scalar(th_o) and (0<th_o<np.pi) and th_o!=0.5*np.pi):
-    if not (_is_real_scalar(th_o) and (0<=th_o<=np.pi) and th_o!=0.5*np.pi):
-        raise Exception("th_o should be a float in range [0,pi/2) or (pi/2,pi]")
+    #if not (_is_real_scalar(th_o) and (0<=th_o<=np.pi) and th_o!=0.5*np.pi):
+    if not (_is_real_scalar(th_o) and (0<=th_o<=np.pi)):
+        raise Exception("th_o should be a float in range [0,pi]")
 
 def obs_trig(th_o):
     """sin(th_o), cos(th_o), exact at th_o = 0, pi/2, pi

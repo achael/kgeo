@@ -26,7 +26,7 @@ RADIAL_RAY_TOL = 1e-12        # a = 0 radial ray vs closed form: tau_tot, r, the
 RADIAL_RAY_T_TOL = 1e-12      # a = 0 radial ray: t, sigma (rtol and atol)                 [1e-13]
 CONST_TH_ANGLE_ATOL = 1e-7    # constant-theta rays: u_+, u_- differ by ~1e-8 roundoff (B9) [5e-8]
 CONST_TH_RTOL = 1e-11         # constant-theta rays: tau(r), t vs quadrature               [5e-12]
-EQUATORIAL_RAY_ATOL = 1e-14   # th_o = pi/2, beta = 0: theta = pi/2                        [target, B6]
+EQUATORIAL_RAY_ATOL = 1e-14   # th_o = pi/2, beta = 0: theta = pi/2                        [0]
 DISTANT_T_ATOL = 1e-6         # r_o = 1e7: t, sigma vs 30-digit quadrature                 [target, B8]
 
 
@@ -245,7 +245,6 @@ def test_principal_null_congruence_near_degenerate(a, th_o):
     _assert_constant_theta_matches_quad(a, th_o, 1, alpha=alpha)
 
 
-@xfail_until("B0/B6", "th_o = pi/2 rejected by the input checks")
 @pytest.mark.parametrize("a", [0.0, 0.5, 0.94])
 @pytest.mark.parametrize("alpha, beta", [(6.0, 2.0), (-5.0, -4.0), (2.0, 3.0), (-1.26, 0.1)])
 def test_edge_on_observer(a, alpha, beta):
@@ -254,7 +253,6 @@ def test_edge_on_observer(a, alpha, beta):
     _assert_matches_ode(a, np.pi/2, alpha, beta)
 
 
-@xfail_until("B0/B3/B6", "th_o = pi/2 rejected; with exact trig, beta = 0 gives eta = 0 exactly")
 @pytest.mark.parametrize("a", [0.0, 0.5, 0.94])
 @pytest.mark.parametrize("alpha", [5.0, -4.0, 0.3])
 def test_equatorial_ray(a, alpha):
