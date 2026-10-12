@@ -156,7 +156,10 @@ class Geodesics:
 
         print('maxwraps ', maxwraps)
         if nplot is None:
-            nloop = np.min((maxwraps+1,len(colors)))
+            #nloop = np.min((maxwraps+1,len(colors)))
+            # always include j = 0: it also holds the rays flagged as never crossing (nmax_eq = -1),
+            # e.g. the beta = 0 row edge-on, where every ray stays in the equatorial plane and maxwraps = -1
+            nloop = np.min((max(maxwraps,0)+1,len(colors)))
             nplot = range(nloop)
         else:
             nplot = np.array([nplot]).flatten()
@@ -444,6 +447,8 @@ def radial_roots(a, lam, eta):
         prod = B[negmask]**2/(8*xis)
         sq = np.sqrt(ssum**2 - 4*prod)
         xi0[negmask] = np.where(ssum >= 0, 0.5*(ssum + sq), -2*prod/(sq - ssum))
+    # zeta = 0 exactly when B = 0, so xi0 = 0 is the correct root. Otherwise xi0 > 0.
+    xi0 = np.where(B==0, 0., xi0)
     z = np.sqrt(0.5*xi0)
 
     # z = 0 only if B = 2(eta + (lam-a)^2) = 0 (the principal null congruences)

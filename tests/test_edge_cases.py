@@ -309,6 +309,24 @@ def test_south_pole_observer(a, alpha, beta):
     np.testing.assert_allclose(dph, 0, rtol=0, atol=ODE_ANGLE_ATOL, err_msg="phi")
 
 
+@pytest.mark.parametrize("a", [1e-3, 0.5, 0.94, 0.999])
+@pytest.mark.parametrize("th_o", [0.0, np.pi])
+def test_axis_ray(a, th_o):
+    """alpha = beta = 0 on the axis: the ray runs along the spin axis (lam = 0, eta = -a^2,
+    u_+ = u_- = 1), so theta = th_o throughout and phi (undefined there) is just the frame
+    dragging I_phi. It is also a principal null congruence ray, zeta = 0: sqrt(R) = r^2 + a^2.
+    (phi was NaN, and r off by up to 5e-10 when Cardano missed the resolvent root xi = 0.)
+    Compared with the ODE oracle, unfolded (its folding counts theta = pi as one pole passage)."""
+    geo = trace(a, th_o, [0.], [0.], ngeo=40, r_o=R_O)
+    assert all(np.all(np.isfinite(geo[k])) for k in ('t', 'r', 'th', 'ph', 'sig'))
+    np.testing.assert_array_equal(geo['th'][:, 0], th_o)
+    ode = integrate_geodesic(a, R_O, th_o, 0., 0., geo['tau'][:, 0])
+    ok = geo['r'][:, 0] > 1 + np.sqrt(1 - a**2) + 0.2
+    np.testing.assert_allclose(geo['r'][ok, 0], ode['r'][ok], rtol=ODE_RTOL, err_msg="r")
+    np.testing.assert_allclose(geo['ph'][ok, 0], (ode['ph'] - np.pi*ode['folds'])[ok], rtol=0, atol=ODE_ANGLE_ATOL,
+                               err_msg="phi")
+
+
 # generic rays for the near-extremal / extremal tests (none on the NHEK line lam = 2)
 _RAYS_EXTREMAL = [(6.0, 2.0), (-5.0, -4.0), (2.0, 3.0), (0.4, -1.5), (0.1, 0.1)]
 

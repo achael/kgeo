@@ -451,6 +451,9 @@ def th_integrate(a,th_o, s_o,lam, eta, u_plus, u_minus, tausteps,
             # G_phi integral, GL19a 67
             #G_ph[:,mask] = (prefB * ellippi_arr(upm,Up_tau,k) - s*Gph_o).astype(float)
             lamG_ph[:,mask] = (ellip_pi_scaled(lamc, nc, Up_tau, k) - s*lamGph_o).astype(float)
+            # the ray along the axis (th_o = 0, pi, alpha = beta = 0) has up = um = 1 and stays on it,
+            # where phi is undefined (prefB = 1/(1-um) is infinite): take lam*G_phi = 0, so phi = I_phi
+            lamG_ph[:,mask] = np.where(um==1, 0., lamG_ph[:,mask])
 
             # G_t integral, GL19a, 68
             G_t[:,mask] = (prefC * sp.ellipeinc(Up_tau,k) - s*Gt_o).astype(float)
