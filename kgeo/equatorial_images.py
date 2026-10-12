@@ -199,9 +199,10 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         ###############################
         if polarization:
             # TODO: we are currently overwriting pathlength from calc_polquantities in disk images
-            # TODO: pathlength from calc_polquantities is directly used in jet model!
+            # TODO: but pathlength from calc_polquantities is directly used in jet model!
+            # TODO: specifically, l_emis below = llp * diskangle * r_s, adding on a geometric factor from disk scale height
             # TODO: reconcile these
-            sinthb, kappa, llp1, bsq, kdotnorm = calc_polquantities(a, r_s[~zeromask],
+            sinthb, kappa, llp, bsq, kdotnorm = calc_polquantities(a, r_s[~zeromask],
                                                                     lam[~zeromask], eta[~zeromask], kr_sign, kth_sign,
                                                                     velocity=velocity,
                                                                     bfield=bfield, th=th_s, pathcor='R')
@@ -222,35 +223,41 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
             B0 = np.sqrt(bfield.bsq(a, emissivity.Rb, velocity, th=th_s))
             Bmag_vals = (Bmag_vals / B0) * emissivity.B0
 
-        Iemis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, Bmag=Bmag_vals, nu_obs=nu_obs, specind=specind)
-
-        # add spectral terms to emissivity if not using a physical one
-        # now moved to inside emissivity.jrest
-        #Iemis *=  ((gg**specind) * (sinthb**(1+specind)))
+        # j_emis represents the fluid frame emissivity, not the fluid frame intensity.
+        # spectral behavior (j~nu^-specind *(sinthb)^(1+specind)) is folded in by default to the phenomenological models (not thermal)
+        # this is consistent with Narayan+ 21
+        # this only matches the original kgeo behavior (Chael+21 eq 16) specifically when specind=1 (default) with pathlength=False
+        j_emis = emissivity.jrest(a, r_s[~zeromask], gg, sinthb, Bmag=Bmag_vals, nu_obs=nu_obs, specind=specind)
 
         ###############################
         # observed emission
         ###############################
         if pathlength:
+            # calculate the fluid frame path length l_emis, which is \propto 1/g
+
             # TODO: we are currently overwriting pathlength from calc_polquantities in disk images
             # TODO: pathlength from calc_polquantities is directly used in jet model!
+            # TODO: specifically, l_emis = llp * diskangle * r_s, adding on a geometric factor from disk scale height
             # TODO: reconcile these
-            llp = calc_pathlength_equatorial(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
-                                             kr_sign, kth_sign, u0, u1, u2, u3,
-                                             th=th_s, diskangle=diskangle)
+            l_emis = calc_pathlength_equatorial(a, r_s[~zeromask], lam[~zeromask], eta[~zeromask],
+                                                kr_sign, kth_sign, u0, u1, u2, u3,
+                                                th=th_s, diskangle=diskangle)
 
-            # fluid frame path length llp \propto 1/g
-            #llp2 = llp1*diskangle*r_s[~zeromask]
-            #ldiff = 1-np.abs(llp2)/np.abs(llp)
-            #print("ldiff:", np.min(ldiff),np.median(ldiff),np.max(ldiff))
-
-            Iemis *= np.abs(llp)
+            # optically thin emission: I_obs = g^3 I_emis, with I_emis = j_emis l_emis the emergent fluid-frame intensity
+            # I_obs = (g^2 j_emis)(g l_emis) = j_obs l_obs, where l_obs = g l_emis = H r/|k_theta| (Narayan+21 eqs 13-15)
+            Iemis = j_emis * np.abs(l_emis)
             Iobs[~zeromask] = (gg**3) * Iemis
             Ie[~zeromask] = Iemis
-            lp[~zeromask] = llp
+            lp[~zeromask] = l_emis
 
         else:
-            Iobs[~zeromask] = (gg**2) * Iemis
+            # Assume observer frame pathlength l_obs = const:
+            # consistent with Narayan+21 without the geometric factor;
+            # I_emis = j_emis l_emis = j_emis l_obs/g
+            # so I_obs = g^2 j_emis \propto g^(2+specind) (remember the spectral factor in jrest)
+            # this is equal to Chael+21 eq 16 (flat spectrum) only at the default specind = 1
+
+            Iobs[~zeromask] = (gg**2) * j_emis
 
         if polarization:
             Qobs[~zeromask] = cos2chi*Iobs[~zeromask]
