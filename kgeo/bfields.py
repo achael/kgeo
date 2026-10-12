@@ -115,6 +115,7 @@ class Bfield:
             b_components = (B1,B2,B3)
         elif self.fieldtype == 'monopoleA':
             (B1,B2,B3,omega) = Bfield_monopoleA(a, r, th, self.C, omegafac=self.omegafac)
+            b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_para':
             (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)
             b_components = (B1,B2,B3)
