@@ -18,6 +18,7 @@ MIRROR_RTOL = 1e-12            # a = 0 image: I(alpha, beta) = I(-alpha, beta)  
 IMAGE_SYMMETRY_RTOL = 1e-10    # equatorial reflection of the image (incl. beta = 0 row)  [2e-12]
                                # and th_o = 0 axisymmetry                                 [0]
 EDGE_ON_LIMIT_RTOL = 1e-7      # th_o = pi/2 image vs th_o = pi/2 - 1e-11                 [target, B6]
+CRIT_DOUBLE_ROOT_TOL = 1e-11   # critical curve: |R|/r^4 at the common root of R and R'    [7e-13 at a = 1e-3]
 
 # a coarse grid plus a dense horizontal cut, which crosses the thin mbar = 2 band
 # near the critical curve. alpha includes 0 (lam = 0 is harmless here: no G_phi
@@ -112,15 +113,33 @@ def test_momentum_signs(a, th_o, mbar):
 ])
 def test_critical_curve_separates_inside_outside(a, th_o):
     """Points just inside/outside the critical curve (scaled about its centroid by
-    1 -+ 1e-3) are classified accordingly by is_outside_crit (radial roots)."""
+    1 -+ 1e-3), including where it crosses beta = 0, are classified accordingly by
+    is_outside_crit (radial roots)."""
     alpha, beta = critical_curve(a, th_o, n=2000)
-    keep = np.abs(beta) > 1e-2      # the parametrization degrades near beta = 0
-    alpha, beta = alpha[keep], beta[keep]
-    assert len(alpha) > 100
+    assert len(alpha) == 4000
     ca, cb = alpha.mean(), beta.mean()
     for scale, outside in [(1 - 1e-3, 0), (1 + 1e-3, 1)]:
         flags = is_outside_crit(a, th_o, ca + scale*(alpha - ca), cb + scale*(beta - cb))
         assert np.all(flags == outside)
+
+
+@pytest.mark.parametrize("a, th_o", [(1e-3, 1.0), (0.3, 1.2), (0.94, 0.05), (0.94, 0.3), (0.94, np.pi/2),
+                                     (0.5, 2.2), (0.999, 1.0)])
+def test_critical_curve_double_roots(a, th_o):
+    """Every point of the critical curve is a photon orbit: R(r) = r^4 + A r^2 + B r + C (GL19a 95)
+    has a double root, i.e. R and R' = 4 r^3 + 2 A r + B share a root. Off the axis the curve
+    reaches beta = 0 exactly at both ends (sampled uniformly in beta there)."""
+    n = 2000
+    alpha, beta = critical_curve(a, th_o, n=n)
+    assert beta[0] == beta[n - 1] == 0
+    lam = -alpha*np.sin(th_o)
+    eta = (alpha**2 - a**2)*np.cos(th_o)**2 + beta**2
+    A, B, C = a**2 - eta - lam**2, 2*(eta + (lam - a)**2), -a**2*eta
+    for i in range(0, 2*n, 10):
+        r = np.roots([4, 0, 2*A[i], B[i]])
+        r = r[(np.abs(r.imag) < 1e-8) & (r.real > 0)].real
+        R = r**4 + A[i]*r**2 + B[i]*r + C[i]
+        assert np.min(np.abs(R)/r**4) < CRIT_DOUBLE_ROOT_TOL
 
 
 @pytest.mark.parametrize("a, th_o", [

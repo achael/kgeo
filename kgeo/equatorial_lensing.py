@@ -272,46 +272,57 @@ def rho_of_req_single(a, th0, req, varphi, mbar=0):
     return rho
 
 def critical_curve(a, th0, n=100000):
-    """returns parametrized critical curve (alpha,beta) array with n points.
-       At a = 0 or for an observer on the axis (th0 = 0, pi) it is a circle,
-       alpha^2 + beta^2 = eta + a^2 cos^2(th0) + lam^2, returned with 2n points."""
+    """returns parametrized critical curve (alpha,beta) arrays with 2n points."""
 
-    # a = 0: all photon orbits at r = 3, lam^2 + eta = 27.
-    # on the axis: only lam = 0 reaches the screen, rho^2 = eta + a^2 at the photon orbit r0 with lam(r0) = 0,
-    # the largest root of r^3 - 3r^2 + a^2 r + a^2 (trigonometric solution of the depressed cubic in r - 1)
-    sin_o, cos_o = obs_trig(th0) # exact at 0, pi/2, pi
-    if a == 0 or sin_o == 0:
-        if a == 0:
-            rho = np.sqrt(27.)
-        else:
-            r0 = 1 + 2*np.sqrt(1 - a**2/3)*np.cos(np.arccos((1 - a**2)/(1 - a**2/3)**1.5)/3)
-            rho = np.sqrt(r0**2*(3*r0**2 + a**2)/(r0**2 - a**2) + a**2)
+    # spin 0 -- critical curve from all inclinations is a circle of radius sqrt(27)
+    if a==0:
+        rho = np.sqrt(27)
         psi = np.linspace(0, 2*np.pi, 2*n)
         return (rho*np.cos(psi), rho*np.sin(psi))
 
-    # this parameterization requires very high accuracy nera beginning/end points to get equatorial slice!
+    # GL 19b equation 41: the photon orbit r0 with zero angular momentum lam(r0) = 0
+    r0 = 1 + 2*np.sqrt(1 - a**2/3)*np.cos(np.arccos((1 - a**2)/(1 - a**2/3)**1.5)/3)
 
-    # beginning and ending points, Eq 40
+    # on the axis: only lam(r0) = 0 reaches the screen, at rho^2 = eta + a^2
+    sin_o, cos_o = obs_trig(th0) # exact at 0, pi/2, pi
+    if sin_o == 0:
+        rho = np.sqrt(r0**2*(3*r0**2 + a**2)/(r0**2 - a**2) + a**2) #GL 19b, eq 67
+        psi = np.linspace(0, 2*np.pi, 2*n)
+        return (rho*np.cos(psi), rho*np.sin(psi))
+
+    # beginning and ending points, GL19b, eq 40
     rminus = 2*(1 + np.cos(2.*np.arccos(-a)/3.))
     rplus = 2*(1 + np.cos(2.*np.arccos(a)/3.))
-    r = np.linspace(rminus,rplus,n)
 
-    # conserveds, Eq 38,39
-    #delta = r**2 - 2*r + a**2
-    #lam = a + (r/a)*(r - 2*delta/(r-1.))
-    #eta = (r**3/a**2)*(4*delta/((r-1.)**2) - r)
+    # conserved quantities of photon orbits as functions of r, GL19b eq 38-39
+    def lam_eta(r):
+        lam = -(r**3 + a**2 + r*(a**2) -3*r**2)/(a*r-a)
+        eta = (r**2) * (3*r**2 + a**2 - lam**2)/(r**2-a**2)
+        return lam, eta
 
-    lam = -(r**3 + a**2 + r*(a**2) -3*r**2)/(a*r-a)
-    eta = (r**2) * (3*r**2 + a**2 - lam**2)/(r**2-a**2)
+    # beta^2 of photon orbits as a function of r, GL19b eq 55, 57
+    def beta2(r):
+        lam, eta = lam_eta(r)
+        return eta + (a*cos_o)**2 - (lam*cos_o/sin_o)**2
+
+    # find the visible orbits parameterized by radius ra<=r<=rb, where beta2(ra)=beta2(rb)=0
+    # when th0 = pi/2, ra = rminus, rb = rplus (full range eta>=0 is visible)
+    if cos_o == 0:
+        ra, rb = rminus, rplus
+    else:
+        ra = brentq(beta2, rminus, r0, xtol=1e-15, rtol=4*np.finfo(float).eps)
+        rb = brentq(beta2, r0, rplus, xtol=1e-15, rtol=4*np.finfo(float).eps)
+    # sample the visible orbits, concentrating points near the endpoints
+    psi = np.linspace(0, np.pi, n)
+    r = 0.5*(ra + rb) - 0.5*(rb - ra)*np.cos(psi)
+    lam, eta = lam_eta(r)
 
     # screen coordinates
-    alpha = -lam / np.sin(th0)
-    beta = np.sqrt(eta + (a*np.cos(th0))**2 - (lam/np.tan(th0))**2)
+    alpha = -lam/sin_o
+    beta = np.sqrt(np.maximum(beta2(r), 0))
+    beta[[0, -1]] = 0. # beta2(ra) = beta2(rb) = 0
 
-    # fails a lot...
-    mask = np.isnan(alpha) + np.isnan(beta)
-    alpha = alpha[~mask]
-    beta = beta[~mask]
+    # mirror in lower half plane
     alpha = np.hstack((alpha, np.flip(alpha)))
     beta = np.hstack((beta, -np.flip(beta)))
     return (alpha,beta)
