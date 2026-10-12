@@ -73,11 +73,11 @@ def raytrace_ana(a=SPIN,
 
     # checks
     check_spin(a)
-    if (a<0): print("WARNING a<0! Not fully verified!")
+    #if (a<0): print("WARNING a<0! Not fully verified!")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
     check_inclination(th_o)
-    if (th_o>np.pi/2.): print("WARNING th_o>pi/2! Not fully verified!")
+    #if (th_o>np.pi/2.): print("WARNING th_o>pi/2! Not fully verified!")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
@@ -150,11 +150,11 @@ def coords_at_tau(a, observer_coords, image_coords, tau, do_phi_and_t=True):
 
     # checks
     check_spin(a)
-    if (a<0): print("WARNING a<0! Not fully verified!")
+    #if (a<0): print("WARNING a<0! Not fully verified!")
     if not (isinstance(r_o,float) and (r_o>=100)):
         raise Exception("r_o should be a float > 100")
     check_inclination(th_o)
-    if (th_o>np.pi/2.): print("WARNING th_o>pi/2! Not fully verified!")
+    #if (th_o>np.pi/2.): print("WARNING th_o>pi/2! Not fully verified!")
 
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()

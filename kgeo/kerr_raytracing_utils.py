@@ -101,7 +101,7 @@ class Geodesics:
 
     def plotgeos(self,xlim=12,rmax=15,nplot=None,ngeoplot=50,plot_disk=True,
                  plot_inside_cc=True, plot_outside_cc=True,
-                 n_label='equatorial'):
+                 n_label='equatorial', fig=None, ax=None):
 
         a = self.a
         th_o = self.th_o
@@ -127,8 +127,10 @@ class Geodesics:
         y_s = r_s * np.sin(ph_s) * np.sin(th_s)
         z_s = r_s * np.cos(th_s)
 
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
+        if ax is None: # ax must be a 3d axes if given
+            if fig is None:
+                fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
         u, v = np.mgrid[0:2 * np.pi:30j, 0:np.pi:20j]
         ax.plot_surface(rplus*np.cos(u) * np.sin(v),  rplus*np.sin(u) * np.sin(v),  rplus*np.cos(v), color='black')
 
