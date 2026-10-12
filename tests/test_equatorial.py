@@ -17,7 +17,7 @@ CROSSING_R_RTOL = 1e-12        # r at Ir vs r_equatorial's r_s                  
 MIRROR_RTOL = 1e-12            # a = 0 image: I(alpha, beta) = I(-alpha, beta)            [0]
 IMAGE_SYMMETRY_RTOL = 1e-10    # equatorial reflection of the image (incl. beta = 0 row)  [2e-12]
                                # and th_o = 0 axisymmetry                                 [0]
-EDGE_ON_LIMIT_RTOL = 1e-7      # th_o = pi/2 image vs th_o = pi/2 - 1e-11                 [target, B6]
+EDGE_ON_LIMIT_RTOL = 1e-7      # th_o = pi/2 image vs th_o = pi/2 - 1e-11 (linear in it)  [1.6e-9]
 CRIT_DOUBLE_ROOT_TOL = 1e-11   # critical curve: |R|/r^4 at the common root of R and R'    [7e-13 at a = 1e-3]
 
 # a coarse grid plus a dense horizontal cut, which crosses the thin mbar = 2 band
@@ -79,11 +79,7 @@ def test_nmax_counts_crossings(a, th_o):
 
 
 @pytest.mark.parametrize("a", [0.3, 0.94])
-@pytest.mark.parametrize("th_o", [
-    0.3, 1.2, 2.2,
-    pytest.param(np.pi/2, marks=xfail_until(
-        "B6", "th_o = pi/2 rejected; theta_momentum_sign has no branch for pi/2")),
-])
+@pytest.mark.parametrize("th_o", [0.3, 1.2, 2.2, np.pi/2])
 @pytest.mark.parametrize("mbar", [0, 1, 2])
 def test_momentum_signs(a, th_o, mbar):
     """Forward-time signs of k^r and k_theta at the mbar-th crossing match the geodesic:
@@ -100,9 +96,9 @@ def test_momentum_signs(a, th_o, mbar):
     clear = np.abs(dr) > 1e-12*r_s[hit]      # not at a radial turning point
 
     kr_sign = radial_momentum_sign(a, th_o, alpha, beta, Ir, Imax)
-    kth_sign = theta_momentum_sign(th_o, mbar)
+    kth_sign = theta_momentum_sign(th_o, mbar, beta)     # beta needed only edge-on
     np.testing.assert_array_equal(kr_sign[clear], -np.sign(dr[clear]))
-    np.testing.assert_array_equal(np.full(len(dth), kth_sign), -np.sign(dth))
+    np.testing.assert_array_equal(np.broadcast_to(kth_sign, dth.shape), -np.sign(dth))
 
 
 @pytest.mark.parametrize("a, th_o", [
@@ -147,7 +143,7 @@ def test_critical_curve_double_roots(a, th_o):
     (0.0, 1.0),
     pytest.param(1.0, 1.0, marks=xfail_until("B7", "a = 1 rejected by the input checks")),
     (0.5, 0.0),
-    pytest.param(0.5, np.pi/2, marks=xfail_until("B6", "th_o = pi/2 rejected by the input checks")),
+    (0.5, np.pi/2),
     (0.5, np.pi),
 ])
 def test_make_image_smoke(a, th_o):
@@ -211,7 +207,6 @@ def test_image_face_on_axisymmetric(a, mbar):
     np.testing.assert_allclose(rotated, image, rtol=IMAGE_SYMMETRY_RTOL, atol=0)
 
 
-@xfail_until("B6", "th_o = pi/2 rejected by the input checks")
 @pytest.mark.parametrize("a", [0.0, 0.5, 0.94])
 def test_image_edge_on_limit(a):
     """th_o = pi/2, mbar = 0, defined as the th_o -> pi/2- limit with the tau = 0

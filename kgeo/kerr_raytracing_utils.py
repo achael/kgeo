@@ -782,7 +782,10 @@ def n_equatorial_crossings(a, th_o, alpha, beta, tau):
 
 
         # th_o > pi/2 is the mirror image
-        if th_o < (np.pi/2.):
+        if th_o == 0.5*np.pi:
+            # edge-on: F0 = 0, and the observer's own crossing at tau = 0 is not counted (as in r_equatorial)
+            neq_reg = np.floor(tau_reg*np.sqrt(-a2u_minus)/(2*K)) - 1
+        elif th_o < (np.pi/2.):
             betamask = (beta_reg<=0)
             if np.any(betamask):
                 neq_reg[:,betamask] = (np.floor((tau_reg*np.sqrt(-a2u_minus) - F0) / (2*K)))[:,betamask]
@@ -932,9 +935,7 @@ def is_outside_crit(a, th_o, alpha, beta):
 
     # checks
     check_spin(a)
-    # TODO: re-enable once check_inclination accepts th_o in [0,pi] (B5/B6);
-    # until then it would reject th_o = pi/2, where this function already works
-    #check_inclination(th_o)
+    check_inclination(th_o)
     if not isinstance(alpha, np.ndarray): alpha = np.array([alpha]).flatten()
     if not isinstance(beta, np.ndarray): beta = np.array([beta]).flatten()
     if len(alpha) != len(beta):

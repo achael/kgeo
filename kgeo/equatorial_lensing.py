@@ -165,7 +165,15 @@ def r_equatorial(a, r_o, th_o, mbar, alpha, beta):
 
         # TODO: is this right for th_o > pi/2 ???
         # TODO: shouldn't duplicate function in n_equatorial_crossings!
-        if th_o < (np.pi/2.):
+        if th_o == 0.5*np.pi:
+            # edge-on: F0 = 0, and the observer's own crossing at tau = 0 is not counted,
+            # so the mbar-th crossing is at 2(mbar+1)K for either sign of beta
+            # (the limit th_o -> pi/2 from the side the ray starts toward)
+            m = mbar + 1
+            Nmax_reg = np.floor(Imax_reg*np.sqrt(-a2u_minus)/(2*K)) - 1
+            Ir_reg = 2*m*K/np.sqrt(-a2u_minus)
+
+        elif th_o < (np.pi/2.):
 
             # which subring are we in?
             m = mbar + np.heaviside(beta_reg, 0)

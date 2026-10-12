@@ -184,7 +184,7 @@ def Iobs(a, r_o, th_o, mbar, alpha, beta,
         # get momentum signs
         ###############################
         kr_sign = radial_momentum_sign(a, th_o, alpha[~zeromask], beta[~zeromask], Ir[~zeromask], Imax[~zeromask])
-        kth_sign = theta_momentum_sign(th_o, mbar)
+        kth_sign = theta_momentum_sign(th_o, mbar, beta[~zeromask])
 
         ###############################
         # get velocity and redshift
@@ -285,8 +285,10 @@ def radial_momentum_sign(a, th_o, alpha, beta, Ir, Irmax):
 
     return sign
 
-def theta_momentum_sign(th_o, mbar):
+def theta_momentum_sign(th_o, mbar, beta=None):
     """Determine the sign of the theta component of the photon momentum
+       at the mbar-th equatorial crossing. Edge-on (th_o = pi/2) it depends on the
+       sign of beta, which must then be given.
        TODO: this works for equatorial crossings. do this based on mino time instead?"""
 
     # checks
@@ -299,6 +301,11 @@ def theta_momentum_sign(th_o, mbar):
         sign = -1*np.power(-1, np.mod(mbar,2))
     elif th_o > 0.5*np.pi:
         sign = 1*np.power(-1, np.mod(mbar,2))
+    else:
+        # edge-on: beta > 0 rays start north, as for th_o < pi/2; beta < 0 rays south, as for th_o > pi/2
+        if beta is None:
+            raise Exception("theta_momentum_sign needs beta at th_o = pi/2")
+        sign = -np.where(np.asarray(beta)>=0, 1, -1)*np.power(-1, np.mod(mbar,2))
     return sign
 
 def calc_redshift(a, r, lam, eta, kr_sign, kth_sign, u0, u1, u2, u3, th=np.pi/2):
