@@ -1,17 +1,14 @@
-# Make an image of subring order for M87 type models
-import numpy as np
-import ehtim as eh
-import matplotlib.pyplot as plt
-from kgeo.equatorial_images import make_image
-from kgeo.bfields import Bfield
-from kgeo.velocities import Velocity
-from kgeo.emissivities import Emissivity
-import ehtplot
-from scipy.interpolate import interp1d, interp2d, RectBivariateSpline
-import matplotlib
-import matplotlib.gridspec as gridspec
-import matplotlib.lines as lines
+# Make images of subring order for M87 type models:
+# equatorial crossings (nmax_equatorial), poloidal orbits (nmax_poloidal) and polar turning points (n_angular_turnings)
 import os
+
+import ehtim as eh
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+
+from kgeo.equatorial_lensing import nmax_equatorial, nmax_poloidal
+from kgeo.kerr_raytracing_utils import mino_total, n_angular_turnings, obs_trig, radial_roots
 
 ##general preamble
 matplotlib.rcdefaults()
@@ -24,76 +21,63 @@ plt.rc('text', usetex=True)
 # file label
 outfile = './m87_nrings.pdf'
 label='nring'
-save_image = False
-display_image = False
+save_pdf = False      # save the nmax_equatorial plot
+save_fits = False     # save the nmax_equatorial image
+display_image = True
 
 # source and image parameters
 source = 'M87'
 MoD = 3.77883459  # this is what was used for M/D in uas for the M87 simulations
-ra = 12.51373 
-dec = 12.39112 
-flux230 = 0.6     # total flux
+ra = 12.51373
+dec = 12.39112
 npix = 1024        # number of pixels
 amax = 15         # maximum alpha,beta in R
-f0 = 1            # scaling factor for n=0 flux
-f1 = 1            # scaling factor for n=1 flux
-f2 = 1            # scaling factor for n>=2 flux
-nmax = 4          # maximum subring number
-rotation = 90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
 
 # bh and observer parameters
-th_o = 163*np.pi/180.  # inclination angle, does not work for th0=0 exactly!
-spin = 0.5           # black hole spin, does not work for a=0 or a=1 exactly!
+th_o = 163*np.pi/180.  # inclination angle
+spin = 0.5           # black hole spin
 r_o = np.inf          # outer radius
-rh = 1+np.sqrt(1-spin**2)
 
-# emissivity
-#emissivity = Emissivity("ring", r_ring=4, sigma=0.3, emiscut_in=3.5, emiscut_out=4.5)
-#emissivity = Emissivity("ring", r_ring=6, sigma=0.3, emiscut_in=5.5, emiscut_out=6.5)
-#emissivity = Emissivity("glm", sigma=0.5, gamma_off=-1)
-emissivity = Emissivity("bpl", p1=-2.0, p2=-0.5)
-specind = 1
-
-# velocity
-#velocity = Velocity('simfit')
-#velocity = Velocity('gelles', gelles_beta=0.3, gelles_chi=-120*np.pi/180.)
-#velocity = Velocity('subkep', retrograde=True, fac_subkep=0.7)
-velocity = Velocity('general', retrograde=False, fac_subkep=0.7, beta_phi=0.7, beta_r=0.7)
-
-# bfield 
-polarization = False
-#bfield = Bfield("simple", Cr=0.87, Cvert=0, Cph=0.5)
-#bfield = Bfield("simple_rm1", Cr=0.87, Cvert=0, Cph=0.5) 
-#bfield = Bfield("const_comoving", Cr=0.5, Cvert=0, Cph=0.87) 
-#bfield = Bfield("bz_monopole",C=1)
-bfield = Bfield("bz_guess",C=1)
-
-# generate the equatorial model image arrays
+# pixel grid, as in make_image
 psize = 2.*amax/npix
 psize_rad = psize*MoD*eh.RADPERUAS
-imagedat = make_image(spin,r_o, th_o, nmax, -amax, amax, -amax, amax, psize,
-                      nmax_only=False,
-                      emissivity=emissivity,velocity=velocity, bfield=bfield,
-                      polarization=polarization, specind=specind)
-                      
-(outarr_I, outarr_Q, outarr_U, outarr_r, outarr_t, outarr_g, outarr_sinthb, outarr_n, outarr_np) = imagedat
+n_alpha = int(np.floor(2*amax)/psize)
+alphas = np.linspace(-amax, -amax+n_alpha*psize, n_alpha)
+alpha_arr, beta_arr = np.meshgrid(alphas, alphas)
+alpha_arr = alpha_arr.flatten()
+beta_arr = beta_arr.flatten()
+
+# maximum number of equatorial crossings (integer index, -1 if none, -2 vortical)
+outarr_n = nmax_equatorial(spin, r_o, th_o, alpha_arr, beta_arr)
+
+# fractional number of poloidal orbits (-2 vortical)
+outarr_np = nmax_poloidal(spin, r_o, th_o, alpha_arr, beta_arr)
+
+# fractional number of polar turning points, at the total Mino time
+sin_o, cos_o = obs_trig(th_o)
+lam = -alpha_arr*sin_o
+eta = (alpha_arr**2 - spin**2)*cos_o**2 + beta_arr**2
+(r1,r2,r3,r4,rclass) = radial_roots(spin,lam,eta)
+Imax = mino_total(spin, r_o, eta, r1, r2, r3, r4)
+outarr_nt = n_angular_turnings(spin, th_o, alpha_arr, beta_arr, Imax)
 
 # make a image of the subring number and save
 narr = np.flipud(outarr_n.reshape(npix,npix))   # number of equatorial crossings
 imn = eh.image.Image(narr, psize_rad, ra, dec)
 imn.source = source
-if save_image: imn.save_fits('./m87_model_%s_n.fits'%label)
+if save_fits: imn.save_fits('./m87_model_%s_n.fits'%label)
 
 #define custom colorbar
 cmap = matplotlib.colors.ListedColormap(['dimgrey','blue','limegreen','orange','red'])
 bounds = [-0.5,0.5,1.5,2.5,3.5,4.5]
 norm = matplotlib.colors.BoundaryNorm(bounds,cmap.N)
 
+# continuous colorbar
+cmap_cont = matplotlib.colormaps['viridis'].with_extremes(under='dimgrey')
+norm_cont = matplotlib.colors.Normalize(vmin=0, vmax=4)
+
 fs = 30
 fs1 = 36
-
-plt.close('all')
-fig=plt.figure(1,figsize=(10,10))
 
 # Scale
 fov = imn.fovx()/eh.RADPERUAS/MoD
@@ -103,44 +87,62 @@ minpix = -fov/2 + pdim/2
 maxpix = fov/2 - pdim/2
 xs = np.linspace(minpix, maxpix, npix)
 
-scalefac = 1
-imarr = 1+imn.imarr()#*scalefac#/1.e10
-imarr[imarr < 1.e-10*np.max(imarr)] = 1.e-10*np.max(imarr) ## FLOOR ?? 
-
 X,Y = np.meshgrid(xs,xs)
 
+def plot_n(imarr, cblabel, discrete=True, fignum=1):
+    fig=plt.figure(fignum,figsize=(10,10))
 
-# linear scale
+    # linear scale
+    ax1=plt.gca()
+    if discrete:
+        imS = plt.pcolormesh(X,Y,imarr,cmap=cmap,norm=norm,shading='gouraud',rasterized=True)
+    else:
+        imS = plt.pcolormesh(X,Y,imarr,cmap=cmap_cont,norm=norm_cont,shading='gouraud',rasterized=True)
 
-ax1=plt.gca()
-imS = plt.pcolormesh(X,Y,imarr,cmap=cmap,norm=norm,shading='gouraud',rasterized=True)
+    ax1.set_aspect('equal')
+    ax1.set_xlim(-10.,10.)
+    ax1.set_ylim(-10.,10.) # flip up down for 163 deg (invert alpha, since we are rotated 90)
 
-ax1.set_aspect('equal')
-ax1.set_xlim(-10.,10.)
-ax1.set_ylim(-10.,10.) # flip up down for 163 deg (invert alpha, since we are rotated 90)
+    ax1.set_xticks([-10,-5,0,5,10])  # coordinates: TODO make less confusing!
+    ax1.set_xticklabels([r"$-10M$",r"$-5M$",r"$0$",r"$5M$",r"$10M$"])  # coordinates: TODO make less confusing!
+    ax1.set_yticks([-10,-5,0,5,10])  # coordinates: TODO make less confusing!
+    ax1.set_yticklabels([r"$-10M$",r"$-5M$",r"$0$",r"$5M$",r"$10M$"])  # coordinates: TODO make less confusing!
 
-ax1.set_xticks([-10,-5,0,5,10])  # coordinates: TODO make less confusing!
-ax1.set_xticklabels([r"$-10M$",r"$-5M$",r"$0$",r"$5M$",r"$10M$"])  # coordinates: TODO make less confusing!
-ax1.set_yticks([-10,-5,0,5,10])  # coordinates: TODO make less confusing!
-ax1.set_yticklabels([r"$-10M$",r"$-5M$",r"$0$",r"$5M$",r"$10M$"])  # coordinates: TODO make less confusing!
+    ax1.tick_params(axis='both',direction='in',color='w',labelcolor='k',labelsize=fs,length=20,width=2,pad=15)
 
-ax1.tick_params(axis='both',direction='in',color='w',labelcolor='k',labelsize=fs,length=20,width=2,pad=15)
+    ax1.yaxis.set_ticks_position('both')
+    ax1.xaxis.set_ticks_position('both')
+    ax1.set_ylabel(r'$\beta$',fontsize=fs1)
+    ax1.set_xlabel(r'$\alpha$',fontsize=fs1)
 
-ax1.yaxis.set_ticks_position('both')
-ax1.xaxis.set_ticks_position('both')
-ax1.set_ylabel(r'$\beta$',fontsize=fs1)
-ax1.set_xlabel(r'$\alpha$',fontsize=fs1)
+    cax = ax1.inset_axes([1.01, 0.0, 0.05, 1.0])
+    if discrete:
+        cb = matplotlib.colorbar.Colorbar(cax,imS,orientation='vertical',boundaries=bounds,ticks=[0,1,2,3])
+    else:
+        cb = matplotlib.colorbar.Colorbar(cax,imS,orientation='vertical')
 
-cax = ax1.inset_axes([1.01, 0.0, 0.05, 1.0])
-cb = matplotlib.colorbar.Colorbar(cax,imS,orientation='vertical',boundaries=bounds,ticks=[0,1,2,3])
+    cb.set_label(label=cblabel, size=fs1)
+    cb.ax.tick_params(labelsize=fs)
+    cb.set_ticks([0,1,2,3,4])
 
+    cax.yaxis.set_ticks_position('right')
 
-cb.set_label(label=r'$N_{\rm max}$', size=fs1)
-cb.ax.tick_params(labelsize=fs)
-cb.set_ticks([0,1,2,3,4])
+    return fig
 
+plt.close('all')
 
-cax.yaxis.set_ticks_position('right')
+# equatorial crossings: 1 + mbar index = number of crossings
+imarr = 1+imn.imarr()
+imarr[imarr < 1.e-10*np.max(imarr)] = 1.e-10*np.max(imarr) ## FLOOR ??
+plot_n(imarr, r'$N_{\rm max}$', fignum=1)
+if save_pdf: plt.savefig(outfile,bbox_inches='tight')
 
-plt.savefig(outfile,bbox_inches='tight')
+# poloidal orbits and turning points, same orientation as imn.imarr()
+nparr = np.flipud(outarr_np.reshape(npix,npix))
+ntarr = np.flipud(outarr_nt.reshape(npix,npix))
+plot_n(np.floor(nparr), r'$\lfloor n_{\rm pol}\rfloor$', fignum=2)
+plot_n(nparr, r'$n_{\rm pol}$', discrete=False, fignum=3)
+plot_n(np.floor(ntarr), r'$\lfloor n_{\rm turn}\rfloor$', fignum=4)
+plot_n(ntarr, r'$n_{\rm turn}$', discrete=False, fignum=5)
+
 if display_image: plt.show()
