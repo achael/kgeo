@@ -245,6 +245,19 @@ def test_principal_null_congruence_near_degenerate(a, th_o):
     _assert_constant_theta_matches_quad(a, th_o, 1, alpha=alpha)
 
 
+@xfail_until("B9", "a few ulps inside the equatorial PNC pixel (alpha = -a + k ulp, beta = 0, th_o = pi/2) "
+                   "zeta ~ 1e-31 and eta = 0, all four radial roots within ~1e-8 of r = 0: t, sigma (often phi, r) NaN")
+@pytest.mark.parametrize("k", [2, 8])
+@pytest.mark.parametrize("a", [0.1, 0.5, 0.94])
+def test_equatorial_pnc_near_degenerate(a, k):
+    """Edge-on, the PNC pixel alpha = -a, beta = 0 has zeta = eta = 0, so R = r^4 (B3's closed form);
+    a few ulps inside it zeta ~ 1e-31 is not exactly 0."""
+    alpha = -a + k*np.spacing(a)
+    geo = trace(a, np.pi/2, [alpha], [0.], ngeo=40, r_o=R_O)
+    assert all(np.all(np.isfinite(geo[n])) for n in ('t', 'r', 'th', 'ph', 'sig'))
+    _assert_matches_ode(a, np.pi/2, alpha, 0., check_t=True)
+
+
 @pytest.mark.parametrize("a", [0.0, 0.5, 0.94])
 @pytest.mark.parametrize("alpha, beta", [(6.0, 2.0), (-5.0, -4.0), (2.0, 3.0), (-1.26, 0.1)])
 def test_edge_on_observer(a, alpha, beta):
