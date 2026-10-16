@@ -20,3 +20,16 @@ build/*
 gsl_ellip.c
 toms_ellip_binding.py
 toms5777*
+
+# macOS
+.DS_Store
+
+# local experimental scripts / patches
+/generate_semianalytic_image.py
+kgeo/equatorial_images_fluid_bfield_patch.py
+scripts/first_image.py
+scripts/samik_model_BandU.py
+
+# generated images / fits files
+*.png
+*.fits
