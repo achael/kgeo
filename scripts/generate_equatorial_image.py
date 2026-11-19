@@ -26,7 +26,7 @@ amax = 15         # maximum alpha,beta in R
 f0 = 1            # scaling factor for n=0 flux
 f1 = 1            # scaling factor for n=1 flux
 f2 = 1            # scaling factor for n>=2 flux
-nmax = 2          # maximum subring number
+nmax = 3          # maximum subring number
 rotation = 0#-90*eh.DEGREE  # rotation angle, for m87 prograde=90,retrograde=-90 (used in display only)
 polarization = True      # make polarized image or not
 pathlength = True        # include disk pathlength factor or not

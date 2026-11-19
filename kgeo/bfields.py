@@ -43,7 +43,7 @@ class Bfield:
 
         if self.fieldtype in ['rad', 'vert', 'tor', 'simple', 'simple_rm1',
                               'monopoleA', 'bz_monopole', 'bz_guess',
-                              'bz_para', 'power', 'get_power', 'fromfile', 'fromdict']:
+                              'bz_para', 'power', 'gen_power', 'fromfile', 'fromdict']:
             self.fieldframe = 'lab'
         elif self.fieldtype in ['const_comoving']:
             self.fieldframe = 'comoving'
@@ -118,9 +118,6 @@ class Bfield:
             b_components = (B1,B2,B3)
         elif self.fieldtype=='bz_para':
             (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C, shift=self.shift)
-            b_components = (B1,B2,B3)
-        elif self.fieldtype == 'bz_para':
-            (B1,B2,B3,omega) = Bfield_BZpara(a, r, th, self.C)
             b_components = (B1,B2,B3)
         elif self.fieldtype == 'bz_guess':
             (B1,B2,B3,omega) = Bfield_BZmagic(a, r, th, self.C)
